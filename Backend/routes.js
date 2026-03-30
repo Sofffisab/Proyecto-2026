@@ -3,7 +3,14 @@ import multer from "multer";
 
 const upload = multer();
 
-const setuprouter = ({ login, signup, updateuserprofile, authentication, deleteaccount, getcurrentuser }) => {
+const setuprouter = ({
+  login,
+  signup,
+  updateuserprofile,
+  authentication,
+  deleteaccount,
+  getcurrentuser,
+}) => {
   const router = Router();
 
   router.get("/", (req, res) => {
@@ -25,7 +32,12 @@ const setuprouter = ({ login, signup, updateuserprofile, authentication, deletea
   router.post("/users/login", upload.none(), login);
   router.post("/users/signup", upload.single("foto_perfil"), signup);
   router.get("/api/users/me", authentication, getcurrentuser);
-  router.put("/api/users/me", authentication, upload.none(), updateuserprofile);
+  router.put(
+    "/api/users/me",
+    authentication,
+    upload.single("foto_perfil"), // allows optional photo update
+    updateuserprofile
+  );
   router.delete("/api/users/me", authentication, deleteaccount);
 
   return router;

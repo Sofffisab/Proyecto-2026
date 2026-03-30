@@ -2,23 +2,34 @@ import { prisma } from "../prisma/prisma.js";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 
+const TOKEN_EXPIRY = "30d"; 
+
+const photoToBase64 = (photo) =>
+  photo
+    ? `data:image/jpeg;base64,${Buffer.from(photo).toString("base64")}`
+    : null;
+
 const setupsessions = (JWT_SECRET) => {
+  const signToken = (user) =>
+    jwt.sign(
+      { userId: user.id, mail: user.mail, name: user.name },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
   const login = async (req, res) => {
     const { usuarioI, mailI, contraseniaP } = req.body;
-    let userData;
+
+    if (!contraseniaP || (!mailI && !usuarioI)) {
+      return res.status(400).json({ error: "Required fields are missing" });
+    }
 
     try {
-      if (mailI) {
-        userData = await prisma.user.findUnique({
-          where: { mail: mailI },
-        });
-      } else if (usuarioI) {
-        userData = await prisma.user.findUnique({
-          where: { user: usuarioI },
-        });
-      }
+      const userData = await prisma.user.findUnique({
+        where: mailI ? { mail: mailI } : { user: usuarioI },
+      });
 
-      if (!userData || !contraseniaP) {
+      if (!userData) {
         return res.status(401).json({ error: "Wrong data" });
       }
 
@@ -27,69 +38,36 @@ const setupsessions = (JWT_SECRET) => {
         return res.status(401).json({ error: "Wrong data" });
       }
 
-      const token = jwt.sign(
-        {
-          userId: userData.id,
-          mail: userData.mail,
-          name: userData.name,
-        },
-        JWT_SECRET,
-        { expiresIn: "8h" }
-      );
-
       res.status(200).json({
         message: "Logged in successfully",
-        token,
-        photo: userData.photo
-          ? `data:image/jpeg;base64,${Buffer.from(userData.photo).toString("base64")}`
-          : null,
+        token: signToken(userData),
+        photo: photoToBase64(userData.photo),
       });
     } catch (error) {
-      console.error("Unsuccessful login:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        retry: true,
-      });
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Internal Server Error", retry: true });
     }
   };
 
   const signup = async (req, res) => {
     const { user, name, mail, contraseniaPrior } = req.body;
-    const photoBuffer = req.file?.buffer;
+    const photoBuffer = req.file?.buffer ?? null;
+
+    if (!user || !name || !mail || !contraseniaPrior) {
+      return res.status(400).json({ error: "Required fields are missing" });
+    }
 
     try {
-      if (!user || !name || !mail || !contraseniaPrior) {
-        return res.status(400).json({ error: "Required fields are missing" });
-      }
-
       const hashedPassword = await argon2.hash(contraseniaPrior);
 
       const newUser = await prisma.user.create({
-        data: {
-          user,
-          name,
-          mail,
-          password: hashedPassword,
-          photo: photoBuffer || null,
-        },
+        data: { user, name, mail, password: hashedPassword, photo: photoBuffer },
       });
-
-      const token = jwt.sign(
-        {
-          userId: newUser.id,
-          mail: newUser.mail,
-          name: newUser.name,
-        },
-        JWT_SECRET,
-        { expiresIn: "8h" }
-      );
 
       res.status(201).json({
         message: "User created successfully",
-        token,
-        photo: newUser.photo
-          ? `data:image/jpeg;base64,${Buffer.from(newUser.photo).toString("base64")}`
-          : null,
+        token: signToken(newUser),
+        photo: photoToBase64(newUser.photo),
       });
     } catch (error) {
       if (error.code === "P2002") {
@@ -99,41 +77,47 @@ const setupsessions = (JWT_SECRET) => {
           suggestion: "Use a different email address or username",
         });
       }
-      console.error("Error signing up:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        details: error.message,
-        retry: true,
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Internal Server Error", retry: true });
+    }
+  };
+
+  const getcurrentuser = async (req, res) => {
+    try {
+      const userData = await prisma.user.findUnique({
+        where: { id: req.personaId },
+        select: { id: true, user: true, name: true, mail: true, photo: true },
       });
+
+      if (!userData) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.status(200).json({ ...userData, photo: photoToBase64(userData.photo) });
+    } catch (error) {
+      console.error("Get current user error:", error);
+      res.status(500).json({ error: "Internal Server Error", retry: true });
     }
   };
 
   const updateuserprofile = async (req, res) => {
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({ error: "No data provided in request body" });
+    const { user, name } = req.body ?? {};
+    const photoBuffer = req.file?.buffer;
+
+    if (!user && !name && !photoBuffer) {
+      return res.status(400).json({ error: "No data provided to update" });
     }
 
-    const userId = req.personaId; // Assuming your middleware still attaches it here
-    const { user, name } = req.body;
+    const updateData = {};
+    if (user) updateData.user = user;
+    if (name) updateData.name = name;
+    if (photoBuffer) updateData.photo = photoBuffer;
 
     try {
-      if (!user && !name) {
-        return res.status(400).json({ error: "No data provided to update" });
-      }
-
-      const updateData = {};
-      if (user) updateData.user = user;
-      if (name) updateData.name = name;
-
       const updatedUser = await prisma.user.update({
-        where: { id: userId },
+        where: { id: req.personaId },
         data: updateData,
-        select: {
-          id: true,
-          user: true,
-          name: true,
-          mail: true,
-        },
+        select: { id: true, user: true, name: true, mail: true },
       });
 
       res.status(200).json({
@@ -144,73 +128,27 @@ const setupsessions = (JWT_SECRET) => {
       if (error.code === "P2002") {
         return res.status(409).json({ error: "Username already taken" });
       }
-      console.error("Error updating user profile:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        retry: true,
-      });
-    }
-  };
-
-  const getcurrentuser = async (req, res) => {
-    const userId = req.personaId;
-
-    try {
-      const userData = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          user: true,
-          name: true,
-          mail: true,
-          photo: true,
-        },
-      });
-
-      if (!userData) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const userResponse = {
-        ...userData,
-        photo: userData.photo
-          ? `data:image/jpeg;base64,${Buffer.from(userData.photo).toString("base64")}`
-          : null,
-      };
-
-      res.status(200).json(userResponse);
-    } catch (error) {
-      console.error("Error getting current user:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        retry: true,
-      });
+      console.error("Update profile error:", error);
+      res.status(500).json({ error: "Internal Server Error", retry: true });
     }
   };
 
   const deleteaccount = async (req, res) => {
-    const userId = req.personaId;
-
     try {
       const userData = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: req.personaId },
       });
 
       if (!userData) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      await prisma.user.delete({
-        where: { id: userId },
-      });
+      await prisma.user.delete({ where: { id: req.personaId } });
 
       res.status(200).json({ message: "Account deleted successfully" });
     } catch (error) {
-      console.error("Error deleting account:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        retry: true,
-      });
+      console.error("Delete account error:", error);
+      res.status(500).json({ error: "Internal Server Error", retry: true });
     }
   };
 
