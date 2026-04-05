@@ -1,15 +1,18 @@
 import { Router } from "express";
 import multer from "multer";
 
-const upload = multer();
+const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
 const setuprouter = ({
   login,
   signup,
+  refreshtoken,
   updateuserprofile,
   authentication,
   deleteaccount,
   getcurrentuser,
+  updatepushtoken,
+  refreshLimiter,
 }) => {
   const router = Router();
 
@@ -21,8 +24,10 @@ const setuprouter = ({
         auth: [
           "POST /users/login",
           "POST /users/signup",
+          "POST /users/refresh",
           "GET /api/users/me",
           "PUT /api/users/me",
+          "PUT /api/users/pushToken",
           "DELETE /api/users/me",
         ],
       },
@@ -30,14 +35,16 @@ const setuprouter = ({
   });
 
   router.post("/users/login", upload.none(), login);
-  router.post("/users/signup", upload.single("foto_perfil"), signup);
+  router.post("/users/signup", upload.single("profilePhoto"), signup);
+  router.post("/users/refresh", refreshLimiter, upload.none(), refreshtoken);
   router.get("/api/users/me", authentication, getcurrentuser);
   router.put(
     "/api/users/me",
     authentication,
-    upload.single("foto_perfil"), // allows optional photo update
+    upload.single("profilePhoto"), // allows optional photo update
     updateuserprofile
   );
+  router.put("/api/users/pushToken", authentication, upload.none(), updatepushtoken);
   router.delete("/api/users/me", authentication, deleteaccount);
 
   return router;

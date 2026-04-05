@@ -45,20 +45,26 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Rate limiting covers both /api/ and /users/ (login + signup)
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
+
+// Stricter rate limit for refresh token endpoint (critical security endpoint)
+const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3 });
 app.use("/api/", limiter);
 app.use("/users/", limiter);
 
-const { login, signup, updateuserprofile, deleteaccount, getcurrentuser } =
+const { login, signup, refreshtoken, updateuserprofile, deleteaccount, getcurrentuser, updatepushtoken } =
   setupsessions(JWT_SECRET);
 const { authentication } = setupauthentication(JWT_SECRET);
 const router = setuprouter({
   login,
   signup,
+  refreshtoken,
   updateuserprofile,
   authentication,
   deleteaccount,
   getcurrentuser,
+  updatepushtoken,
+  refreshLimiter,
 });
 
 app.use(router);

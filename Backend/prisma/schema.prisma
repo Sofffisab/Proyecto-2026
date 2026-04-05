@@ -8,10 +8,71 @@ datasource db {
 }
 
 model User {
+  id        Int    @id @default(autoincrement())
+  email     String @unique
+  name      String
+  password  String
+  username  String @unique
+  photo     Bytes?
+  pushToken String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  points    Int
+  goalDistance Int
+
+  qrs      QRS[]
+  asistencias  Asistencia[]
+  settings  Settings[]
+}
+
+
+
+
+
+
+
+
+
+model Settings {
+  id      Int   @id @default(autoincrement())
+  id_user    Int
+  type       String
+  change     String
+
+
+  user       User    @relation(fields: [id_user], references: [id])
+}
+
+model Machine {
+  id      Int   @id @default(autoincrement())
+  name    String
+
+
+  qrs     QRS[]
+}
+
+model QRS {
+  id         Int      @id @default(autoincrement())
+  qr         Bytes    
+  id_user    Int?
+  id_machine Int?
+ 
+  user       User?    @relation(fields: [id_user], references: [id])
+  machine    Machine? @relation(fields: [id_machine], references: [id])
+}
+
+model Asistencia {
+  id            Int      @id @default(autoincrement())
+  id_persona    Int
+  fecha         DateTime @db.Date
+  hora_llegada  DateTime @db.Time
+  hora_salida   DateTime? @db.Time
+
+
+  persona       User     @relation(fields: [id_persona], references: [id])
+}
+
+model Records {
   id       Int    @id @default(autoincrement())
-  mail     String @unique
-  name     String
-  password String
-  user     String @unique
-  photo    Bytes?
 }

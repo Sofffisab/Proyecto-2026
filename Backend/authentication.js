@@ -11,7 +11,7 @@ const setupauthentication = (JWT_SECRET) => {
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      req.personaId = decoded.userId;
+      req.userId = decoded.userId;
       next();
     } catch {
       return res.status(401).json({ error: "Invalid token" });
