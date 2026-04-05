@@ -8,71 +8,82 @@ datasource db {
 }
 
 model User {
-  id        Int    @id @default(autoincrement())
-  email     String @unique
-  name      String
-  password  String
-  username  String @unique
-  photo     Bytes?
-  pushToken String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
+  password     String
+  username     String   @unique
+  photo        Bytes?
+  pushToken    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  points    Int
-  goalDistance Int
+  points       Int @default(0)
+  goalDistance Int @default(0)
 
-  qrs      QRS[]
-  asistencias  Asistencia[]
-  settings  Settings[]
+  qrs          QRS[]
+  attendance   Attendance[]
+  userData     UserData?
 }
 
+model UserData {
 
+  id      Int     @id @default(autoincrement())
+  userId  Int     @unique
 
+  // Personal form fields
+  age     Int?
+  weight  Float?
+  height  Float?
+  gender  Gender?
+  goal    Goal?
 
+  type    String?
+  change  String?
 
+  socialization    Boolean @default(true)
+  requiresTrainer  Boolean @default(true)
 
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
 
-
-model Settings {
-  id      Int   @id @default(autoincrement())
-  id_user    Int
-  type       String
-  change     String
-
-
-  user       User    @relation(fields: [id_user], references: [id])
+enum Goal {
+  LOSE_WEIGHT
+  BUILD_MUSCLE
+  MAINTAIN
+  TONE
 }
 
 model Machine {
-  id      Int   @id @default(autoincrement())
-  name    String
+  id   Int    @id @default(autoincrement())
+  name String
 
-
-  qrs     QRS[]
+  qrs  QRS[]
 }
 
 model QRS {
-  id         Int      @id @default(autoincrement())
-  qr         Bytes    
-  id_user    Int?
-  id_machine Int?
- 
-  user       User?    @relation(fields: [id_user], references: [id])
-  machine    Machine? @relation(fields: [id_machine], references: [id])
+  id        Int      @id @default(autoincrement())
+  qr        Bytes
+  userId    Int?
+  machineId Int?
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  machine   Machine? @relation(fields: [machineId], references: [id], onDelete: SetNull)
 }
 
-model Asistencia {
-  id            Int      @id @default(autoincrement())
-  id_persona    Int
-  fecha         DateTime @db.Date
-  hora_llegada  DateTime @db.Time
-  hora_salida   DateTime? @db.Time
+model Attendance {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  date         DateTime  @db.Date
+  checkInTime  DateTime  @db.Time
+  checkOutTime DateTime? @db.Time
 
-
-  persona       User     @relation(fields: [id_persona], references: [id])
-}
-
-model Records {
-  id       Int    @id @default(autoincrement())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

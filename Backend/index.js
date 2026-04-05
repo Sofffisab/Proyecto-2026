@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import cors from "cors";
 import setuprouter from "./routes.js";
 import setupsessions from "./sessions/sessions.js";
+import setupuserdata from "./sessions/userdata.js";
 import setupauthentication from "./authentication.js";
 
 dotenv.config();
@@ -55,8 +56,10 @@ app.use("/users/", limiter);
 const { login, signup, refreshtoken, updateuserprofile, deleteaccount, getcurrentuser, updatepushtoken } =
   setupsessions(JWT_SECRET);
 const { authentication } = setupauthentication(JWT_SECRET);
+const { getuserdata, createuserdata, updateuserdata } = setupuserdata();
 const router = setuprouter({
   login,
+
   signup,
   refreshtoken,
   updateuserprofile,
@@ -64,6 +67,9 @@ const router = setuprouter({
   deleteaccount,
   getcurrentuser,
   updatepushtoken,
+  getuserdata,
+  createuserdata,
+  updateuserdata,
   refreshLimiter,
 });
 
@@ -99,6 +105,7 @@ server.on("error", (err) => {
 const shutdown = async () => {
   await prisma.$disconnect();
   process.exit(0);
+
 };
 
 process.on("SIGINT", shutdown);

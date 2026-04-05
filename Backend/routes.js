@@ -12,6 +12,9 @@ const setuprouter = ({
   deleteaccount,
   getcurrentuser,
   updatepushtoken,
+  getuserdata,
+  createuserdata,
+  updateuserdata,
   refreshLimiter,
 }) => {
   const router = Router();
@@ -30,11 +33,17 @@ const setuprouter = ({
           "PUT /api/users/pushToken",
           "DELETE /api/users/me",
         ],
+        userData: [
+          "GET /api/users/me/data",
+          "POST /api/users/me/data",
+          "PUT /api/users/me/data",
+        ],
       },
     });
   });
 
   router.post("/users/login", upload.none(), login);
+
   router.post("/users/signup", upload.single("profilePhoto"), signup);
   router.post("/users/refresh", refreshLimiter, upload.none(), refreshtoken);
   router.get("/api/users/me", authentication, getcurrentuser);
@@ -46,6 +55,11 @@ const setuprouter = ({
   );
   router.put("/api/users/pushToken", authentication, upload.none(), updatepushtoken);
   router.delete("/api/users/me", authentication, deleteaccount);
+
+  // UserData routes (personal form + configuration)
+  router.get("/api/users/me/data", authentication, upload.none(), getuserdata);
+  router.post("/api/users/me/data", authentication, upload.none(), createuserdata);
+  router.put("/api/users/me/data", authentication, upload.none(), updateuserdata);
 
   return router;
 };

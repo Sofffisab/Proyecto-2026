@@ -11,8 +11,6 @@ const photoToBase64 = (photo) =>
     : null;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// FCM token: ~150+ chars, alphanumeric + hyphen/underscore
-// APNs token: 64 hex chars
 const PUSH_TOKEN_REGEX = /^([a-zA-Z0-9_-]{140,}|[a-fA-F0-9]{64})$/;
 
 const validateEmail = (email) => EMAIL_REGEX.test(email);
