@@ -1,5 +1,3 @@
-// src/components/trainer/MemberCard.js
-
 import { View, Text, StyleSheet } from 'react-native';
 import Card from '../common/Card';
 import globals from '../../styles/globals';
@@ -10,6 +8,7 @@ import globals from '../../styles/globals';
  * Props:
  * - member (object): { name, machine, goal, lastHelped, wantsHelp }
  */
+
 function MemberCard({ member }) {
   return (
     <Card>

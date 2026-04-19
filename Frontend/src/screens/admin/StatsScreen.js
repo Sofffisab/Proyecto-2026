@@ -4,25 +4,30 @@ import Button from '../../components/common/Button';
 import globals from '../../styles/globals';
 
 /**
- * Pantalla de configuracion del entrenador.
+ * Pantalla de estadisticas generales del gimnasio (Admin).
  */
-function TrainerSettingsScreen({ navigation }) {
+function AdminStatsScreen({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mi perfil (Entrenador)</Text>
+      <Text style={styles.title}>Estadisticas</Text>
 
       <Card>
-        <Text style={styles.label}>Nombre</Text>
-        <Text style={styles.value}>Entrenador Ejemplo</Text>
+        <Text style={styles.label}>Miembros activos</Text>
+        <Text style={styles.value}>0</Text>
       </Card>
 
       <Card>
-        <Text style={styles.label}>Especialidad</Text>
-        <Text style={styles.value}>No definida</Text>
+        <Text style={styles.label}>Entrenadores activos</Text>
+        <Text style={styles.value}>0</Text>
       </Card>
 
       <Card>
-        <Text style={styles.label}>Reviews recibidas</Text>
+        <Text style={styles.label}>Maquinas en uso ahora</Text>
+        <Text style={styles.value}>0</Text>
+      </Card>
+
+      <Card>
+        <Text style={styles.label}>Puntos totales otorgados</Text>
         <Text style={styles.value}>0</Text>
       </Card>
 
@@ -48,9 +53,10 @@ const styles = StyleSheet.create({
     marginBottom: globals.spacing.xs,
   },
   value: {
-    fontSize: globals.fontSize.md,
-    color: globals.colors.text,
+    fontSize: globals.fontSize.lg,
+    fontWeight: 'bold',
+    color: globals.colors.primary,
   },
 });
 
-export default TrainerSettingsScreen;
+export default AdminStatsScreen;

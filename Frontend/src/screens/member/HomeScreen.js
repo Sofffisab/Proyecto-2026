@@ -1,5 +1,3 @@
-// src/screens/member/HomeScreen.js
-
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';

@@ -1,5 +1,3 @@
-// src/components/admin/TrainerCard.js
-
 import { View, Text, StyleSheet } from 'react-native';
 import Card from '../common/Card';
 import globals from '../../styles/globals';
