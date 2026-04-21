@@ -1,0 +1,16 @@
+.ECuadrado{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-direction: column;    
+    width: 100%;
+    height: 200px;
+    
+}
+
+.Cuadrado{
+    width: 90%;
+    height: 100px;
+    background-color: black;
+}
