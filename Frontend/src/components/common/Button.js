@@ -54,5 +54,5 @@ const styles = StyleSheet.create({
     color: globals.colors.secondary,
   },
 });
-
+   
 export default Button;
