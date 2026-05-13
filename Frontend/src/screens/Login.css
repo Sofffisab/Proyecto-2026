@@ -1,0 +1,67 @@
+.imagen{
+    display: flex;
+    height: 150px;
+    width: 150px;
+    background-color: green;
+    border-radius: 100px;
+    justify-content: center;
+}
+
+.Eimagen, .h1{
+    display: flex;
+    justify-content: center;
+}
+
+.texto{
+    display: flex;
+    flex-direction: row;
+    justify-content: end;
+    gap: 475px;
+}
+
+.Guardar{
+    color: aqua;
+}
+
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+    margin: 10px;
+  }
+  
+  .btn {
+    padding: 10px 15px;
+    width: 500px;
+    cursor: pointer;
+  }
+  
+  .menu {
+    display: none;
+  
+    position: absolute;
+    top: 45px;
+    left: 0;
+  
+    background: white;
+    padding: 10px;
+  
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  
+  .menu.active {
+    display: block;
+  }
+  
+  input {
+    padding: 8px;
+    width: 500px;
+    border-radius: 6px;
+  }
+
+  .Edropdown{
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+  }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="Login.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="texto">
+        <h1 class="h1">Editar perfil</h1>
+        <h1 class="Guardar">Guardar</h1>
+    </div>
+
+    <div class="Eimagen">
+        <div class="imagen"></div>
+    </div>
+
+
+    <div class="Edropdown">
+        <div class="dropdown">
+            <button class="btn">Abrir 1</button>
+
+            <div class="menu">
+                <input type="text" placeholder="Escribí algo 1...">
+            </div>
+        </div>
+
+        
+    </div>
+
+
+
+    <script>
+const botones = document.querySelectorAll(".btn");
+
+botones.forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    const menu = btn.nextElementSibling;
+    menu.classList.toggle("active");
+
+    e.stopPropagation();
+  });
+});
+
+// cerrar SOLO si haces click afuera del dropdown
+document.addEventListener("click", () => {
+  document.querySelectorAll(".menu").forEach(menu => {
+    menu.classList.remove("active");
+  });
+});
+
+// EVITAR que el click dentro del dropdown lo cierre
+document.querySelectorAll(".dropdown").forEach(drop => {
+  drop.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+});
+</script>
+
+
+</body>
+
+</html>
