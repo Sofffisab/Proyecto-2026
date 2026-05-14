@@ -25,20 +25,21 @@
 
 
 .dropdown {
+    display: flex;
     position: relative;
     display: inline-block;
-    margin: 10px;
+    margin: 0px;
   }
   
   .btn {
     padding: 10px 15px;
     width: 500px;
     cursor: pointer;
+    background-color: white;
   }
   
   .menu {
     display: none;
-  
     position: absolute;
     top: 45px;
     left: 0;
@@ -64,4 +65,10 @@
     display: flex;
     align-items: center;
     flex-direction: column;
+    gap: 0;
   }
+   
+  .EEdropdown{
+   margin-top: 10px;
+  }
+ 
