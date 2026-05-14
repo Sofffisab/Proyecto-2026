@@ -2,7 +2,7 @@
     display: flex;
     height: 150px;
     width: 150px;
-    background-color: green;
+    background-color: #EDECEC;
     border-radius: 100px;
     justify-content: center;
 }
@@ -36,6 +36,7 @@
 .dropdown {
     display: flex;
     display: inline-block;
+    position: relative;
   }
   
   .btn {
