@@ -1,16 +1,16 @@
 # Proyecto-2026
 
-Arrancar el Backend
+Gym management application with user authentication, QR-based check-in, gamification, help requests, progress tracking, and real-time notifications.
 
-1. entrar a la terminal
-2. cd Backend → entra a la carpeta de Backend
-3. npm install → instala los recursos que usa el back
-4. npm run dev → arranca a correr el servidor
+Start Backend
 
-Arrancar el front
+1. Enter terminal and run commands in order
+2. cd Backend
+3. npm install
+4. npm run dev
 
-1. Abrir una nueva terminal
-2. cd Frontend → entra a la carpeta de Frontend
-3. npm install → instala los recursos que usa el front
-4. 
-5. 
+Start Frontend
+
+1. Enter a second terminal and run commands in order
+2. cd Frontend
+3. npm install

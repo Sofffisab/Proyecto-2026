@@ -1,89 +1,411 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../node_modules/.prisma/client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+// ============ ENUMS ============
+
+enum Role {
+  USER
+  TRAINER
+  ADMIN
 }
 
+enum QRType {
+  machine
+  personal
+  entry_exit
+}
+
+enum Status {
+  pending
+  approved
+  denied
+  claimed
+  completed
+  cancelled
+  accepted
+  rejected
+}
+
+enum MachineStatus {
+  available
+  in_use
+  maintenance
+  out_of_order
+}
+
+// ============ USER MODELS ============
+
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  name         String
-  password     String
-  username     String   @unique
-  photo        Bytes?
-  pushToken    String?
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  fullName        String
+  username        String    @unique
+  role            Role      @default(USER)
+  photo           String?   @db.Text
+  profileComplete Boolean   @default(false)
+  accountPaused   Boolean   @default(false)
+  pushToken       String?
+  lastLogin       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profile              UserProfile?
+  settings             UserSettings?
+  userPoints           UserPoints?
+  personalizations     UserPersonalization[]
+  checkIns             CheckIn[]
+  qrCodes              QRCode[]
+  qrScanLogs           QRScanLog[]
+  machineUsages        MachineUsage[]
+  helpRequests         HelpRequest[]         @relation("UserHelpRequests")
+  claimedHelpRequests  HelpRequest[]         @relation("TrainerHelpRequests")
+  progressUpdates      ProgressUpdate[]      @relation("UserProgressUpdates")
+  verifiedProgress     ProgressUpdate[]      @relation("TrainerProgressUpdates")
+  rewardClaims         RewardClaim[]
+  notifications        UserNotification[]
+  routines             UserRoutine[]
+  reviews              Review[]              @relation("UserReviews")
+  trainerReviews       Review[]              @relation("TrainerReviews")
+  initiatedInteractions SocialInteraction[]  @relation("InitiatorInteractions")
+  receivedInteractions  SocialInteraction[]  @relation("ReceiverInteractions")
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+}
+
+model UserProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  age          Int?
+  weight       Float?
+  height       Float?
+  fitnessLevel String   @default("beginner")
+  goals        String[] @default([])
+  injuries     String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  points       Int @default(0)
-  goalDistance Int @default(0)
-
-  qrs          QRS[]
-  attendance   Attendance[]
-  userData     UserData?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model UserData {
+model UserSettings {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  theme              String   @default("light")
+  notifications      Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  emailNotifications Boolean  @default(true)
+  language           String   @default("en")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  id      Int     @id @default(autoincrement())
-  userId  Int     @unique
-
-  // Personal form fields
-  age     Int?
-  weight  Float?
-  height  Float?
-  gender  Gender?
-  goal    Goal?
-
-  type    String?
-  change  String?
-
-  socialization    Boolean @default(true)
-  requiresTrainer  Boolean @default(true)
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  PREFER_NOT_TO_SAY
+model UserPoints {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  totalPoints   Int      @default(0)
+  currentPoints Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([totalPoints(sort: Desc)])
 }
 
-enum Goal {
-  LOSE_WEIGHT
-  BUILD_MUSCLE
-  MAINTAIN
-  TONE
+model UserPersonalization {
+  id        String   @id @default(uuid())
+  userId    String
+  fieldName String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fieldName])
 }
+
+model UserRoutine {
+  id               String   @id @default(uuid())
+  userId           String
+  name             String
+  description      String?
+  exercises        Json     @default("[]")
+  daysOfWeek       Int[]    @default([])
+  reminderTime     String?
+  remindersEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserNotification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  data      String?   @db.Text
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ============ QR & CHECK-IN MODELS ============
+
+model QRCode {
+  id                   String    @id @default(uuid())
+  code                 String    @unique
+  image                String    @db.Text
+  type                 QRType
+  machineId            String?
+  userId               String?
+  isValid              Boolean   @default(true)
+  regenerationSchedule String?
+  nextRegenerationAt   DateTime?
+  expiresAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  machine  Machine?    @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  scanLogs QRScanLog[]
+
+  @@index([code])
+  @@index([type])
+  @@index([isValid])
+}
+
+model QRScanLog {
+  id        String   @id @default(uuid())
+  qrCodeId  String
+  scannedBy String
+  scannedAt DateTime @default(now())
+
+  qrCode QRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [scannedBy], references: [id], onDelete: Cascade)
+
+  @@index([scannedAt(sort: Desc)])
+}
+
+model CheckIn {
+  id        String    @id @default(uuid())
+  userId    String
+  entryTime DateTime  @default(now())
+  exitTime  DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entryTime(sort: Desc)])
+  @@index([exitTime])
+}
+
+// ============ MACHINE MODELS ============
 
 model Machine {
-  id   Int    @id @default(autoincrement())
-  name String
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  category     String?
+  instructions String?       @db.Text
+  muscleGroups String[]      @default([])
+  status       MachineStatus @default(available)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  qrs  QRS[]
+  qrCodes  QRCode[]
+  usages   MachineUsage[]
+  reviews  Review[]
+
+  @@index([category])
+  @@index([status])
 }
 
-model QRS {
-  id        Int      @id @default(autoincrement())
-  qr        Bytes
-  userId    Int?
-  machineId Int?
+model MachineUsage {
+  id        String    @id @default(uuid())
+  machineId String
+  userId    String
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  createdAt DateTime  @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  machine   Machine? @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([machineId])
+  @@index([userId])
+  @@index([startTime(sort: Desc)])
 }
 
-model Attendance {
-  id           Int       @id @default(autoincrement())
-  userId       Int
-  date         DateTime  @db.Date
-  checkInTime  DateTime  @db.Time
-  checkOutTime DateTime? @db.Time
+// ============ HELP & PROGRESS MODELS ============
 
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+model HelpRequest {
+  id          String    @id @default(uuid())
+  userId      String
+  description String
+  status      Status    @default(pending)
+  claimedBy   String?
+  feedback    String?
+  rating      Int?
+  comment     String?
+  requestedAt DateTime  @default(now())
+  claimedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user    User  @relation("UserHelpRequests", fields: [userId], references: [id], onDelete: Cascade)
+  trainer User? @relation("TrainerHelpRequests", fields: [claimedBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([claimedBy])
+  @@index([requestedAt(sort: Desc)])
+}
+
+model ProgressUpdate {
+  id           String    @id @default(uuid())
+  userId       String
+  exerciseName String
+  weight       Float
+  reps         Int
+  notes        String?
+  status       Status    @default(pending)
+  feedback     String?
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user    User  @relation("UserProgressUpdates", fields: [userId], references: [id], onDelete: Cascade)
+  trainer User? @relation("TrainerProgressUpdates", fields: [verifiedBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ============ GAMIFICATION MODELS ============
+
+model Reward {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  pointsCost  Int
+  quantity    Int?
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  claims RewardClaim[]
+
+  @@index([available])
+  @@index([pointsCost])
+}
+
+model RewardClaim {
+  id        String   @id @default(uuid())
+  rewardId  String
+  userId    String
+  status    Status   @default(pending)
+  feedback  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ============ SOCIAL MODELS ============
+
+model SocialInteraction {
+  id          String    @id @default(uuid())
+  initiatorId String
+  receiverId  String
+  type        String
+  status      Status    @default(pending)
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  initiator User @relation("InitiatorInteractions", fields: [initiatorId], references: [id], onDelete: Cascade)
+  receiver  User @relation("ReceiverInteractions", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([initiatorId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+// ============ REVIEW MODELS ============
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  machineId String?
+  trainerId String?
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+  machine Machine? @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  trainer User?    @relation("TrainerReviews", fields: [trainerId], references: [id], onDelete: SetNull)
+
+  @@index([machineId])
+  @@index([trainerId])
+  @@index([rating])
+}
+
+// ============ ADMIN MODELS ============
+
+model GymSettings {
+  id                         String   @id @default(uuid())
+  gymName                    String   @default("My Gym")
+  openTime                   String   @default("06:00")
+  closeTime                  String   @default("22:00")
+  maxCapacity                Int      @default(100)
+  pointsPerCheckIn           Int      @default(10)
+  pointsPerHelpReceived      Int      @default(50)
+  pointsPerProgressVerified  Int      @default(100)
+  pointsPerSocialConnection  Int      @default(25)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model AdminReport {
+  id          String   @id @default(uuid())
+  reportType  String
+  data        Json
+  archived    Boolean  @default(false)
+  generatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([reportType])
+  @@index([generatedAt(sort: Desc)])
+  @@index([archived])
 }

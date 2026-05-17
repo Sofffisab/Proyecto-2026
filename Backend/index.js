@@ -1,114 +1,91 @@
-import { prisma } from "./prisma/prisma.js";
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
+import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import cors from "cors";
-import setuprouter from "./routes.js";
-import setupsessions from "./sessions/sessions.js";
-import setupuserdata from "./sessions/userdata.js";
-import setupauthentication from "./authentication.js";
-
-dotenv.config();
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET must be defined in environment variables");
-}
-
-const app = express();
-
-app.use(helmet());
-
-// React Native does not send an Origin header — the null-origin fallback handles that.
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:5500",
-  "http://127.0.0.1:5500",
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // mobile / curl / same-origin
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
-// Rate limiting covers both /api/ and /users/ (login + signup)
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
-
-// Stricter rate limit for refresh token endpoint (critical security endpoint)
-const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3 });
-app.use("/api/", limiter);
-app.use("/users/", limiter);
-
-const { login, signup, refreshtoken, updateuserprofile, deleteaccount, getcurrentuser, updatepushtoken } =
-  setupsessions(JWT_SECRET);
-const { authentication } = setupauthentication(JWT_SECRET);
-const { getuserdata, createuserdata, updateuserdata } = setupuserdata();
-const router = setuprouter({
-  login,
-
-  signup,
-  refreshtoken,
-  updateuserprofile,
-  authentication,
-  deleteaccount,
-  getcurrentuser,
-  updatepushtoken,
-  getuserdata,
-  createuserdata,
-  updateuserdata,
-  refreshLimiter,
-});
-
-app.use(router);
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal Server Error", retry: true });
-});
-
-// 404 fallback
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
+import { createServer } from "http";
+import { Server } from "socket.io";
+import router from "./routes.js";
+import setupMiddlewares, { errorHandler, notFoundHandler } from "./shared/middlewares.js";
+import { setupSocketHandlers } from "./shared/socket.js";
+import { setupQRCron, setupStatsCron, setupCleanupCron, setupRemindersCron } from "./shared/cron.js";
+import { initializeFirebase } from "./features/notifications.js";
 
 const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8081";
+const CRON_ENABLED = process.env.CRON_ENABLED === "true";
 
-// Export server so future WebSocket/Socket.io setup can attach to it
-export const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const app = express();
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: FRONTEND_URL,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
 });
 
-server.on("error", (err) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(`Port ${PORT} is already in use.`);
+app.set("io", io);
+setupSocketHandlers(io);
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "Too many requests, please try again later" },
+});
+
+app.use(helmet());
+app.use(
+  cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(generalLimiter);
+
+app.use("/api/v1", router);
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+const startServer = async () => {
+  try {
+    await initializeFirebase();
+    console.log("[INFO] Services initialized");
+
+    if (CRON_ENABLED) {
+      setupQRCron();
+      setupStatsCron();
+      setupCleanupCron();
+      setupRemindersCron();
+      console.log("[INFO] Cron jobs enabled");
+    } else {
+      console.log("[INFO] Cron jobs disabled");
+    }
+
+    httpServer.listen(PORT, () => {
+      console.log(`[INFO] Server running on port ${PORT}`);
+      console.log(`[INFO] Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`[INFO] Frontend URL: ${FRONTEND_URL}`);
+    });
+  } catch (error) {
+    console.error("[ERROR] Failed to start server:", error);
     process.exit(1);
-  } else {
-    console.error("Server error:", err);
   }
-});
-
-const shutdown = async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-
 };
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+startServer();
 
-export default app;
+export { app, httpServer, io };
