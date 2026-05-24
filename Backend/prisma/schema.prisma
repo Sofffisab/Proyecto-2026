@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
   url = env("DATABASE_URL")
 }
+
 // ============ ENUMS ============
 
 enum Role {
@@ -38,7 +39,7 @@ enum MachineStatus {
   out_of_order
 }
 
-// ============ USER MODELS ============
+// ============ USER ============
 
 model User {
   id              String    @id @default(uuid())
@@ -51,6 +52,7 @@ model User {
   profileComplete Boolean   @default(false)
   accountPaused   Boolean   @default(false)
   pushToken       String?
+  tokenVersion    Int       @default(0)
   lastLogin       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -169,7 +171,7 @@ model UserNotification {
   @@index([createdAt(sort: Desc)])
 }
 
-// ============ QR & CHECK-IN MODELS ============
+// ============ QR & CHECK-IN ============
 
 model QRCode {
   id                   String    @id @default(uuid())
@@ -220,7 +222,7 @@ model CheckIn {
   @@index([exitTime])
 }
 
-// ============ MACHINE MODELS ============
+// ============ MACHINE ============
 
 model Machine {
   id           String        @id @default(uuid())
@@ -257,7 +259,7 @@ model MachineUsage {
   @@index([startTime(sort: Desc)])
 }
 
-// ============ HELP & PROGRESS MODELS ============
+// ============ HELP & PROGRESS ============
 
 model HelpRequest {
   id          String    @id @default(uuid())
@@ -305,7 +307,7 @@ model ProgressUpdate {
   @@index([createdAt(sort: Desc)])
 }
 
-// ============ GAMIFICATION MODELS ============
+// ============ GAMIFICATION ============
 
 model Reward {
   id          String   @id @default(uuid())
@@ -340,7 +342,7 @@ model RewardClaim {
   @@index([createdAt(sort: Desc)])
 }
 
-// ============ SOCIAL MODELS ============
+// ============ SOCIAL ============
 
 model SocialInteraction {
   id          String    @id @default(uuid())
@@ -360,7 +362,7 @@ model SocialInteraction {
   @@index([status])
 }
 
-// ============ REVIEW MODELS ============
+// ============ REVIEW ============
 
 model Review {
   id        String   @id @default(uuid())
@@ -381,7 +383,7 @@ model Review {
   @@index([rating])
 }
 
-// ============ ADMIN MODELS ============
+// ============ ADMIN ============
 
 model GymSettings {
   id                         String   @id @default(uuid())

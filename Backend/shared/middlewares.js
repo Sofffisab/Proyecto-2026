@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../prisma/prisma.js";
 import { ROLES, ERROR_CODES } from "./utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ============ AUTHENTICATION MIDDLEWARE ============
 export const requireAuth = async (req, res, next) => {
@@ -20,6 +20,33 @@ export const requireAuth = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, tokenVersion: true, accountPaused: true, role: true },
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          error: "User not found",
+          code: ERROR_CODES.UNAUTHORIZED,
+        });
+      }
+
+      if (user.accountPaused) {
+        return res.status(403).json({
+          error: "Account is paused",
+          code: ERROR_CODES.FORBIDDEN,
+        });
+      }
+
+      if (user.tokenVersion !== decoded.tokenVersion) {
+        return res.status(401).json({
+          error: "Token has been revoked. Please login again.",
+          code: ERROR_CODES.UNAUTHORIZED,
+        });
+      }
+
       req.userId = decoded.userId;
       req.userEmail = decoded.email;
       req.userRole = decoded.role;

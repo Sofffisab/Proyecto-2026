@@ -163,50 +163,115 @@ export const getLeaderboard = async (req, res) => {
 // ============ REWARDS SERVICE ============
 
 export const claimRewardLogic = async (userId, rewardId) => {
-  const reward = await prisma.reward.findUnique({
-    where: { id: rewardId },
+  return await prisma.$transaction(async (tx) => {
+    const reward = await tx.reward.findUnique({
+      where: { id: rewardId },
+    });
+
+    if (!reward) {
+      throw new Error("REWARD_NOT_FOUND");
+    }
+
+    if (!reward.available) {
+      throw new Error("REWARD_NOT_AVAILABLE");
+    }
+
+    if (reward.quantity !== null && reward.quantity <= 0) {
+      throw new Error("REWARD_OUT_OF_STOCK");
+    }
+
+    const userPoints = await tx.userPoints.findUnique({
+      where: { userId },
+    });
+
+    if (!userPoints || userPoints.currentPoints < reward.pointsCost) {
+      throw new Error("INSUFFICIENT_POINTS");
+    }
+
+    const existingClaim = await tx.rewardClaim.findFirst({
+      where: {
+        userId,
+        rewardId,
+        status: "pending",
+      },
+    });
+
+    if (existingClaim) {
+      throw new Error("PENDING_CLAIM_EXISTS");
+    }
+
+    await tx.userPoints.update({
+      where: { userId },
+      data: {
+        currentPoints: { decrement: reward.pointsCost },
+      },
+    });
+
+    if (reward.quantity !== null) {
+      await tx.reward.update({
+        where: { id: rewardId },
+        data: { quantity: { decrement: 1 } },
+      });
+    }
+
+    const claim = await tx.rewardClaim.create({
+      data: {
+        id: uuid(),
+        rewardId,
+        userId,
+        status: "pending",
+      },
+    });
+
+    return claim;
   });
-
-  if (!reward) return null;
-
-  const userPoints = await getUserPoints(userId);
-
-  if (userPoints.currentPoints < reward.pointsCost) {
-    throw new Error("Insufficient points");
-  }
-
-  const claim = await prisma.rewardClaim.create({
-    data: {
-      id: uuid(),
-      rewardId,
-      userId,
-      status: "pending",
-    },
-  });
-
-  return claim;
 };
 
 export const verifyRewardLogic = async (claimId, approve, feedback = null) => {
-  const claim = await prisma.rewardClaim.findUnique({
-    where: { id: claimId },
+  return await prisma.$transaction(async (tx) => {
+    const claim = await tx.rewardClaim.findUnique({
+      where: { id: claimId },
+      include: { reward: true },
+    });
+
+    if (!claim) {
+      throw new Error("CLAIM_NOT_FOUND");
+    }
+
+    if (!claim.reward) {
+      throw new Error("REWARD_NOT_FOUND");
+    }
+
+    if (claim.status !== "pending") {
+      throw new Error("CLAIM_ALREADY_PROCESSED");
+    }
+
+    if (!approve) {
+      await tx.userPoints.update({
+        where: { userId: claim.userId },
+        data: {
+          currentPoints: { increment: claim.reward.pointsCost },
+        },
+      });
+
+      if (claim.reward.quantity !== null) {
+        await tx.reward.update({
+          where: { id: claim.rewardId },
+          data: { quantity: { increment: 1 } },
+        });
+      }
+    }
+
+    const updatedClaim = await tx.rewardClaim.update({
+      where: { id: claimId },
+      data: {
+        status: approve ? "approved" : "denied",
+        feedback,
+      },
+    });
+
+    return updatedClaim;
   });
-
-  if (!claim) return null;
-
-  if (approve) {
-    await deductPoints(claim.userId, (await prisma.reward.findUnique({ where: { id: claim.rewardId } })).pointsCost);
-  }
-
-  const updatedClaim = await prisma.rewardClaim.update({
-    where: { id: claimId },
-    data: {
-      status: approve ? "approved" : "denied",
-      feedback,
-    },
-  });
-
-  return updatedClaim;
 };
 
 // ============ REWARDS CONTROLLERS ============
@@ -290,27 +355,38 @@ export const claimReward = async (req, res) => {
 
     const claim = await claimRewardLogic(req.userId, rewardId);
 
-    if (!claim) {
-      return res.status(404).json({ error: "Reward not found" });
-    }
-
     await sendPushAndNotification(
       req.userId,
       NOTIFICATION_TYPES.REWARD_CLAIMED,
       "Reward Claim Pending",
-      "Your reward claim is pending verification",
+      "Your reward claim is pending verification. Points have been reserved.",
       { claimId: claim.id }
     );
 
     res.status(201).json({
-      message: "Reward claimed successfully",
+      message: "Reward claimed successfully. Points have been deducted.",
       claim,
     });
   } catch (error) {
     console.error("[REWARDS] Claim reward error:", error);
-    res.status(500).json({
-      error: error.message || "Failed to claim reward",
-    });
+
+    if (error.message === "REWARD_NOT_FOUND") {
+      return res.status(404).json({ error: "Reward not found" });
+    }
+    if (error.message === "REWARD_NOT_AVAILABLE") {
+      return res.status(400).json({ error: "Reward is not available" });
+    }
+    if (error.message === "REWARD_OUT_OF_STOCK") {
+      return res.status(400).json({ error: "Reward is out of stock" });
+    }
+    if (error.message === "INSUFFICIENT_POINTS") {
+      return res.status(400).json({ error: "Insufficient points" });
+    }
+    if (error.message === "PENDING_CLAIM_EXISTS") {
+      return res.status(400).json({ error: "You already have a pending claim for this reward" });
+    }
+
+    res.status(500).json({ error: "Failed to claim reward" });
   }
 };
 
@@ -321,15 +397,13 @@ export const verifyRewardClaim = async (req, res) => {
 
     const updatedClaim = await verifyRewardLogic(claimId, approve, feedback);
 
-    if (!updatedClaim) {
-      return res.status(404).json({ error: "Claim not found" });
-    }
-
     await sendPushAndNotification(
       updatedClaim.userId,
       approve ? NOTIFICATION_TYPES.REWARD_APPROVED : NOTIFICATION_TYPES.REWARD_DENIED,
       approve ? "Reward Approved" : "Reward Denied",
-      approve ? "Your reward has been approved" : `Your reward was denied: ${feedback || ""}`,
+      approve
+        ? "Your reward has been approved!"
+        : `Your reward was denied and points have been refunded: ${feedback || "No reason provided"}`,
       { claimId: updatedClaim.id }
     );
 
@@ -339,6 +413,17 @@ export const verifyRewardClaim = async (req, res) => {
     });
   } catch (error) {
     console.error("[REWARDS] Verify reward error:", error);
+
+    if (error.message === "CLAIM_NOT_FOUND") {
+      return res.status(404).json({ error: "Claim not found" });
+    }
+    if (error.message === "REWARD_NOT_FOUND") {
+      return res.status(404).json({ error: "Associated reward no longer exists" });
+    }
+    if (error.message === "CLAIM_ALREADY_PROCESSED") {
+      return res.status(400).json({ error: "This claim has already been processed" });
+    }
+
     res.status(500).json({ error: "Failed to verify reward" });
   }
 };

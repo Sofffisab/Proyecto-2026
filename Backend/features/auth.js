@@ -5,8 +5,8 @@ import { v4 as uuid } from "uuid";
 import { sendPushAndNotification } from "./notifications.js";
 import { NOTIFICATION_TYPES, ROLES, validateEmail, validatePassword } from "../shared/utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 // ============ AUTH SERVICE ============
 
@@ -24,6 +24,7 @@ export const signAccessToken = (user) => {
       userId: user.id,
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion,
     },
     JWT_SECRET,
     { expiresIn: "15m" }
@@ -35,6 +36,7 @@ export const signRefreshToken = (user) => {
     {
       userId: user.id,
       email: user.email,
+      tokenVersion: user.tokenVersion,
     },
     JWT_REFRESH_SECRET,
     { expiresIn: "7d" }
@@ -98,6 +100,7 @@ export const register = async (req, res) => {
         username,
         role: ROLES.USER,
         profileComplete: false,
+        tokenVersion: 0,
         photo: req.file ? await photoToBase64(req.file) : null,
       },
     });
@@ -195,6 +198,10 @@ export const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "User not found or account paused" });
     }
 
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: "Token has been revoked. Please login again." });
+    }
+
     const newAccessToken = signAccessToken(user);
     const newRefreshToken = signRefreshToken(user);
 
@@ -231,8 +238,13 @@ export const validate = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+
     res.status(200).json({
-      message: "Logout successful",
+      message: "Logout successful. All sessions have been invalidated.",
     });
   } catch (error) {
     console.error("[AUTH] Logout error:", error);

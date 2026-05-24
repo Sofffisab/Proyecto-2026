@@ -2,7 +2,7 @@ import { prisma } from "../prisma/prisma.js";
 import jwt from "jsonwebtoken";
 import { ROLES } from "./utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ============ SOCKET EVENTS CONSTANTS ============
 
@@ -32,7 +32,6 @@ export const SOCKET_EVENTS = {
 // ============ SOCKET HANDLERS ============
 
 export const setupSocketHandlers = (io) => {
-  // Make io globally available for notifications
   global.io = io;
 
   io.use(async (socket, next) => {
@@ -44,9 +43,27 @@ export const setupSocketHandlers = (io) => {
       }
 
       const decoded = jwt.verify(token, JWT_SECRET);
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, tokenVersion: true, role: true, email: true, accountPaused: true },
+      });
+
+      if (!user) {
+        return next(new Error("User not found"));
+      }
+
+      if (user.accountPaused) {
+        return next(new Error("Account is paused"));
+      }
+
+      if (user.tokenVersion !== decoded.tokenVersion) {
+        return next(new Error("Token has been revoked. Please login again."));
+      }
+
       socket.userId = decoded.userId;
-      socket.userRole = decoded.role;
-      socket.userEmail = decoded.email;
+      socket.userRole = user.role;
+      socket.userEmail = user.email;
 
       next();
     } catch (error) {

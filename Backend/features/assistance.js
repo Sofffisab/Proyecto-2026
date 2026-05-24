@@ -242,10 +242,33 @@ export const cancelHelpRequest = async (req, res) => {
       return res.status(404).json({ error: "Help request not found" });
     }
 
+    if (helpRequest.userId !== req.userId && req.userRole !== "ADMIN") {
+      return res.status(403).json({ error: "Not authorized to cancel this request" });
+    }
+
+    if (helpRequest.status !== "pending" && helpRequest.status !== "claimed") {
+      return res.status(400).json({
+        error: "Cannot cancel a completed or already cancelled request",
+      });
+    }
+
     const updated = await prisma.helpRequest.update({
       where: { id: helpRequestId },
       data: { status: "cancelled" },
     });
+
+    if (helpRequest.claimedBy) {
+      await sendPushAndNotification(
+        helpRequest.claimedBy,
+        NOTIFICATION_TYPES.HELP_CANCELLED,
+        "Help Request Cancelled",
+        "The user cancelled their help request",
+        { helpRequestId }
+      );
+
+      const io = req.app.get("io");
+      io.to(`user-${helpRequest.claimedBy}`).emit("help:cancelled", updated);
+    }
 
     res.status(200).json({
       message: "Help request cancelled successfully",
@@ -274,12 +297,13 @@ export const requestProgressService = async (userId, exerciseName, weight, reps,
   });
 };
 
-export const verifyProgressService = async (progressId, approve, feedback = null) => {
+export const verifyProgressService = async (progressId, trainerId, approve, feedback = null) => {
   return await prisma.progressUpdate.update({
     where: { id: progressId },
     data: {
       status: approve ? "approved" : "denied",
       feedback,
+      verifiedBy: trainerId,
       verifiedAt: new Date(),
     },
   });
@@ -338,7 +362,7 @@ export const verifyProgressCtrl = async (req, res) => {
       return res.status(404).json({ error: "Progress not found" });
     }
 
-    const updated = await verifyProgressService(progressId, approve, feedback);
+    const updated = await verifyProgressService(progressId, req.userId, approve, feedback);
 
     if (approve) {
       await prisma.userPoints.update({

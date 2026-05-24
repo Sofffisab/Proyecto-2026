@@ -1,4 +1,17 @@
 import "dotenv/config";
+
+const requiredEnvVars = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL'];
+const missing = requiredEnvVars.filter(key => !process.env[key]);
+
+if (missing.length > 0 && process.env.NODE_ENV === 'production') {
+  console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
+if (missing.length > 0) {
+  console.warn(`[WARNING] Development mode - missing env vars: ${missing.join(', ')}. Using insecure defaults.`);
+}
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
