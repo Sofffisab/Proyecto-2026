@@ -1,207 +1,451 @@
 import { prisma } from "../prisma/prisma.js";
-import { v4 as uuid } from "uuid";
+import { ERROR_CODES, STATUS, paginate, getGymPointsSettings } from "../shared/utils.js";
 import { sendPushAndNotification } from "./notifications.js";
-import { NOTIFICATION_TYPES } from "../shared/utils.js";
+import { emitToUser } from "../shared/socket.js";
 
-// ============ SOCIAL SERVICE ============
+// ============ SOCIAL REQUESTS ============
 
-export const createSocialInteraction = async (initiatorId, receiverId, type) => {
-  return await prisma.socialInteraction.create({
-    data: {
-      id: uuid(),
-      initiatorId,
-      receiverId,
-      type,
-      status: "pending",
-      createdAt: new Date(),
-    },
-  });
-};
+export const sendSocialRequest = async (req, res) => {
+  const { receiverId, type } = req.body;
 
-export const confirmSocialInteraction = async (interactionId, accept) => {
-  return await prisma.socialInteraction.update({
-    where: { id: interactionId },
-    data: {
-      status: accept ? "accepted" : "rejected",
-      confirmedAt: new Date(),
-    },
-  });
-};
+  if (!receiverId || !type) {
+    return res.status(400).json({
+      error: "Receiver ID and type are required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
 
-// ============ SOCIAL CONTROLLERS ============
+  if (receiverId === req.user.id) {
+    return res.status(400).json({
+      error: "Cannot send request to yourself",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
 
-export const initiateInteraction = async (req, res) => {
   try {
-    const { receiverId, type } = req.body;
-
-    if (!receiverId || !type) {
-      return res.status(400).json({ error: "Receiver ID and type are required" });
-    }
-
-    if (receiverId === req.userId) {
-      return res.status(400).json({ error: "Cannot interact with yourself" });
-    }
-
     const receiver = await prisma.user.findUnique({
       where: { id: receiverId },
-    });
-
-    if (!receiver) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Check for existing pending interaction
-    const existing = await prisma.socialInteraction.findFirst({
-      where: {
-        initiatorId: req.userId,
-        receiverId,
-        status: "pending",
+      include: {
+        settings: {
+          select: { allowSocialRequests: true },
+        },
       },
     });
 
-    if (existing) {
-      return res.status(400).json({ error: "Pending interaction already exists" });
+    if (!receiver) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
     }
 
-    const interaction = await createSocialInteraction(req.userId, receiverId, type);
+    // Check if receiver allows social requests
+    if (receiver.settings && !receiver.settings.allowSocialRequests) {
+      return res.status(403).json({
+        error: "User does not accept social requests",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    const existingInteraction = await prisma.socialInteraction.findFirst({
+      where: {
+        OR: [
+          { initiatorId: req.user.id, receiverId },
+          { initiatorId: receiverId, receiverId: req.user.id },
+        ],
+        status: { in: [STATUS.PENDING, STATUS.ACCEPTED] },
+      },
+    });
+
+    if (existingInteraction) {
+      return res.status(400).json({
+        error: "An interaction already exists with this user",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const interaction = await prisma.socialInteraction.create({
+      data: {
+        initiatorId: req.user.id,
+        receiverId,
+        type,
+        status: STATUS.PENDING,
+      },
+      include: {
+        initiator: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            photoUrl: true,
+          },
+        },
+      },
+    });
 
     await sendPushAndNotification(
       receiverId,
-      NOTIFICATION_TYPES.SOCIAL_REQUEST,
-      "New Interaction Request",
-      `Someone wants to connect with you`,
-      { interactionId: interaction.id, initiatorId: req.userId, type }
+      "social_request",
+      "New Connection Request",
+      `${req.user.fullName} wants to connect with you.`,
+      { interactionId: interaction.id }
     );
 
-    // Emit socket event
     const io = req.app.get("io");
-    io.to(`user-${receiverId}`).emit("social:request", interaction);
+    emitToUser(io, receiverId, "new_social_request", { interaction });
 
-    res.status(201).json({
-      message: "Interaction initiated successfully",
+    return res.status(201).json({
+      message: "Social request sent",
       interaction,
     });
   } catch (error) {
-    console.error("[SOCIAL] Initiate interaction error:", error);
-    res.status(500).json({ error: "Failed to initiate interaction" });
+    console.error("[SOCIAL] Send social request error:", error);
+    return res.status(500).json({
+      error: "Failed to send social request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const respondToSocialRequest = async (req, res) => {
+  const { interactionId } = req.params;
+  const { accept } = req.body;
+
+  if (typeof accept !== "boolean") {
+    return res.status(400).json({
+      error: "Accept status is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const interaction = await prisma.socialInteraction.findUnique({
+      where: { id: interactionId },
+      include: {
+        initiator: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!interaction) {
+      return res.status(404).json({
+        error: "Interaction not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    if (interaction.receiverId !== req.user.id) {
+      return res.status(403).json({
+        error: "You cannot respond to this request",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    if (interaction.status !== STATUS.PENDING) {
+      return res.status(400).json({
+        error: "Request is no longer pending",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const newStatus = accept ? STATUS.ACCEPTED : STATUS.REJECTED;
+
+    const updatedInteraction = await prisma.socialInteraction.update({
+      where: { id: interactionId },
+      data: { status: newStatus },
+    });
+
+    const notificationType = accept ? "social_accepted" : "social_rejected";
+    const notificationTitle = accept ? "Request Accepted" : "Request Declined";
+    const notificationMessage = accept
+      ? `${req.user.fullName} accepted your connection request.`
+      : `${req.user.fullName} declined your connection request.`;
+
+    await sendPushAndNotification(
+      interaction.initiatorId,
+      notificationType,
+      notificationTitle,
+      notificationMessage,
+      { interactionId }
+    );
+
+    const io = req.app.get("io");
+    emitToUser(io, interaction.initiatorId, "social_response", {
+      interactionId,
+      accepted: accept,
+    });
+
+    return res.status(200).json({
+      message: `Request ${accept ? "accepted" : "rejected"}`,
+      interaction: updatedInteraction,
+    });
+  } catch (error) {
+    console.error("[SOCIAL] Respond to social request error:", error);
+    return res.status(500).json({
+      error: "Failed to respond to request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const confirmInteraction = async (req, res) => {
-  try {
-    const { interactionId } = req.params;
-    const { accept } = req.body;
+  const { interactionId } = req.params;
 
+  try {
     const interaction = await prisma.socialInteraction.findUnique({
       where: { id: interactionId },
     });
 
     if (!interaction) {
-      return res.status(404).json({ error: "Interaction not found" });
+      return res.status(404).json({
+        error: "Interaction not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
     }
 
-    if (interaction.receiverId !== req.userId) {
-      return res.status(403).json({ error: "Not authorized to confirm this interaction" });
+    if (interaction.initiatorId !== req.user.id && interaction.receiverId !== req.user.id) {
+      return res.status(403).json({
+        error: "You are not part of this interaction",
+        code: ERROR_CODES.FORBIDDEN,
+      });
     }
 
-    if (interaction.status !== "pending") {
-      return res.status(400).json({ error: "Interaction already processed" });
+    if (interaction.status !== STATUS.ACCEPTED) {
+      return res.status(400).json({
+        error: "Interaction must be accepted first",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
-    const updated = await confirmSocialInteraction(interactionId, accept);
+    if (interaction.confirmedAt) {
+      return res.status(400).json({
+        error: "Interaction already confirmed",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
 
-    // Award points if accepted
-    if (accept) {
-      await prisma.userPoints.update({
+    const settings = await getGymPointsSettings();
+
+    const [updatedInteraction] = await prisma.$transaction([
+      prisma.socialInteraction.update({
+        where: { id: interactionId },
+        data: { confirmedAt: new Date() },
+      }),
+      prisma.userPoints.update({
         where: { userId: interaction.initiatorId },
         data: {
-          currentPoints: { increment: 25 },
-          totalPoints: { increment: 25 },
+          totalPoints: { increment: settings.pointsPerSocialConnection },
+          currentPoints: { increment: settings.pointsPerSocialConnection },
         },
-      });
-
-      await prisma.userPoints.update({
-        where: { userId: req.userId },
+      }),
+      prisma.userPoints.update({
+        where: { userId: interaction.receiverId },
         data: {
-          currentPoints: { increment: 25 },
-          totalPoints: { increment: 25 },
+          totalPoints: { increment: settings.pointsPerSocialConnection },
+          currentPoints: { increment: settings.pointsPerSocialConnection },
         },
-      });
-    }
+      }),
+    ]);
+
+    const otherUserId =
+      interaction.initiatorId === req.user.id
+        ? interaction.receiverId
+        : interaction.initiatorId;
 
     await sendPushAndNotification(
-      interaction.initiatorId,
-      accept ? NOTIFICATION_TYPES.SOCIAL_ACCEPTED : NOTIFICATION_TYPES.SOCIAL_REJECTED,
-      accept ? "Connection Accepted" : "Connection Declined",
-      accept ? "Your connection request was accepted! +25 points" : "Your connection request was declined",
-      { interactionId, accepted: accept }
+      otherUserId,
+      "points_earned",
+      "Connection Confirmed!",
+      `You earned ${settings.pointsPerSocialConnection} points for your connection!`,
+      { interactionId }
     );
 
-    // Emit socket event
-    const io = req.app.get("io");
-    io.to(`user-${interaction.initiatorId}`).emit("social:response", updated);
-
-    res.status(200).json({
-      message: `Interaction ${accept ? "accepted" : "rejected"} successfully`,
-      interaction: updated,
+    return res.status(200).json({
+      message: "Interaction confirmed",
+      interaction: updatedInteraction,
+      pointsAwarded: settings.pointsPerSocialConnection,
     });
   } catch (error) {
     console.error("[SOCIAL] Confirm interaction error:", error);
-    res.status(500).json({ error: "Failed to confirm interaction" });
+    return res.status(500).json({
+      error: "Failed to confirm interaction",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-export const getMyInteractions = async (req, res) => {
+export const getMySocialRequests = async (req, res) => {
+  const { page = 1, limit = 20, type } = req.query;
+
   try {
-    const { limit = 20, offset = 0, status } = req.query;
+    const pagination = paginate(parseInt(page), parseInt(limit));
 
-    const interactions = await prisma.socialInteraction.findMany({
-      where: {
-        OR: [{ initiatorId: req.userId }, { receiverId: req.userId }],
-        ...(status && { status }),
-      },
-      include: {
-        initiator: {
-          select: { id: true, fullName: true, username: true, photo: true },
+    const where = {
+      OR: [{ initiatorId: req.user.id }, { receiverId: req.user.id }],
+    };
+
+    if (type === "sent") {
+      where.OR = [{ initiatorId: req.user.id }];
+    } else if (type === "received") {
+      where.OR = [{ receiverId: req.user.id }];
+    }
+
+    const [interactions, total] = await Promise.all([
+      prisma.socialInteraction.findMany({
+        where,
+        include: {
+          initiator: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
         },
-        receiver: {
-          select: { id: true, fullName: true, username: true, photo: true },
-        },
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.socialInteraction.count({ where }),
+    ]);
+
+    return res.status(200).json({
+      interactions,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
       },
-      orderBy: { createdAt: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
     });
-
-    res.status(200).json(interactions);
   } catch (error) {
-    console.error("[SOCIAL] Get interactions error:", error);
-    res.status(500).json({ error: "Failed to get interactions" });
+    console.error("[SOCIAL] Get my social requests error:", error);
+    return res.status(500).json({
+      error: "Failed to get social requests",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-export const getPendingRequests = async (req, res) => {
-  try {
-    const { limit = 20, offset = 0 } = req.query;
+export const getConnections = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
 
-    const requests = await prisma.socialInteraction.findMany({
-      where: {
-        receiverId: req.userId,
-        status: "pending",
-      },
-      include: {
-        initiator: {
-          select: { id: true, fullName: true, username: true, photo: true },
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const where = {
+      OR: [{ initiatorId: req.user.id }, { receiverId: req.user.id }],
+      status: STATUS.ACCEPTED,
+    };
+
+    const [interactions, total] = await Promise.all([
+      prisma.socialInteraction.findMany({
+        where,
+        include: {
+          initiator: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.socialInteraction.count({ where }),
+    ]);
+
+    const connections = interactions.map((i) => {
+      const connection =
+        i.initiatorId === req.user.id ? i.receiver : i.initiator;
+      return {
+        ...connection,
+        interactionId: i.id,
+        confirmedAt: i.confirmedAt,
+        type: i.type,
+      };
     });
 
-    res.status(200).json(requests);
+    return res.status(200).json({
+      connections,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
   } catch (error) {
-    console.error("[SOCIAL] Get pending requests error:", error);
-    res.status(500).json({ error: "Failed to get pending requests" });
+    console.error("[SOCIAL] Get connections error:", error);
+    return res.status(500).json({
+      error: "Failed to get connections",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getPeopleAtGym = async (req, res) => {
+  try {
+    const activeCheckIns = await prisma.checkIn.findMany({
+      where: {
+        exitTime: null,
+        userId: { not: req.user.id },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            photoUrl: true,
+            settings: {
+              select: { allowSocialRequests: true },
+            },
+          },
+        },
+      },
+    });
+
+    const people = activeCheckIns
+      .map((ci) => ({
+        id: ci.user.id,
+        fullName: ci.user.fullName,
+        username: ci.user.username,
+        photoUrl: ci.user.photoUrl,
+        checkedInAt: ci.entryTime,
+        allowSocialRequests: ci.user.settings?.allowSocialRequests ?? true,
+      }))
+      .filter((p) => p.allowSocialRequests);
+
+    return res.status(200).json({ people });
+  } catch (error) {
+    console.error("[SOCIAL] Get people at gym error:", error);
+    return res.status(500).json({
+      error: "Failed to get people at gym",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };

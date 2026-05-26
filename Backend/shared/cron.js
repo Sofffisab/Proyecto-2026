@@ -1,278 +1,220 @@
 import cron from "node-cron";
 import { prisma } from "../prisma/prisma.js";
-import { regenerateQRCode } from "../features/qr.js";
-import { sendPushAndNotification } from "../features/notifications.js";
-import { NOTIFICATION_TYPES, addDays, subMinutes } from "./utils.js";
+import { addDays, generateQRCodeString, subMinutes } from "./utils.js";
+import QRCode from "qrcode";
 
-// ============ QR CRON ============
+// ============ QR REGENERATION CRON ============
+
 export const setupQRCron = () => {
-  // Regenerate QR codes every day at 2 AM
-  cron.schedule("0 2 * * *", async () => {
+  cron.schedule("0 * * * *", async () => {
     try {
-      console.log("[CRON] Starting QR code regeneration");
+      const now = new Date();
 
-      const qrCodes = await prisma.qRCode.findMany({
+      const qrCodesToRegenerate = await prisma.qRCode.findMany({
         where: {
           isValid: true,
-          regenerationSchedule: { not: null },
-          nextRegenerationAt: { lte: new Date() },
+          OR: [
+            { expiresAt: { lte: now } },
+            {
+              regenerationSchedule: { not: null },
+              nextRegenerationAt: { lte: now },
+            },
+          ],
         },
       });
 
-      for (const qrCode of qrCodes) {
-        await regenerateQRCode(qrCode.id);
-        console.log(`[CRON] Regenerated QR code: ${qrCode.id}`);
+      for (const qrCode of qrCodesToRegenerate) {
+        try {
+          const newCode = generateQRCodeString();
+          const newImage = await QRCode.toDataURL(newCode);
+          const newExpiresAt = qrCode.type === "machine" ? addDays(now, 30) : addDays(now, 1);
+
+          await prisma.qRCode.update({
+            where: { id: qrCode.id },
+            data: {
+              code: newCode,
+              image: newImage,
+              expiresAt: newExpiresAt,
+              nextRegenerationAt: newExpiresAt,
+              isValid: true,
+            },
+          });
+        } catch (err) {
+          console.error(`[CRON] Failed to regenerate QR ${qrCode.id}:`, err);
+        }
       }
 
-      console.log(`[CRON] QR code regeneration completed. Regenerated ${qrCodes.length} codes`);
+      if (qrCodesToRegenerate.length > 0) {
+        console.log(`[CRON] Regenerated ${qrCodesToRegenerate.length} QR codes`);
+      }
     } catch (error) {
-      console.error("[CRON] QR regeneration failed:", error);
+      console.error("[CRON] QR regeneration error:", error);
     }
   });
+
+  console.log("[CRON] QR regeneration cron scheduled");
 };
 
 // ============ STATS CRON ============
+
 export const setupStatsCron = () => {
-  // Daily stats report at 23:59
-  cron.schedule("59 23 * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
     try {
-      console.log("[CRON] Generating daily stats report");
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
 
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
+      const [checkInsCount, helpRequestsCount, progressUpdatesCount, newUsersCount] =
+        await Promise.all([
+          prisma.checkIn.count({
+            where: {
+              entryTime: { gte: yesterday, lt: today },
+            },
+          }),
+          prisma.helpRequest.count({
+            where: {
+              createdAt: { gte: yesterday, lt: today },
+            },
+          }),
+          prisma.progressUpdate.count({
+            where: {
+              createdAt: { gte: yesterday, lt: today },
+            },
+          }),
+          prisma.user.count({
+            where: {
+              createdAt: { gte: yesterday, lt: today },
+            },
+          }),
+        ]);
 
-      const checkIns = await prisma.checkIn.count({
-        where: {
-          entryTime: { gte: todayStart, lte: todayEnd },
-        },
-      });
-
-      const newUsers = await prisma.user.count({
-        where: {
-          createdAt: { gte: todayStart, lte: todayEnd },
-        },
-      });
-
-      const totalActiveUsers = await prisma.checkIn.groupBy({
-        by: ["userId"],
-        where: {
-          entryTime: { gte: todayStart, lte: todayEnd },
-        },
-      });
-
-      const report = await prisma.adminReport.create({
+      await prisma.adminReport.create({
         data: {
-          reportType: "daily_summary",
+          reportType: "daily_stats",
           data: {
-            date: new Date().toISOString().split("T")[0],
-            checkIns,
-            newUsers,
-            activeUsers: totalActiveUsers.length,
+            date: yesterday.toISOString().split("T")[0],
+            checkIns: checkInsCount,
+            helpRequests: helpRequestsCount,
+            progressUpdates: progressUpdatesCount,
+            newUsers: newUsersCount,
           },
+          generatedAt: new Date(),
         },
       });
 
-      console.log(`[CRON] Daily report generated: ${report.id}`);
+      console.log(
+        `[CRON] Daily stats generated: ${checkInsCount} check-ins, ${newUsersCount} new users`
+      );
     } catch (error) {
-      console.error("[CRON] Daily stats generation failed:", error);
+      console.error("[CRON] Stats cron error:", error);
     }
   });
 
-  // Weekly stats report on Sunday at 23:59
-  cron.schedule("59 23 * * 0", async () => {
-    try {
-      console.log("[CRON] Generating weekly stats report");
-
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const checkIns = await prisma.checkIn.count({
-        where: { entryTime: { gte: weekAgo } },
-      });
-
-      const machines = await prisma.machine.findMany();
-      const machineStats = [];
-
-      for (const machine of machines) {
-        const usageCount = await prisma.checkIn.count({
-          where: { machineId: machine.id, entryTime: { gte: weekAgo } },
-        });
-        machineStats.push({ machineId: machine.id, usage: usageCount });
-      }
-
-      const report = await prisma.adminReport.create({
-        data: {
-          reportType: "weekly_summary",
-          data: {
-            week: new Date().toISOString().split("T")[0],
-            totalCheckIns: checkIns,
-            machineStats,
-          },
-        },
-      });
-
-      console.log(`[CRON] Weekly report generated: ${report.id}`);
-    } catch (error) {
-      console.error("[CRON] Weekly stats generation failed:", error);
-    }
-  });
+  console.log("[CRON] Stats cron scheduled");
 };
 
 // ============ CLEANUP CRON ============
+
 export const setupCleanupCron = () => {
-  // Cleanup at 3 AM daily
-  cron.schedule("0 3 * * *", async () => {
+  cron.schedule("*/30 * * * *", async () => {
     try {
-      console.log("[CRON] Starting cleanup tasks");
+      const thirtyMinutesAgo = subMinutes(new Date(), 30);
 
-      // Delete old read notifications (older than 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const deletedNotifications = await prisma.userNotification.deleteMany({
+      const abandonedUsages = await prisma.machineUsage.findMany({
         where: {
-          isRead: true,
-          readAt: { lte: thirtyDaysAgo },
+          endTime: null,
+          startTime: { lte: thirtyMinutesAgo },
         },
+        select: { id: true, machineId: true },
       });
 
-      console.log(`[CRON] Deleted ${deletedNotifications.count} old notifications`);
+      if (abandonedUsages.length > 0) {
+        const abandonedIds = abandonedUsages.map((u) => u.id);
+        const abandonedMachineIds = [...new Set(abandonedUsages.map((u) => u.machineId))];
 
-      // Invalidate old QR scan logs (older than 90 days)
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        await prisma.$transaction([
+          prisma.machineUsage.updateMany({
+            where: { id: { in: abandonedIds } },
+            data: { endTime: new Date() },
+          }),
+          prisma.machine.updateMany({
+            where: { id: { in: abandonedMachineIds } },
+            data: { status: "available" },
+          }),
+        ]);
 
-      const deletedLogs = await prisma.qRScanLog.deleteMany({
-        where: { scannedAt: { lte: ninetyDaysAgo } },
+        console.log(
+          `[CRON] Closed ${abandonedUsages.length} abandoned machine usages and freed ${abandonedMachineIds.length} machines`
+        );
+      }
+
+      const expiredQRs = await prisma.qRCode.updateMany({
+        where: {
+          isValid: true,
+          expiresAt: { lte: new Date() },
+        },
+        data: { isValid: false },
       });
 
-      console.log(`[CRON] Deleted ${deletedLogs.count} old QR scan logs`);
-
-      // Archive old reports (older than 180 days)
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
-
-      const archivedReports = await prisma.adminReport.updateMany({
-        where: { generatedAt: { lte: sixMonthsAgo } },
-        data: { archived: true },
-      });
-
-      console.log(`[CRON] Archived ${archivedReports.count} old reports`);
-
-      console.log("[CRON] Cleanup tasks completed");
+      if (expiredQRs.count > 0) {
+        console.log(`[CRON] Invalidated ${expiredQRs.count} expired QR codes`);
+      }
     } catch (error) {
-      console.error("[CRON] Cleanup tasks failed:", error);
+      console.error("[CRON] Cleanup cron error:", error);
     }
   });
+
+  console.log("[CRON] Cleanup cron scheduled");
 };
 
 // ============ REMINDERS CRON ============
+
 export const setupRemindersCron = () => {
-  // Check for routine reminders every minute
-  cron.schedule("* * * * *", async () => {
-    try {
-      const now = new Date();
-      const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
-        now.getMinutes()
-      ).padStart(2, "0")}`;
-
-      const routines = await prisma.userRoutine.findMany({
-        where: {
-          remindersEnabled: true,
-          reminderTime: currentTime,
-        },
-        include: { user: { select: { id: true } } },
-      });
-
-      for (const routine of routines) {
-        await sendPushAndNotification(
-          routine.user.id,
-          NOTIFICATION_TYPES.REMINDER,
-          "Routine Reminder",
-          `Time to do your routine: ${routine.name}`,
-          { routineId: routine.id, routineName: routine.name }
-        );
-      }
-
-      if (routines.length > 0) {
-        console.log(`[CRON] Sent ${routines.length} routine reminders`);
-      }
-    } catch (error) {
-      console.error("[CRON] Routine reminders failed:", error);
-    }
-  });
-
-  // Check for stale help requests every 5 minutes
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      const fiveMinutesAgo = subMinutes(new Date(), 5);
-
-      const staleRequests = await prisma.helpRequest.findMany({
-        where: {
-          status: "pending",
-          requestedAt: { lte: fiveMinutesAgo },
-        },
-        include: {
-          user: { select: { id: true, fullName: true } },
-        },
-      });
-
-      for (const request of staleRequests) {
-        await sendPushAndNotification(
-          request.user.id,
-          NOTIFICATION_TYPES.HELP_CALLED,
-          "Help Status",
-          "Your help request is still pending. A trainer will assist you soon.",
-          { helpRequestId: request.id }
-        );
-      }
-
-      if (staleRequests.length > 0) {
-        console.log(`[CRON] Notified users about ${staleRequests.length} stale help requests`);
-      }
-    } catch (error) {
-      console.error("[CRON] Stale help request check failed:", error);
-    }
-  });
-
-  // Check for expired pending progress updates every hour
   cron.schedule("0 * * * *", async () => {
     try {
-      const oneDayAgo = addDays(new Date(), -1);
+      const now = new Date();
+      const currentHour = String(now.getHours()).padStart(2, "0");
+      const currentMinute = String(now.getMinutes()).padStart(2, "0");
+      const currentTime = `${currentHour}:${currentMinute}`;
 
-      const expiredProgress = await prisma.progressUpdate.findMany({
+      const routinesWithReminders = await prisma.userRoutine.findMany({
         where: {
-          status: "pending",
-          createdAt: { lte: oneDayAgo },
+          remindersEnabled: true,
+          reminderTime: {
+            startsWith: currentHour,
+          },
+        },
+        include: {
+          user: {
+            select: { id: true, pushToken: true },
+          },
         },
       });
 
-      for (const progress of expiredProgress) {
-        await prisma.progressUpdate.update({
-          where: { id: progress.id },
-          data: {
-            status: "denied",
-            feedback: "Request expired due to no verification",
-          },
-        });
+      const { sendPushAndNotification } = await import("../features/notifications.js");
 
-        await sendPushAndNotification(
-          progress.userId,
-          NOTIFICATION_TYPES.PROGRESS_DENIED,
-          "Progress Request Expired",
-          "Your progress verification request has expired",
-          { progressId: progress.id }
-        );
-      }
-
-      if (expiredProgress.length > 0) {
-        console.log(`[CRON] Expired ${expiredProgress.length} pending progress updates`);
+      for (const routine of routinesWithReminders) {
+        if (routine.reminderTime === currentTime) {
+          try {
+            await sendPushAndNotification(
+              routine.userId,
+              "reminder",
+              "Workout Reminder",
+              `Time for your workout: ${routine.name}`,
+              { routineId: routine.id }
+            );
+          } catch (err) {
+            console.error(`[CRON] Failed to send reminder for routine ${routine.id}:`, err);
+          }
+        }
       }
     } catch (error) {
-      console.error("[CRON] Progress expiration check failed:", error);
+      console.error("[CRON] Reminders cron error:", error);
     }
   });
+
+  console.log("[CRON] Reminders cron scheduled");
 };

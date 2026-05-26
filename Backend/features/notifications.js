@@ -1,182 +1,166 @@
-import { prisma } from "../prisma/prisma.js";
-import { v4 as uuid } from "uuid";
 import admin from "firebase-admin";
-import { NOTIFICATION_TYPES } from "../shared/utils.js";
+import { prisma } from "../prisma/prisma.js";
+import { ERROR_CODES, paginate, NOTIFICATION_TYPES } from "../shared/utils.js";
 
 let firebaseInitialized = false;
 
-// ============ FIREBASE SERVICE ============
-
 export const initializeFirebase = async () => {
   try {
-    if (firebaseInitialized) return;
-
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-
-    if (!serviceAccountPath) {
-      console.warn("[FIREBASE] Service account path not configured, notifications disabled");
-      return;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      firebaseInitialized = true;
+      console.log("[FIREBASE] Initialized successfully");
+    } else {
+      console.log("[FIREBASE] No service account provided, push notifications disabled");
     }
-
-    const serviceAccount = await import(serviceAccountPath, {
-      assert: { type: "json" },
-    });
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount.default || serviceAccount),
-    });
-
-    firebaseInitialized = true;
-    console.log("[FIREBASE] Initialized successfully");
   } catch (error) {
     console.error("[FIREBASE] Initialization error:", error);
   }
 };
 
-export const sendToDevice = async (pushToken, notification) => {
-  try {
-    if (!firebaseInitialized) {
-      console.warn("[FIREBASE] Not initialized, skipping push");
-      return null;
-    }
-
-    const message = {
-      notification: {
-        title: notification.title,
-        body: notification.body,
-      },
-      data: notification.data || {},
-      token: pushToken,
-    };
-
-    const response = await admin.messaging().send(message);
-    return response;
-  } catch (error) {
-    console.error("[FIREBASE] Send to device error:", error);
-    return null;
+export const sendPushNotification = async (userId, title, body, data = {}) => {
+  if (!firebaseInitialized) {
+    return;
   }
-};
 
-export const sendMulticast = async (pushTokens, notification) => {
   try {
-    if (!firebaseInitialized) {
-      console.warn("[FIREBASE] Not initialized, skipping multicast");
-      return null;
-    }
-
-    const message = {
-      notification: {
-        title: notification.title,
-        body: notification.body,
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        pushToken: true,
+        settings: {
+          select: { pushNotifications: true },
+        },
       },
-      data: notification.data || {},
-    };
-
-    const response = await admin.messaging().sendMulticast({
-      ...message,
-      tokens: pushTokens,
     });
 
-    return response;
+    if (!user?.pushToken || !user?.settings?.pushNotifications) {
+      return;
+    }
+
+    await admin.messaging().send({
+      token: user.pushToken,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    });
+
+    console.log(`[PUSH] Notification sent to user ${userId}`);
   } catch (error) {
-    console.error("[FIREBASE] Send multicast error:", error);
-    return null;
+    if (error.code === "messaging/registration-token-not-registered") {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { pushToken: null },
+      });
+      console.log(`[PUSH] Removed invalid token for user ${userId}`);
+    } else {
+      console.error("[PUSH] Error sending notification:", error);
+    }
   }
 };
 
-// ============ NOTIFICATIONS SERVICE ============
-
-export const createNotification = async (userId, type, title, message, data = {}) => {
+export const createNotification = async (userId, type, title, message, data = null) => {
   try {
     const notification = await prisma.userNotification.create({
       data: {
-        id: uuid(),
         userId,
         type,
         title,
         message,
-        data: JSON.stringify(data),
-        isRead: false,
+        data: data ? JSON.stringify(data) : null,
       },
     });
 
     return notification;
   } catch (error) {
-    console.error("[NOTIFICATIONS] Create notification error:", error);
-    throw error;
-  }
-};
-
-export const sendPush = async (userId, title, message, data = {}) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || !user.pushToken) {
-      console.warn(`[PUSH] No push token for user ${userId}`);
-      return null;
-    }
-
-    const response = await sendToDevice(user.pushToken, {
-      title,
-      body: message,
-      data,
-    });
-
-    return response;
-  } catch (error) {
-    console.error("[PUSH] Send push error:", error);
+    console.error("[NOTIFICATIONS] Error creating notification:", error);
     return null;
   }
 };
 
 export const sendPushAndNotification = async (userId, type, title, message, data = {}) => {
-  try {
-    // Create database notification
-    const notification = await createNotification(userId, type, title, message, data);
-
-    // Send push notification
-    await sendPush(userId, title, message, data);
-
-    // Emit socket event
-    const io = global.io;
-    if (io) {
-      io.to(`user-${userId}`).emit("notification:new", notification);
-    }
-
-    return notification;
-  } catch (error) {
-    console.error("[NOTIFICATIONS] Send push and notification error:", error);
-    throw error;
-  }
+  await Promise.all([
+    createNotification(userId, type, title, message, data),
+    sendPushNotification(userId, title, message, {
+      type,
+      ...Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, String(v)])
+      ),
+    }),
+  ]);
 };
 
-// ============ NOTIFICATIONS CONTROLLERS ============
+// ============ NOTIFICATION ENDPOINTS ============
 
 export const getNotifications = async (req, res) => {
+  const { page = 1, limit = 20, unreadOnly } = req.query;
+
   try {
-    const { limit = 20, offset = 0 } = req.query;
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const where = { userId: req.user.id };
 
-    const notifications = await prisma.userNotification.findMany({
-      where: { userId: req.userId },
-      orderBy: { createdAt: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
+    if (unreadOnly === "true") {
+      where.isRead = false;
+    }
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.userNotification.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.userNotification.count({ where }),
+      prisma.userNotification.count({
+        where: { userId: req.user.id, isRead: false },
+      }),
+    ]);
+
+    return res.status(200).json({
+      notifications,
+      unreadCount,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
     });
-
-    res.status(200).json(notifications);
   } catch (error) {
     console.error("[NOTIFICATIONS] Get notifications error:", error);
-    res.status(500).json({ error: "Failed to get notifications" });
+    return res.status(500).json({
+      error: "Failed to get notifications",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-export const markAsRead = async (req, res) => {
-  try {
-    const { notificationId } = req.params;
+export const markNotificationRead = async (req, res) => {
+  const { notificationId } = req.params;
 
-    const notification = await prisma.userNotification.update({
+  try {
+    const notification = await prisma.userNotification.findFirst({
+      where: {
+        id: notificationId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!notification) {
+      return res.status(404).json({
+        error: "Notification not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const updated = await prisma.userNotification.update({
       where: { id: notificationId },
       data: {
         isRead: true,
@@ -184,21 +168,24 @@ export const markAsRead = async (req, res) => {
       },
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Notification marked as read",
-      notification,
+      notification: updated,
     });
   } catch (error) {
-    console.error("[NOTIFICATIONS] Mark as read error:", error);
-    res.status(500).json({ error: "Failed to mark as read" });
+    console.error("[NOTIFICATIONS] Mark notification read error:", error);
+    return res.status(500).json({
+      error: "Failed to mark notification as read",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-export const markAllAsRead = async (req, res) => {
+export const markAllNotificationsRead = async (req, res) => {
   try {
     await prisma.userNotification.updateMany({
       where: {
-        userId: req.userId,
+        userId: req.user.id,
         isRead: false,
       },
       data: {
@@ -207,53 +194,48 @@ export const markAllAsRead = async (req, res) => {
       },
     });
 
-    res.status(200).json({ message: "All notifications marked as read" });
-  } catch (error) {
-    console.error("[NOTIFICATIONS] Mark all as read error:", error);
-    res.status(500).json({ error: "Failed to mark all as read" });
-  }
-};
-
-export const getUnreadCount = async (req, res) => {
-  try {
-    const count = await prisma.userNotification.count({
-      where: {
-        userId: req.userId,
-        isRead: false,
-      },
+    return res.status(200).json({
+      message: "All notifications marked as read",
     });
-
-    res.status(200).json({ unreadCount: count });
   } catch (error) {
-    console.error("[NOTIFICATIONS] Get unread count error:", error);
-    res.status(500).json({ error: "Failed to get unread count" });
+    console.error("[NOTIFICATIONS] Mark all read error:", error);
+    return res.status(500).json({
+      error: "Failed to mark notifications as read",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const deleteNotification = async (req, res) => {
+  const { notificationId } = req.params;
+
   try {
-    const { notificationId } = req.params;
+    const notification = await prisma.userNotification.findFirst({
+      where: {
+        id: notificationId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!notification) {
+      return res.status(404).json({
+        error: "Notification not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
 
     await prisma.userNotification.delete({
       where: { id: notificationId },
     });
 
-    res.status(200).json({ message: "Notification deleted" });
+    return res.status(200).json({
+      message: "Notification deleted",
+    });
   } catch (error) {
     console.error("[NOTIFICATIONS] Delete notification error:", error);
-    res.status(500).json({ error: "Failed to delete notification" });
-  }
-};
-
-export const clearNotifications = async (req, res) => {
-  try {
-    await prisma.userNotification.deleteMany({
-      where: { userId: req.userId },
+    return res.status(500).json({
+      error: "Failed to delete notification",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
-
-    res.status(200).json({ message: "All notifications cleared" });
-  } catch (error) {
-    console.error("[NOTIFICATIONS] Clear notifications error:", error);
-    res.status(500).json({ error: "Failed to clear notifications" });
   }
 };

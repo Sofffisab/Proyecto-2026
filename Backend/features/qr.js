@@ -1,353 +1,273 @@
-import { prisma } from "../prisma/prisma.js";
 import QRCode from "qrcode";
-import { v4 as uuid } from "uuid";
+import { prisma } from "../prisma/prisma.js";
+import {
+  ERROR_CODES,
+  QR_TYPES,
+  generateQRCodeString,
+  addDays,
+  getGymPointsSettings,
+  isGymOpen,
+} from "../shared/utils.js";
 import { sendPushAndNotification } from "./notifications.js";
-import { NOTIFICATION_TYPES, QR_TYPES, generateQRCodeString, isExpired } from "../shared/utils.js";
+import { emitToGym } from "../shared/socket.js";
 
-// ============ QR SERVICE ============
-
-export const generateQRCode = async (qrData, userId, regenerationSchedule = null) => {
-  try {
-    const qrCodeString = generateQRCodeString();
-    const qrImage = await QRCode.toDataURL(qrCodeString);
-
-    let nextRegenerationAt = null;
-    if (regenerationSchedule) {
-      const nextDate = new Date();
-      if (regenerationSchedule === "daily") {
-        nextDate.setDate(nextDate.getDate() + 1);
-      } else if (regenerationSchedule === "weekly") {
-        nextDate.setDate(nextDate.getDate() + 7);
-      }
-      nextRegenerationAt = nextDate;
-    }
-
-    const qrCode = await prisma.qRCode.create({
-      data: {
-        id: uuid(),
-        code: qrCodeString,
-        image: qrImage,
-        type: qrData.type,
-        machineId: qrData.machineId || null,
-        userId: userId || null,
-        isValid: true,
-        regenerationSchedule,
-        nextRegenerationAt,
-        expiresAt: qrData.expiresAt || null,
-      },
-    });
-
-    return qrCode;
-  } catch (error) {
-    console.error("[QR] Generate QR code error:", error);
-    throw error;
-  }
-};
-
-export const validateQRCode = async (code) => {
-  const qrCode = await prisma.qRCode.findFirst({
-    where: {
-      code,
-      isValid: true,
-    },
-  });
-
-  if (!qrCode) return null;
-
-  if (qrCode.expiresAt && isExpired(qrCode.expiresAt)) {
-    await prisma.qRCode.update({
-      where: { id: qrCode.id },
-      data: { isValid: false },
-    });
-    return null;
-  }
-
-  return qrCode;
-};
-
-export const regenerateQRCode = async (qrCodeId) => {
-  try {
-    const existingQR = await prisma.qRCode.findUnique({
-      where: { id: qrCodeId },
-    });
-
-    if (!existingQR) return null;
-
-    const newQRCodeString = generateQRCodeString();
-    const newQRImage = await QRCode.toDataURL(newQRCodeString);
-
-    let nextRegenerationAt = null;
-    if (existingQR.regenerationSchedule) {
-      const nextDate = new Date();
-      if (existingQR.regenerationSchedule === "daily") {
-        nextDate.setDate(nextDate.getDate() + 1);
-      } else if (existingQR.regenerationSchedule === "weekly") {
-        nextDate.setDate(nextDate.getDate() + 7);
-      }
-      nextRegenerationAt = nextDate;
-    }
-
-    const updatedQR = await prisma.qRCode.update({
-      where: { id: qrCodeId },
-      data: {
-        code: newQRCodeString,
-        image: newQRImage,
-        nextRegenerationAt,
-      },
-    });
-
-    return updatedQR;
-  } catch (error) {
-    console.error("[QR] Regenerate QR code error:", error);
-    throw error;
-  }
-};
-
-export const getQRImage = async (qrCodeId) => {
-  const qrCode = await prisma.qRCode.findUnique({
-    where: { id: qrCodeId },
-  });
-
-  return qrCode?.image || null;
-};
-
-export const getActiveQRByType = async (type, machineId = null, userId = null) => {
-  return await prisma.qRCode.findFirst({
-    where: {
-      type,
-      isValid: true,
-      ...(machineId && { machineId }),
-      ...(userId && { userId }),
-    },
-  });
-};
-
-// ============ QR CONTROLLERS ============
+// ============ QR GENERATION ============
 
 export const generateMachineQR = async (req, res) => {
+  const { machineId } = req.params;
+
   try {
-    const { machineId, regenerationSchedule, expiresAt } = req.body;
-
-    if (!machineId) {
-      return res.status(400).json({ error: "Machine ID is required" });
-    }
-
     const machine = await prisma.machine.findUnique({
       where: { id: machineId },
     });
 
     if (!machine) {
-      return res.status(404).json({ error: "Machine not found" });
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
     }
 
-    const qrCode = await generateQRCode(
-      {
+    // Invalidate any existing active QR for this machine
+    await prisma.qRCode.updateMany({
+      where: {
+        machineId,
+        isValid: true,
+      },
+      data: { isValid: false },
+    });
+
+    const code = generateQRCodeString();
+    const image = await QRCode.toDataURL(code);
+    const expiresAt = addDays(new Date(), 30);
+
+    const qrCode = await prisma.qRCode.create({
+      data: {
+        code,
+        image,
         type: QR_TYPES.MACHINE,
         machineId,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        expiresAt,
+        nextRegenerationAt: expiresAt,
       },
-      null,
-      regenerationSchedule
-    );
+    });
 
-    res.status(201).json({
-      message: "Machine QR code generated",
-      qrCode,
+    return res.status(201).json({
+      message: "Machine QR generated",
+      qrCode: {
+        id: qrCode.id,
+        code: qrCode.code,
+        image: qrCode.image,
+        expiresAt: qrCode.expiresAt,
+      },
     });
   } catch (error) {
     console.error("[QR] Generate machine QR error:", error);
-    res.status(500).json({ error: "Failed to generate QR code" });
+    return res.status(500).json({
+      error: "Failed to generate QR",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const generatePersonalQR = async (req, res) => {
   try {
-    const { regenerationSchedule, expiresAt } = req.body;
-
-    const qrCode = await generateQRCode(
-      {
+    // Invalidate any existing active personal QR for this user
+    await prisma.qRCode.updateMany({
+      where: {
+        userId: req.user.id,
         type: QR_TYPES.PERSONAL,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        isValid: true,
       },
-      req.userId,
-      regenerationSchedule
-    );
+      data: { isValid: false },
+    });
 
-    res.status(201).json({
-      message: "Personal QR code generated",
-      qrCode,
+    const code = generateQRCodeString();
+    const image = await QRCode.toDataURL(code);
+    const expiresAt = addDays(new Date(), 1);
+
+    const qrCode = await prisma.qRCode.create({
+      data: {
+        code,
+        image,
+        type: QR_TYPES.PERSONAL,
+        userId: req.user.id,
+        expiresAt,
+        nextRegenerationAt: expiresAt,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Personal QR generated",
+      qrCode: {
+        id: qrCode.id,
+        code: qrCode.code,
+        image: qrCode.image,
+        expiresAt: qrCode.expiresAt,
+      },
     });
   } catch (error) {
     console.error("[QR] Generate personal QR error:", error);
-    res.status(500).json({ error: "Failed to generate personal QR code" });
-  }
-};
-
-export const generateEntryExitQR = async (req, res) => {
-  try {
-    const { regenerationSchedule } = req.body;
-
-    const qrCode = await generateQRCode(
-      {
-        type: QR_TYPES.ENTRY_EXIT,
-      },
-      null,
-      regenerationSchedule
-    );
-
-    res.status(201).json({
-      message: "Entry/Exit QR code generated",
-      qrCode,
+    return res.status(500).json({
+      error: "Failed to generate QR",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
-  } catch (error) {
-    console.error("[QR] Generate entry/exit QR error:", error);
-    res.status(500).json({ error: "Failed to generate entry/exit QR code" });
   }
 };
+
+// ============ QR SCANNING ============
 
 export const scanQR = async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({
+      error: "QR code is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
   try {
-    const { code } = req.body;
-
-    if (!code) {
-      return res.status(400).json({ error: "QR code is required" });
-    }
-
-    const qrCode = await validateQRCode(code);
+    const qrCode = await prisma.qRCode.findUnique({
+      where: { code },
+      include: {
+        machine: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            photoUrl: true,
+          },
+        },
+      },
+    });
 
     if (!qrCode) {
-      return res.status(404).json({ error: "Invalid or expired QR code" });
+      return res.status(404).json({
+        error: "QR code not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    if (!qrCode.isValid) {
+      return res.status(400).json({
+        error: "QR code is no longer valid",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    if (qrCode.expiresAt && new Date(qrCode.expiresAt) < new Date()) {
+      return res.status(400).json({
+        error: "QR code has expired",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
     await prisma.qRScanLog.create({
       data: {
-        id: uuid(),
         qrCodeId: qrCode.id,
-        scannedBy: req.userId,
-        scannedAt: new Date(),
+        scannedBy: req.user.id,
       },
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "QR code scanned successfully",
-      qrCode,
+      qrCode: {
+        type: qrCode.type,
+        machine: qrCode.machine,
+        user: qrCode.user,
+      },
     });
   } catch (error) {
     console.error("[QR] Scan QR error:", error);
-    res.status(500).json({ error: "Failed to scan QR code" });
-  }
-};
-
-export const regenerateQR = async (req, res) => {
-  try {
-    const { qrCodeId } = req.params;
-
-    const qrCode = await regenerateQRCode(qrCodeId);
-
-    if (!qrCode) {
-      return res.status(404).json({ error: "QR code not found" });
-    }
-
-    res.status(200).json({
-      message: "QR code regenerated successfully",
-      qrCode,
+    return res.status(500).json({
+      error: "Failed to scan QR",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
-  } catch (error) {
-    console.error("[QR] Regenerate QR error:", error);
-    res.status(500).json({ error: "Failed to regenerate QR code" });
   }
 };
 
-export const getQRCodes = async (req, res) => {
-  try {
-    const qrCodes = await prisma.qRCode.findMany({
-      where: { isValid: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.status(200).json(qrCodes);
-  } catch (error) {
-    console.error("[QR] Get QR codes error:", error);
-    res.status(500).json({ error: "Failed to get QR codes" });
-  }
-};
-
-// ============ CHECK-IN SERVICE ============
-
-export const processCheckIn = async (userId) => {
-  const checkIn = await prisma.checkIn.create({
-    data: {
-      id: uuid(),
-      userId,
-      entryTime: new Date(),
-    },
-  });
-
-  return checkIn;
-};
-
-export const processCheckOut = async (checkInId) => {
-  const checkIn = await prisma.checkIn.update({
-    where: { id: checkInId },
-    data: { exitTime: new Date() },
-  });
-
-  return checkIn;
-};
-
-export const calculateDuration = (entryTime, exitTime) => {
-  const duration = Math.floor((exitTime - entryTime) / 1000 / 60);
-  return duration;
-};
-
-// ============ CHECK-IN CONTROLLERS ============
+// ============ CHECK-IN / CHECK-OUT ============
 
 export const checkIn = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
+    const settings = await getGymPointsSettings();
+
+    // Validate gym is open
+    if (!isGymOpen(settings)) {
+      return res.status(400).json({
+        error: `Gym is closed. Hours: ${settings.openTime} - ${settings.closeTime}`,
+        code: ERROR_CODES.GYM_CLOSED,
+      });
+    }
+
+    // Validate capacity
+    const currentOccupancy = await prisma.checkIn.count({
+      where: { exitTime: null },
     });
 
-    if (!user || !user.profileComplete) {
-      return res.status(400).json({ error: "Profile must be complete to check in" });
+    if (currentOccupancy >= settings.maxCapacity) {
+      return res.status(400).json({
+        error: `Gym is at maximum capacity (${currentOccupancy}/${settings.maxCapacity})`,
+        code: ERROR_CODES.GYM_AT_CAPACITY,
+      });
     }
 
     const activeCheckIn = await prisma.checkIn.findFirst({
       where: {
-        userId: req.userId,
+        userId: req.user.id,
         exitTime: null,
       },
     });
 
     if (activeCheckIn) {
-      return res.status(400).json({ error: "Already checked in" });
+      return res.status(400).json({
+        error: "You already have an active check-in",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
-    const checkIn = await processCheckIn(req.userId);
+    const [checkIn, _] = await prisma.$transaction([
+      prisma.checkIn.create({
+        data: { userId: req.user.id },
+      }),
+      prisma.userPoints.update({
+        where: { userId: req.user.id },
+        data: {
+          totalPoints: { increment: settings.pointsPerCheckIn },
+          currentPoints: { increment: settings.pointsPerCheckIn },
+        },
+      }),
+    ]);
 
     await sendPushAndNotification(
-      req.userId,
-      NOTIFICATION_TYPES.CHECK_IN,
-      "Check-In Successful",
-      "You have checked in to the gym",
+      req.user.id,
+      "check_in",
+      "Check-in Successful",
+      `Welcome! You earned ${settings.pointsPerCheckIn} points.`,
       { checkInId: checkIn.id }
     );
 
-    // Emit socket event
     const io = req.app.get("io");
-    io.emit("checkin:new", {
-      userId: req.userId,
-      checkInId: checkIn.id,
-      entryTime: checkIn.entryTime,
+    emitToGym(io, "user_checked_in", {
+      userId: req.user.id,
+      username: req.user.username,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Check-in successful",
       checkIn,
+      pointsEarned: settings.pointsPerCheckIn,
+      currentOccupancy: currentOccupancy + 1,
+      maxCapacity: settings.maxCapacity,
     });
   } catch (error) {
-    console.error("[CHECK-IN] Check-in error:", error);
-    res.status(500).json({ error: "Check-in failed" });
+    console.error("[QR] Check-in error:", error);
+    return res.status(500).json({
+      error: "Failed to check in",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
@@ -355,65 +275,56 @@ export const checkOut = async (req, res) => {
   try {
     const activeCheckIn = await prisma.checkIn.findFirst({
       where: {
-        userId: req.userId,
+        userId: req.user.id,
         exitTime: null,
       },
     });
 
     if (!activeCheckIn) {
-      return res.status(400).json({ error: "No active check-in found" });
-    }
-
-    const checkOut = await processCheckOut(activeCheckIn.id);
-    const duration = calculateDuration(activeCheckIn.entryTime, checkOut.exitTime);
-
-    // Award points for workout
-    const points = Math.floor(duration / 10);
-    if (points > 0) {
-      await prisma.userPoints.update({
-        where: { userId: req.userId },
-        data: {
-          currentPoints: { increment: points },
-          totalPoints: { increment: points },
-        },
+      return res.status(400).json({
+        error: "No active check-in found",
+        code: ERROR_CODES.VALIDATION_ERROR,
       });
-
-      await sendPushAndNotification(
-        req.userId,
-        NOTIFICATION_TYPES.POINTS_EARNED,
-        "Points Earned",
-        `You earned ${points} points for your workout`,
-        { points, duration }
-      );
     }
+
+    // End any active machine usages
+    await prisma.machineUsage.updateMany({
+      where: {
+        userId: req.user.id,
+        endTime: null,
+      },
+      data: { endTime: new Date() },
+    });
+
+    const checkIn = await prisma.checkIn.update({
+      where: { id: activeCheckIn.id },
+      data: { exitTime: new Date() },
+    });
 
     await sendPushAndNotification(
-      req.userId,
-      NOTIFICATION_TYPES.CHECK_OUT,
-      "Check-Out Successful",
-      `You checked out after ${duration} minutes`,
-      { checkOutId: checkOut.id, duration }
+      req.user.id,
+      "check_out",
+      "Check-out Successful",
+      "Thanks for visiting! See you next time.",
+      { checkInId: checkIn.id }
     );
 
-    // Emit socket event
     const io = req.app.get("io");
-    io.emit("checkin:completed", {
-      userId: req.userId,
-      checkInId: checkOut.id,
-      exitTime: checkOut.exitTime,
-      duration,
-      pointsEarned: points,
+    emitToGym(io, "user_checked_out", {
+      userId: req.user.id,
+      username: req.user.username,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Check-out successful",
-      checkOut,
-      duration,
-      pointsEarned: points,
+      checkIn,
     });
   } catch (error) {
-    console.error("[CHECK-IN] Check-out error:", error);
-    res.status(500).json({ error: "Check-out failed" });
+    console.error("[QR] Check-out error:", error);
+    return res.status(500).json({
+      error: "Failed to check out",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
@@ -421,47 +332,107 @@ export const getActiveCheckIn = async (req, res) => {
   try {
     const activeCheckIn = await prisma.checkIn.findFirst({
       where: {
-        userId: req.userId,
+        userId: req.user.id,
+        exitTime: null,
+      },
+    });
+
+    return res.status(200).json({
+      activeCheckIn,
+    });
+  } catch (error) {
+    console.error("[QR] Get active check-in error:", error);
+    return res.status(500).json({
+      error: "Failed to get active check-in",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ MACHINES ============
+
+export const getMachines = async (req, res) => {
+  const { category, status } = req.query;
+
+  try {
+    const where = {};
+    if (category) where.category = category;
+    if (status) where.status = status;
+
+    const machines = await prisma.machine.findMany({
+      where,
+      orderBy: { name: "asc" },
+    });
+
+    return res.status(200).json({ machines });
+  } catch (error) {
+    console.error("[QR] Get machines error:", error);
+    return res.status(500).json({
+      error: "Failed to get machines",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getMachineById = async (req, res) => {
+  const { machineId } = req.params;
+
+  try {
+    const machine = await prisma.machine.findUnique({
+      where: { id: machineId },
+      include: {
+        reviews: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                username: true,
+                photoUrl: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    if (!machine) {
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    return res.status(200).json({ machine });
+  } catch (error) {
+    console.error("[QR] Get machine by ID error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ MACHINE USAGE ============
+
+export const startMachineUsage = async (req, res) => {
+  const { machineId } = req.params;
+
+  try {
+    const activeCheckIn = await prisma.checkIn.findFirst({
+      where: {
+        userId: req.user.id,
         exitTime: null,
       },
     });
 
     if (!activeCheckIn) {
-      return res.status(404).json({ error: "No active check-in" });
-    }
-
-    res.status(200).json(activeCheckIn);
-  } catch (error) {
-    console.error("[CHECK-IN] Get active check-in error:", error);
-    res.status(500).json({ error: "Failed to get active check-in" });
-  }
-};
-
-export const getCheckInHistory = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit = 10, offset = 0 } = req.query;
-
-    const checkIns = await prisma.checkIn.findMany({
-      where: { userId },
-      orderBy: { entryTime: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
-    });
-
-    res.status(200).json(checkIns);
-  } catch (error) {
-    console.error("[CHECK-IN] Get history error:", error);
-    res.status(500).json({ error: "Failed to get check-in history" });
-  }
-};
-
-export const useMachine = async (req, res) => {
-  try {
-    const { machineId } = req.body;
-
-    if (!machineId) {
-      return res.status(400).json({ error: "Machine ID is required" });
+      return res.status(400).json({
+        error: "You must be checked in to use machines",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
     const machine = await prisma.machine.findUnique({
@@ -469,40 +440,165 @@ export const useMachine = async (req, res) => {
     });
 
     if (!machine) {
-      return res.status(404).json({ error: "Machine not found" });
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
     }
 
-    const machineUsage = await prisma.machineUsage.create({
-      data: {
-        id: uuid(),
-        machineId,
-        userId: req.userId,
-        startTime: new Date(),
+    if (machine.status !== "available") {
+      return res.status(400).json({
+        error: "Machine is not available",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const existingUsage = await prisma.machineUsage.findFirst({
+      where: {
+        userId: req.user.id,
+        endTime: null,
       },
     });
 
-    await sendPushAndNotification(
-      req.userId,
-      NOTIFICATION_TYPES.MACHINE_USED,
-      "Machine Usage Started",
-      `You started using ${machine.name}`,
-      { machineId, machineUsage: machineUsage.id }
-    );
+    if (existingUsage) {
+      return res.status(400).json({
+        error: "You are already using another machine",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
 
-    // Emit socket event
+    const [usage, _] = await prisma.$transaction([
+      prisma.machineUsage.create({
+        data: {
+          machineId,
+          userId: req.user.id,
+        },
+      }),
+      prisma.machine.update({
+        where: { id: machineId },
+        data: { status: "in_use" },
+      }),
+    ]);
+
     const io = req.app.get("io");
-    io.emit("machine:inuse", {
+    emitToGym(io, "machine_status_changed", {
       machineId,
-      userId: req.userId,
-      usageId: machineUsage.id,
+      status: "in_use",
+      userId: req.user.id,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Machine usage started",
-      machineUsage,
+      usage,
     });
   } catch (error) {
-    console.error("[MACHINES] Use machine error:", error);
-    res.status(500).json({ error: "Failed to start machine usage" });
+    console.error("[QR] Start machine usage error:", error);
+    return res.status(500).json({
+      error: "Failed to start machine usage",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const endMachineUsage = async (req, res) => {
+  const { machineId } = req.params;
+
+  try {
+    const activeUsage = await prisma.machineUsage.findFirst({
+      where: {
+        machineId,
+        userId: req.user.id,
+        endTime: null,
+      },
+    });
+
+    if (!activeUsage) {
+      return res.status(400).json({
+        error: "No active usage found for this machine",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const [usage, _] = await prisma.$transaction([
+      prisma.machineUsage.update({
+        where: { id: activeUsage.id },
+        data: { endTime: new Date() },
+      }),
+      prisma.machine.update({
+        where: { id: machineId },
+        data: { status: "available" },
+      }),
+    ]);
+
+    await sendPushAndNotification(
+      req.user.id,
+      "machine_used",
+      "Workout Tracked",
+      `You finished using the machine.`,
+      { machineId, usageId: usage.id }
+    );
+
+    const io = req.app.get("io");
+    emitToGym(io, "machine_status_changed", {
+      machineId,
+      status: "available",
+      userId: null,
+    });
+
+    return res.status(200).json({
+      message: "Machine usage ended",
+      usage,
+    });
+  } catch (error) {
+    console.error("[QR] End machine usage error:", error);
+    return res.status(500).json({
+      error: "Failed to end machine usage",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getMachineUsageHistory = async (req, res) => {
+  const { machineId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [usages, total] = await Promise.all([
+      prisma.machineUsage.findMany({
+        where: { machineId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { startTime: "desc" },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.machineUsage.count({ where: { machineId } }),
+    ]);
+
+    return res.status(200).json({
+      usages,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[QR] Get machine usage history error:", error);
+    return res.status(500).json({
+      error: "Failed to get usage history",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };

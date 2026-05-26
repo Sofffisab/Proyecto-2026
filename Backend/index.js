@@ -1,17 +1,4 @@
 import "dotenv/config";
-
-const requiredEnvVars = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL'];
-const missing = requiredEnvVars.filter(key => !process.env[key]);
-
-if (missing.length > 0 && process.env.NODE_ENV === 'production') {
-  console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
-  process.exit(1);
-}
-
-if (missing.length > 0) {
-  console.warn(`[WARNING] Development mode - missing env vars: ${missing.join(', ')}. Using insecure defaults.`);
-}
-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -19,10 +6,11 @@ import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import router from "./routes.js";
-import setupMiddlewares, { errorHandler, notFoundHandler } from "./shared/middlewares.js";
+import { errorHandler, notFoundHandler } from "./shared/middlewares.js";
 import { setupSocketHandlers } from "./shared/socket.js";
 import { setupQRCron, setupStatsCron, setupCleanupCron, setupRemindersCron } from "./shared/cron.js";
 import { initializeFirebase } from "./features/notifications.js";
+import { prisma } from "./prisma/prisma.js";
 
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8081";
@@ -43,10 +31,19 @@ const io = new Server(httpServer, {
 app.set("io", io);
 setupSocketHandlers(io);
 
+// Rate limiters
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: { error: "Too many requests, please try again later" },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: "Too many authentication attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use(helmet());
@@ -60,14 +57,31 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(generalLimiter);
 
+// Apply auth limiter to auth routes
+app.use("/api/v1/auth/login", authLimiter);
+app.use("/api/v1/auth/register", authLimiter);
+
 app.use("/api/v1", router);
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
+// Health check with database verification
+app.get("/health", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  } catch (error) {
+    console.error("[HEALTH] Database check failed:", error);
+    res.status(503).json({
+      status: "degraded",
+      database: "disconnected",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  }
 });
 
 app.use(notFoundHandler);

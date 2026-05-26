@@ -1,4 +1,5 @@
 import { v4 as uuid } from "uuid";
+import { prisma } from "../prisma/prisma.js";
 
 // ============ CONSTANTS ============
 
@@ -59,6 +60,8 @@ export const ERROR_CODES = {
   INTERNAL_ERROR: "INTERNAL_ERROR",
   DUPLICATE_ENTRY: "DUPLICATE_ENTRY",
   INSUFFICIENT_POINTS: "INSUFFICIENT_POINTS",
+  GYM_CLOSED: "GYM_CLOSED",
+  GYM_AT_CAPACITY: "GYM_AT_CAPACITY",
 };
 
 // ============ VALIDATORS ============
@@ -69,13 +72,11 @@ export const validateEmail = (email) => {
 };
 
 export const validatePassword = (password) => {
-  // At least 8 characters, one uppercase, one lowercase, one number
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
   return passwordRegex.test(password);
 };
 
 export const validateUsername = (username) => {
-  // 3-20 characters, alphanumeric and underscores only
   const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
   return usernameRegex.test(username);
 };
@@ -85,7 +86,7 @@ export const validateRole = (role) => {
 };
 
 export const validateRating = (rating) => {
-  return typeof rating === "number" && rating >= 1 && rating <= 5;
+  return typeof rating === "number" && Number.isInteger(rating) && rating >= 1 && rating <= 5;
 };
 
 // ============ FORMATTERS ============
@@ -161,4 +162,45 @@ export const parseJSON = (str, fallback = null) => {
   } catch {
     return fallback;
   }
+};
+
+// ============ PAGINATION HELPERS ============
+
+export const parsePaginationParams = (query) => {
+  const limit = Math.max(1, Math.min(100, parseInt(query.limit) || 20));
+  const offset = Math.max(0, parseInt(query.offset) || 0);
+  return { limit, offset };
+};
+
+// ============ SHARED SERVICES ============
+
+export const getGymPointsSettings = async () => {
+  let settings = await prisma.gymSettings.findFirst();
+  if (!settings) {
+    settings = await prisma.gymSettings.create({
+      data: {
+        gymName: "My Gym",
+        openTime: "06:00",
+        closeTime: "22:00",
+        maxCapacity: 100,
+        pointsPerCheckIn: 10,
+        pointsPerHelpReceived: 50,
+        pointsPerProgressVerified: 100,
+        pointsPerSocialConnection: 25,
+      },
+    });
+  }
+  return settings;
+};
+
+export const isGymOpen = (settings) => {
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return currentTime >= settings.openTime && currentTime <= settings.closeTime;
+};
+
+export const formatUserPhoto = (photoUrl) => {
+  if (!photoUrl) return null;
+  if (photoUrl.startsWith("http")) return photoUrl;
+  return photoUrl;
 };

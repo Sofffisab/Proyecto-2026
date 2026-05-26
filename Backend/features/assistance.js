@@ -1,446 +1,662 @@
 import { prisma } from "../prisma/prisma.js";
-import { v4 as uuid } from "uuid";
+import {
+  ERROR_CODES,
+  STATUS,
+  ROLES,
+  paginate,
+  validateRating,
+  getGymPointsSettings,
+} from "../shared/utils.js";
 import { sendPushAndNotification } from "./notifications.js";
-import { NOTIFICATION_TYPES } from "../shared/utils.js";
+import { emitToTrainers, emitToUser } from "../shared/socket.js";
 
-// ============ HELP SERVICE ============
-
-export const createHelpRequest = async (userId, description) => {
-  return await prisma.helpRequest.create({
-    data: {
-      id: uuid(),
-      userId,
-      description,
-      status: "pending",
-      requestedAt: new Date(),
-    },
-  });
-};
-
-export const claimHelpService = async (trainerId, helpRequestId) => {
-  return await prisma.helpRequest.update({
-    where: { id: helpRequestId },
-    data: {
-      claimedBy: trainerId,
-      status: "claimed",
-      claimedAt: new Date(),
-    },
-  });
-};
-
-export const completeHelpService = async (helpRequestId, feedback = null) => {
-  return await prisma.helpRequest.update({
-    where: { id: helpRequestId },
-    data: {
-      status: "completed",
-      feedback,
-      completedAt: new Date(),
-    },
-  });
-};
-
-// ============ HELP CONTROLLERS ============
+// ============ HELP REQUESTS ============
 
 export const requestHelp = async (req, res) => {
-  try {
-    const { description } = req.body;
+  const { description } = req.body;
 
-    if (!description) {
-      return res.status(400).json({ error: "Description is required" });
-    }
-
-    const helpRequest = await createHelpRequest(req.userId, description);
-
-    const trainers = await prisma.user.findMany({
-      where: { role: "TRAINER" },
-      select: { id: true },
+  if (!description) {
+    return res.status(400).json({
+      error: "Description is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
     });
-
-    for (const trainer of trainers) {
-      await sendPushAndNotification(
-        trainer.id,
-        NOTIFICATION_TYPES.HELP_REQUESTED,
-        "Help Request",
-        "A user needs help",
-        { helpRequestId: helpRequest.id, userId: req.userId }
-      );
-    }
-
-    const io = req.app.get("io");
-    io.to("trainers").emit("help:requested", helpRequest);
-
-    res.status(201).json({
-      message: "Help requested successfully",
-      helpRequest,
-    });
-  } catch (error) {
-    console.error("[HELP] Request help error:", error);
-    res.status(500).json({ error: "Failed to request help" });
   }
-};
 
-export const claimHelpRequestCtrl = async (req, res) => {
   try {
-    const { helpRequestId } = req.params;
-
-    const helpRequest = await prisma.helpRequest.findUnique({
-      where: { id: helpRequestId },
+    const activeCheckIn = await prisma.checkIn.findFirst({
+      where: {
+        userId: req.user.id,
+        exitTime: null,
+      },
     });
 
-    if (!helpRequest) {
-      return res.status(404).json({ error: "Help request not found" });
+    if (!activeCheckIn) {
+      return res.status(400).json({
+        error: "You must be checked in to request help",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
-    if (helpRequest.status !== "pending") {
-      return res.status(400).json({ error: "Help request already claimed or completed" });
-    }
-
-    const updated = await claimHelpService(req.userId, helpRequestId);
-
-    await sendPushAndNotification(
-      helpRequest.userId,
-      NOTIFICATION_TYPES.HELP_CLAIMED,
-      "Trainer Coming",
-      "A trainer is coming to help you",
-      { helpRequestId, trainerId: req.userId }
-    );
-
-    const io = req.app.get("io");
-    io.to(`user-${helpRequest.userId}`).emit("help:claimed", updated);
-
-    res.status(200).json({
-      message: "Help request claimed successfully",
-      helpRequest: updated,
-    });
-  } catch (error) {
-    console.error("[HELP] Claim help error:", error);
-    res.status(500).json({ error: "Failed to claim help request" });
-  }
-};
-
-export const completeHelpRequestCtrl = async (req, res) => {
-  try {
-    const { helpRequestId } = req.params;
-    const { feedback } = req.body;
-
-    const helpRequest = await prisma.helpRequest.findUnique({
-      where: { id: helpRequestId },
+    const existingRequest = await prisma.helpRequest.findFirst({
+      where: {
+        userId: req.user.id,
+        status: { in: [STATUS.PENDING, STATUS.CLAIMED] },
+      },
     });
 
-    if (!helpRequest) {
-      return res.status(404).json({ error: "Help request not found" });
+    if (existingRequest) {
+      return res.status(400).json({
+        error: "You already have an active help request",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
     }
 
-    const updated = await completeHelpService(helpRequestId, feedback);
-
-    await sendPushAndNotification(
-      helpRequest.userId,
-      NOTIFICATION_TYPES.HELP_COMPLETED,
-      "Help Completed",
-      "The trainer finished assisting you",
-      { helpRequestId, feedback }
-    );
-
-    await prisma.userPoints.update({
-      where: { userId: helpRequest.userId },
+    const helpRequest = await prisma.helpRequest.create({
       data: {
-        currentPoints: { increment: 50 },
-        totalPoints: { increment: 50 },
+        userId: req.user.id,
+        description,
+        status: STATUS.PENDING,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            photoUrl: true,
+          },
+        },
       },
     });
 
     const io = req.app.get("io");
-    io.to(`user-${helpRequest.userId}`).emit("help:completed", updated);
+    emitToTrainers(io, "new_help_request", {
+      helpRequest,
+    });
 
-    res.status(200).json({
-      message: "Help request completed successfully",
-      helpRequest: updated,
+    return res.status(201).json({
+      message: "Help request submitted",
+      helpRequest,
     });
   } catch (error) {
-    console.error("[HELP] Complete help error:", error);
-    res.status(500).json({ error: "Failed to complete help request" });
+    console.error("[ASSISTANCE] Request help error:", error);
+    return res.status(500).json({
+      error: "Failed to submit help request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getPendingHelpRequests = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [requests, total] = await Promise.all([
+      prisma.helpRequest.findMany({
+        where: { status: STATUS.PENDING },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { requestedAt: "asc" },
+        ...pagination,
+      }),
+      prisma.helpRequest.count({ where: { status: STATUS.PENDING } }),
+    ]);
+
+    return res.status(200).json({
+      requests,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[ASSISTANCE] Get pending help requests error:", error);
+    return res.status(500).json({
+      error: "Failed to get help requests",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const claimHelpRequest = async (req, res) => {
+  const { helpId } = req.params;
+
+  try {
+    const helpRequest = await prisma.helpRequest.findUnique({
+      where: { id: helpId },
+    });
+
+    if (!helpRequest) {
+      return res.status(404).json({
+        error: "Help request not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    if (helpRequest.status !== STATUS.PENDING) {
+      return res.status(400).json({
+        error: "Help request is no longer pending",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const updatedRequest = await prisma.helpRequest.update({
+      where: { id: helpId },
+      data: {
+        status: STATUS.CLAIMED,
+        claimedBy: req.user.id,
+        claimedAt: new Date(),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+          },
+        },
+        trainer: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    await sendPushAndNotification(
+      helpRequest.userId,
+      "help_claimed",
+      "Help is on the way!",
+      `${req.user.fullName} is coming to help you.`,
+      { helpId }
+    );
+
+    const io = req.app.get("io");
+    emitToTrainers(io, "help_request_claimed", {
+      helpId,
+      claimedBy: req.user.id,
+    });
+
+    return res.status(200).json({
+      message: "Help request claimed",
+      helpRequest: updatedRequest,
+    });
+  } catch (error) {
+    console.error("[ASSISTANCE] Claim help request error:", error);
+    return res.status(500).json({
+      error: "Failed to claim help request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const completeHelpRequestCtrl = async (req, res) => {
+  const { helpId } = req.params;
+  const { feedback } = req.body;
+
+  try {
+    const helpRequest = await prisma.helpRequest.findUnique({
+      where: { id: helpId },
+    });
+
+    if (!helpRequest) {
+      return res.status(404).json({
+        error: "Help request not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    if (helpRequest.claimedBy !== req.user.id) {
+      return res.status(403).json({
+        error: "You did not claim this help request",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    if (helpRequest.status !== STATUS.CLAIMED) {
+      return res.status(400).json({
+        error: "Help request is not in claimed status",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const settings = await getGymPointsSettings();
+
+    const [updatedRequest, _] = await prisma.$transaction([
+      prisma.helpRequest.update({
+        where: { id: helpId },
+        data: {
+          status: STATUS.COMPLETED,
+          feedback,
+          completedAt: new Date(),
+        },
+      }),
+      prisma.userPoints.update({
+        where: { userId: helpRequest.userId },
+        data: {
+          totalPoints: { increment: settings.pointsPerHelpReceived },
+          currentPoints: { increment: settings.pointsPerHelpReceived },
+        },
+      }),
+    ]);
+
+    await sendPushAndNotification(
+      helpRequest.userId,
+      "help_completed",
+      "Help Completed",
+      `Your help request was completed. You earned ${settings.pointsPerHelpReceived} points!`,
+      { helpId }
+    );
+
+    return res.status(200).json({
+      message: "Help request completed",
+      helpRequest: updatedRequest,
+      pointsAwarded: settings.pointsPerHelpReceived,
+    });
+  } catch (error) {
+    console.error("[ASSISTANCE] Complete help request error:", error);
+    return res.status(500).json({
+      error: "Failed to complete help request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const rateHelp = async (req, res) => {
-  try {
-    const { helpRequestId } = req.params;
-    const { rating, comment } = req.body;
+  const { helpId } = req.params;
+  const { rating, comment } = req.body;
 
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Rating must be between 1 and 5" });
+  if (!validateRating(rating)) {
+    return res.status(400).json({
+      error: "Rating must be between 1 and 5",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const helpRequest = await prisma.helpRequest.findUnique({
+      where: { id: helpId },
+    });
+
+    if (!helpRequest) {
+      return res.status(404).json({
+        error: "Help request not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
     }
 
-    const helpRequest = await prisma.helpRequest.update({
-      where: { id: helpRequestId },
+    // Validate ownership
+    if (helpRequest.userId !== req.user.id) {
+      return res.status(403).json({
+        error: "You can only rate your own help requests",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    // Validate status
+    if (helpRequest.status !== STATUS.COMPLETED) {
+      return res.status(400).json({
+        error: "Help request must be completed before rating",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    // Check if already rated
+    if (helpRequest.rating !== null) {
+      return res.status(400).json({
+        error: "Help request has already been rated",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const updatedRequest = await prisma.helpRequest.update({
+      where: { id: helpId },
       data: {
         rating,
         comment,
       },
     });
 
-    res.status(200).json({
-      message: "Help request rated successfully",
-      helpRequest,
+    return res.status(200).json({
+      message: "Rating submitted",
+      helpRequest: updatedRequest,
     });
   } catch (error) {
-    console.error("[HELP] Rate help error:", error);
-    res.status(500).json({ error: "Failed to rate help request" });
-  }
-};
-
-export const getPendingHelpRequests = async (req, res) => {
-  try {
-    const { limit = 10, offset = 0 } = req.query;
-
-    const helpRequests = await prisma.helpRequest.findMany({
-      where: { status: "pending" },
-      include: {
-        user: {
-          select: { id: true, fullName: true, username: true },
-        },
-      },
-      orderBy: { requestedAt: "asc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
+    console.error("[ASSISTANCE] Rate help error:", error);
+    return res.status(500).json({
+      error: "Failed to submit rating",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
-
-    res.status(200).json(helpRequests);
-  } catch (error) {
-    console.error("[HELP] Get pending requests error:", error);
-    res.status(500).json({ error: "Failed to get pending requests" });
   }
 };
 
 export const getMyHelpRequests = async (req, res) => {
+  const { page = 1, limit = 20, status } = req.query;
+
   try {
-    const { limit = 10, offset = 0 } = req.query;
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const where = { userId: req.user.id };
+    if (status) where.status = status;
 
-    const helpRequests = await prisma.helpRequest.findMany({
-      where: { userId: req.userId },
-      orderBy: { requestedAt: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
+    const [requests, total] = await Promise.all([
+      prisma.helpRequest.findMany({
+        where,
+        include: {
+          trainer: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { requestedAt: "desc" },
+        ...pagination,
+      }),
+      prisma.helpRequest.count({ where }),
+    ]);
+
+    return res.status(200).json({
+      requests,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
     });
-
-    res.status(200).json(helpRequests);
   } catch (error) {
-    console.error("[HELP] Get my requests error:", error);
-    res.status(500).json({ error: "Failed to get your requests" });
+    console.error("[ASSISTANCE] Get my help requests error:", error);
+    return res.status(500).json({
+      error: "Failed to get help requests",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const cancelHelpRequest = async (req, res) => {
-  try {
-    const { helpRequestId } = req.params;
+  const { helpId } = req.params;
 
+  try {
     const helpRequest = await prisma.helpRequest.findUnique({
-      where: { id: helpRequestId },
+      where: { id: helpId },
     });
 
     if (!helpRequest) {
-      return res.status(404).json({ error: "Help request not found" });
-    }
-
-    if (helpRequest.userId !== req.userId && req.userRole !== "ADMIN") {
-      return res.status(403).json({ error: "Not authorized to cancel this request" });
-    }
-
-    if (helpRequest.status !== "pending" && helpRequest.status !== "claimed") {
-      return res.status(400).json({
-        error: "Cannot cancel a completed or already cancelled request",
+      return res.status(404).json({
+        error: "Help request not found",
+        code: ERROR_CODES.NOT_FOUND,
       });
     }
 
-    const updated = await prisma.helpRequest.update({
-      where: { id: helpRequestId },
-      data: { status: "cancelled" },
-    });
-
-    if (helpRequest.claimedBy) {
-      await sendPushAndNotification(
-        helpRequest.claimedBy,
-        NOTIFICATION_TYPES.HELP_CANCELLED,
-        "Help Request Cancelled",
-        "The user cancelled their help request",
-        { helpRequestId }
-      );
-
-      const io = req.app.get("io");
-      io.to(`user-${helpRequest.claimedBy}`).emit("help:cancelled", updated);
+    if (helpRequest.userId !== req.user.id) {
+      return res.status(403).json({
+        error: "You can only cancel your own help requests",
+        code: ERROR_CODES.FORBIDDEN,
+      });
     }
 
-    res.status(200).json({
-      message: "Help request cancelled successfully",
-      helpRequest: updated,
+    if (helpRequest.status !== STATUS.PENDING) {
+      return res.status(400).json({
+        error: "Can only cancel pending help requests",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const updatedRequest = await prisma.helpRequest.update({
+      where: { id: helpId },
+      data: { status: STATUS.CANCELLED },
+    });
+
+    const io = req.app.get("io");
+    emitToTrainers(io, "help_request_cancelled", { helpId });
+
+    return res.status(200).json({
+      message: "Help request cancelled",
+      helpRequest: updatedRequest,
     });
   } catch (error) {
-    console.error("[HELP] Cancel help error:", error);
-    res.status(500).json({ error: "Failed to cancel help request" });
+    console.error("[ASSISTANCE] Cancel help request error:", error);
+    return res.status(500).json({
+      error: "Failed to cancel help request",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-// ============ PROGRESS SERVICE ============
+// ============ PROGRESS ============
 
-export const requestProgressService = async (userId, exerciseName, weight, reps, notes = null) => {
-  return await prisma.progressUpdate.create({
-    data: {
-      id: uuid(),
-      userId,
-      exerciseName,
-      weight,
-      reps,
-      notes,
-      status: "pending",
-      createdAt: new Date(),
-    },
-  });
-};
+export const submitProgress = async (req, res) => {
+  const { exerciseName, weight, reps, notes, photoUrl } = req.body;
 
-export const verifyProgressService = async (progressId, trainerId, approve, feedback = null) => {
-  return await prisma.progressUpdate.update({
-    where: { id: progressId },
-    data: {
-      status: approve ? "approved" : "denied",
-      feedback,
-      verifiedBy: trainerId,
-      verifiedAt: new Date(),
-    },
-  });
-};
+  if (!exerciseName || weight === undefined || reps === undefined) {
+    return res.status(400).json({
+      error: "Exercise name, weight, and reps are required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
 
-// ============ PROGRESS CONTROLLERS ============
-
-export const requestProgressUpdateCtrl = async (req, res) => {
   try {
-    const { exerciseName, weight, reps, notes } = req.body;
-
-    if (!exerciseName || !weight || !reps) {
-      return res.status(400).json({ error: "Exercise name, weight, and reps are required" });
-    }
-
-    const progress = await requestProgressService(req.userId, exerciseName, weight, reps, notes);
-
-    const trainers = await prisma.user.findMany({
-      where: { role: "TRAINER" },
-      select: { id: true },
+    const progress = await prisma.progressUpdate.create({
+      data: {
+        userId: req.user.id,
+        exerciseName,
+        weight,
+        reps,
+        notes,
+        photoUrl,
+        status: STATUS.PENDING,
+      },
     });
 
-    for (const trainer of trainers) {
-      await sendPushAndNotification(
-        trainer.id,
-        NOTIFICATION_TYPES.PROGRESS_REQUESTED,
-        "Progress Verification",
-        `${exerciseName}: ${weight}kg x${reps} reps`,
-        { progressId: progress.id, userId: req.userId }
-      );
-    }
-
     const io = req.app.get("io");
-    io.to("trainers").emit("progress:requested", progress);
+    emitToTrainers(io, "new_progress_update", {
+      progress,
+      user: {
+        id: req.user.id,
+        fullName: req.user.fullName,
+        username: req.user.username,
+      },
+    });
 
-    res.status(201).json({
-      message: "Progress update requested successfully",
+    return res.status(201).json({
+      message: "Progress submitted for verification",
       progress,
     });
   } catch (error) {
-    console.error("[PROGRESS] Request update error:", error);
-    res.status(500).json({ error: "Failed to request progress update" });
+    console.error("[ASSISTANCE] Submit progress error:", error);
+    return res.status(500).json({
+      error: "Failed to submit progress",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getPendingProgress = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [updates, total] = await Promise.all([
+      prisma.progressUpdate.findMany({
+        where: { status: STATUS.PENDING },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+        ...pagination,
+      }),
+      prisma.progressUpdate.count({ where: { status: STATUS.PENDING } }),
+    ]);
+
+    return res.status(200).json({
+      updates,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[ASSISTANCE] Get pending progress error:", error);
+    return res.status(500).json({
+      error: "Failed to get pending progress",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
 export const verifyProgressCtrl = async (req, res) => {
-  try {
-    const { progressId } = req.params;
-    const { approve, feedback } = req.body;
+  const { progressId } = req.params;
+  const { approved, feedback } = req.body;
 
+  if (typeof approved !== "boolean") {
+    return res.status(400).json({
+      error: "Approval status is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
     const progress = await prisma.progressUpdate.findUnique({
       where: { id: progressId },
     });
 
     if (!progress) {
-      return res.status(404).json({ error: "Progress not found" });
-    }
-
-    const updated = await verifyProgressService(progressId, req.userId, approve, feedback);
-
-    if (approve) {
-      await prisma.userPoints.update({
-        where: { userId: progress.userId },
-        data: {
-          currentPoints: { increment: 100 },
-          totalPoints: { increment: 100 },
-        },
+      return res.status(404).json({
+        error: "Progress update not found",
+        code: ERROR_CODES.NOT_FOUND,
       });
+    }
 
-      await sendPushAndNotification(
-        progress.userId,
-        NOTIFICATION_TYPES.PROGRESS_APPROVED,
-        "Progress Verified",
-        `Your ${progress.exerciseName} progress has been verified! +100 points`,
-        { progressId }
-      );
-    } else {
-      await sendPushAndNotification(
-        progress.userId,
-        NOTIFICATION_TYPES.PROGRESS_DENIED,
-        "Progress Not Verified",
-        `Your ${progress.exerciseName} progress was not verified: ${feedback || ""}`,
-        { progressId }
+    if (progress.status !== STATUS.PENDING) {
+      return res.status(400).json({
+        error: "Progress update is not pending",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
+
+    const settings = await getGymPointsSettings();
+    const newStatus = approved ? STATUS.APPROVED : STATUS.DENIED;
+
+    const transactionOps = [
+      prisma.progressUpdate.update({
+        where: { id: progressId },
+        data: {
+          status: newStatus,
+          feedback,
+          verifiedBy: req.user.id,
+          verifiedAt: new Date(),
+        },
+      }),
+    ];
+
+    if (approved) {
+      transactionOps.push(
+        prisma.userPoints.update({
+          where: { userId: progress.userId },
+          data: {
+            totalPoints: { increment: settings.pointsPerProgressVerified },
+            currentPoints: { increment: settings.pointsPerProgressVerified },
+          },
+        })
       );
     }
 
-    const io = req.app.get("io");
-    io.to(`user-${progress.userId}`).emit("progress:verified", updated);
+    const [updatedProgress] = await prisma.$transaction(transactionOps);
 
-    res.status(200).json({
-      message: `Progress ${approve ? "approved" : "denied"} successfully`,
-      progress: updated,
+    const notificationType = approved ? "progress_approved" : "progress_denied";
+    const notificationTitle = approved ? "Progress Approved!" : "Progress Denied";
+    const notificationMessage = approved
+      ? `Your progress was verified! You earned ${settings.pointsPerProgressVerified} points.`
+      : `Your progress was not approved. ${feedback || ""}`;
+
+    await sendPushAndNotification(
+      progress.userId,
+      notificationType,
+      notificationTitle,
+      notificationMessage,
+      { progressId }
+    );
+
+    return res.status(200).json({
+      message: `Progress ${approved ? "approved" : "denied"}`,
+      progress: updatedProgress,
+      pointsAwarded: approved ? settings.pointsPerProgressVerified : 0,
     });
   } catch (error) {
-    console.error("[PROGRESS] Verify error:", error);
-    res.status(500).json({ error: "Failed to verify progress" });
+    console.error("[ASSISTANCE] Verify progress error:", error);
+    return res.status(500).json({
+      error: "Failed to verify progress",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 };
 
-export const getPendingProgress = async (req, res) => {
-  try {
-    const { limit = 10, offset = 0 } = req.query;
+export const getMyProgress = async (req, res) => {
+  const { page = 1, limit = 20, status } = req.query;
 
-    const pendingProgress = await prisma.progressUpdate.findMany({
-      where: { status: "pending" },
-      include: {
-        user: {
-          select: { id: true, fullName: true, username: true },
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const where = { userId: req.user.id };
+    if (status) where.status = status;
+
+    const [updates, total] = await Promise.all([
+      prisma.progressUpdate.findMany({
+        where,
+        include: {
+          trainer: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+            },
+          },
         },
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.progressUpdate.count({ where }),
+    ]);
+
+    return res.status(200).json({
+      updates,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
       },
-      orderBy: { createdAt: "asc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
     });
-
-    res.status(200).json(pendingProgress);
   } catch (error) {
-    console.error("[PROGRESS] Get pending error:", error);
-    res.status(500).json({ error: "Failed to get pending progress" });
-  }
-};
-
-export const getUserProgress = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit = 10, offset = 0 } = req.query;
-
-    const progress = await prisma.progressUpdate.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: parseInt(limit),
-      skip: parseInt(offset),
+    console.error("[ASSISTANCE] Get my progress error:", error);
+    return res.status(500).json({
+      error: "Failed to get progress",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
-
-    res.status(200).json(progress);
-  } catch (error) {
-    console.error("[PROGRESS] Get user progress error:", error);
-    res.status(500).json({ error: "Failed to get progress" });
   }
 };
