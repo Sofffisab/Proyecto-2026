@@ -10,7 +10,7 @@ body{
     gap: 45%;
 }
 
-.h1, .h1_Mail{
+h1, .h1_Mail{
     font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -67,4 +67,22 @@ img{
     display: flex;
     font-size: small;
     color: grey;
+}
+.E{
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+.E1, .E2, .E3{
+    display: flex;
+    height: 100px;
+    width: 100%;
+    background-color: rgb(184, 184, 184);
+    gap: 10px;
+}
+
+.T1, .T2 ,.T3{
+    display: flex;
+    font-size: small;
+    margin-left: 10px;
 }
