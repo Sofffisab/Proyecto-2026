@@ -239,3 +239,49 @@ export const deleteNotification = async (req, res) => {
     });
   }
 };
+
+// ============ ALIASES FOR ROUTES ============
+
+export const markAsRead = markNotificationRead;
+export const markAllAsRead = markAllNotificationsRead;
+
+// ============ UNREAD COUNT ============
+
+export const getUnreadCount = async (req, res) => {
+  try {
+    const count = await prisma.userNotification.count({
+      where: {
+        userId: req.user.id,
+        isRead: false,
+      },
+    });
+
+    return res.status(200).json({ unreadCount: count });
+  } catch (error) {
+    console.error("[NOTIFICATIONS] Get unread count error:", error);
+    return res.status(500).json({
+      error: "Failed to get unread count",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ CLEAR ALL NOTIFICATIONS ============
+
+export const clearNotifications = async (req, res) => {
+  try {
+    await prisma.userNotification.deleteMany({
+      where: { userId: req.user.id },
+    });
+
+    return res.status(200).json({
+      message: "All notifications cleared",
+    });
+  } catch (error) {
+    console.error("[NOTIFICATIONS] Clear notifications error:", error);
+    return res.status(500).json({
+      error: "Failed to clear notifications",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};

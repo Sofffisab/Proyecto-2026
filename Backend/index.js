@@ -87,6 +87,46 @@ app.get("/health", async (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// ============ GRACEFUL SHUTDOWN ============
+
+const gracefulShutdown = async (signal) => {
+  console.log(`\n[INFO] Received ${signal}. Starting graceful shutdown...`);
+
+  try {
+    // Close HTTP server
+    httpServer.close(() => {
+      console.log("[INFO] HTTP server closed");
+    });
+
+    // Close Socket.io connections
+    io.close(() => {
+      console.log("[INFO] Socket.io connections closed");
+    });
+
+    // Disconnect from database
+    await prisma.$disconnect();
+    console.log("[INFO] Database connection closed");
+
+    process.exit(0);
+  } catch (error) {
+    console.error("[ERROR] Error during graceful shutdown:", error);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("[FATAL] Uncaught Exception:", error);
+  gracefulShutdown("uncaughtException");
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[FATAL] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 const startServer = async () => {
   try {
     await initializeFirebase();

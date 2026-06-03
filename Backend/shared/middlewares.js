@@ -2,7 +2,11 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../prisma/prisma.js";
 import { ROLES, ERROR_CODES } from "./utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is required");
+}
 
 // ============ AUTH MIDDLEWARE ============
 
@@ -82,6 +86,9 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+// Alias for routes.js compatibility
+export const requireAuth = authenticate;
+
 // ============ ROLE MIDDLEWARE ============
 
 export const requireRole = (...roles) => {
@@ -107,6 +114,72 @@ export const requireRole = (...roles) => {
 export const requireAdmin = requireRole(ROLES.ADMIN);
 export const requireTrainer = requireRole(ROLES.TRAINER, ROLES.ADMIN);
 export const requireUser = requireRole(ROLES.USER, ROLES.TRAINER, ROLES.ADMIN);
+
+// ============ SELF OR ROLE MIDDLEWARE ============
+
+export const requireSelfOrAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: "Authentication required",
+      code: ERROR_CODES.UNAUTHORIZED,
+    });
+  }
+
+  const targetUserId = req.params.userId;
+
+  if (req.user.id === targetUserId || req.user.role === ROLES.ADMIN) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: "Access denied",
+    code: ERROR_CODES.FORBIDDEN,
+  });
+};
+
+export const requireSelfOrTrainer = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: "Authentication required",
+      code: ERROR_CODES.UNAUTHORIZED,
+    });
+  }
+
+  const targetUserId = req.params.userId;
+
+  if (
+    req.user.id === targetUserId ||
+    req.user.role === ROLES.TRAINER ||
+    req.user.role === ROLES.ADMIN
+  ) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: "Access denied",
+    code: ERROR_CODES.FORBIDDEN,
+  });
+};
+
+// ============ PROFILE COMPLETE MIDDLEWARE ============
+
+export const requireProfileComplete = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: "Authentication required",
+      code: ERROR_CODES.UNAUTHORIZED,
+    });
+  }
+
+  if (!req.user.profileComplete) {
+    return res.status(403).json({
+      error: "Profile must be completed first",
+      code: ERROR_CODES.FORBIDDEN,
+    });
+  }
+
+  next();
+};
 
 // ============ VALIDATION MIDDLEWARE ============
 

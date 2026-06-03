@@ -9,6 +9,7 @@ import * as notifications from "./features/notifications.js";
 import * as assistance from "./features/assistance.js";
 import * as social from "./features/social.js";
 import * as admin from "./features/admin.js";
+import * as trainer from "./features/trainer.js";
 
 import {
   requireAuth,
@@ -47,7 +48,7 @@ router.get("/personalizations/:userId", requireAuth, requireSelfOrAdmin, users.g
 router.post("/personalizations/:userId", requireAuth, requireSelfOrAdmin, users.setPersonalization);
 router.delete("/personalizations/:userId/:fieldName", requireAuth, requireSelfOrAdmin, users.deletePersonalization);
 
-router.post("/qr/machine", requireAuth, requireRole(ROLES.ADMIN), qr.generateMachineQR);
+router.post("/qr/machine/:machineId", requireAuth, requireRole(ROLES.ADMIN), qr.generateMachineQR);
 router.post("/qr/personal", requireAuth, qr.generatePersonalQR);
 router.post("/qr/entry-exit", requireAuth, requireRole(ROLES.ADMIN), qr.generateEntryExitQR);
 router.post("/qr/scan", requireAuth, qr.scanQR);
@@ -86,12 +87,12 @@ router.delete("/notifications/:notificationId", requireAuth, notifications.delet
 router.delete("/notifications", requireAuth, notifications.clearNotifications);
 
 router.post("/help", requireAuth, requireProfileComplete, assistance.requestHelp);
-router.post("/help/:helpRequestId/claim", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), assistance.claimHelpRequestCtrl);
-router.post("/help/:helpRequestId/complete", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), assistance.completeHelpRequestCtrl);
-router.post("/help/:helpRequestId/rate", requireAuth, assistance.rateHelp);
+router.post("/help/:helpId/claim", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), assistance.claimHelpRequestCtrl);
+router.post("/help/:helpId/complete", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), assistance.completeHelpRequestCtrl);
+router.post("/help/:helpId/rate", requireAuth, assistance.rateHelp);
 router.get("/help/pending", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), assistance.getPendingHelpRequests);
 router.get("/help/my-requests", requireAuth, assistance.getMyHelpRequests);
-router.delete("/help/:helpRequestId", requireAuth, assistance.cancelHelpRequest);
+router.delete("/help/:helpId", requireAuth, assistance.cancelHelpRequest);
 
 router.get("/statistics/gym", requireAuth, requireRole(ROLES.ADMIN), admin.getGymStats);
 router.get("/statistics/employee/:trainerId", requireAuth, requireRole(ROLES.ADMIN), admin.getEmployeeStats);
@@ -127,5 +128,8 @@ router.patch("/admin/users/:userId/role", requireAuth, requireRole(ROLES.ADMIN),
 router.get("/admin/trainers", requireAuth, requireRole(ROLES.ADMIN), admin.getTrainers);
 router.get("/admin/settings", requireAuth, requireRole(ROLES.ADMIN), admin.getGymSettings);
 router.put("/admin/settings", requireAuth, requireRole(ROLES.ADMIN), admin.updateGymSettings);
+
+router.get("/gym/active-users", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), trainer.getActiveUsersForTrainer);
+router.get("/trainers/:trainerId/last-interaction/:userId", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), trainer.getLastInteraction);
 
 export default router;

@@ -459,3 +459,457 @@ export const deleteWeightLog = async (req, res) => {
     });
   }
 };
+
+// ============ CURRENT USER ============
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        username: true,
+        role: true,
+        photoUrl: true,
+        profileComplete: true,
+        createdAt: true,
+        profile: true,
+        settings: true,
+        userPoints: {
+          select: {
+            totalPoints: true,
+            currentPoints: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("[USERS] Get current user error:", error);
+    return res.status(500).json({
+      error: "Failed to get user",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ GET USER BY ID ============
+
+export const getUser = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        username: true,
+        role: true,
+        photoUrl: true,
+        profileComplete: true,
+        accountPaused: true,
+        lastLogin: true,
+        createdAt: true,
+        profile: true,
+        userPoints: {
+          select: {
+            totalPoints: true,
+            currentPoints: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("[USERS] Get user error:", error);
+    return res.status(500).json({
+      error: "Failed to get user",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ UPDATE USER ============
+
+export const updateUser = async (req, res) => {
+  const { userId } = req.params;
+  const { fullName, username, email } = req.body;
+  const photo = req.file;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (username !== undefined) updateData.username = username.toLowerCase();
+    if (email !== undefined) updateData.email = email.toLowerCase();
+    if (photo) updateData.photoUrl = photo.buffer.toString("base64");
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        username: true,
+        role: true,
+        photoUrl: true,
+        profileComplete: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "User updated",
+      user: updatedUser,
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      const field = error.meta?.target?.[0];
+      return res.status(409).json({
+        error: `A user with this ${field} already exists`,
+        code: ERROR_CODES.DUPLICATE_ENTRY,
+        field,
+      });
+    }
+    console.error("[USERS] Update user error:", error);
+    return res.status(500).json({
+      error: "Failed to update user",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ DELETE USER ============
+
+export const deleteUser = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return res.status(200).json({
+      message: "User deleted",
+    });
+  } catch (error) {
+    console.error("[USERS] Delete user error:", error);
+    return res.status(500).json({
+      error: "Failed to delete user",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ PAUSE ACCOUNT ============
+
+export const pauseAccount = async (req, res) => {
+  const { userId } = req.params;
+  const { paused } = req.body;
+
+  if (typeof paused !== "boolean") {
+    return res.status(400).json({
+      error: "Paused status is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountPaused: paused,
+        tokenVersion: paused ? { increment: 1 } : undefined,
+      },
+      select: {
+        id: true,
+        accountPaused: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: `Account ${paused ? "paused" : "unpaused"}`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("[USERS] Pause account error:", error);
+    return res.status(500).json({
+      error: "Failed to update account status",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ COMPLETE PROFILE ============
+
+export const completeProfile = async (req, res) => {
+  const { userId } = req.params;
+  const { age, weight, height, fitnessLevel, goals, injuries } = req.body;
+
+  if (!age || !weight || !height || !fitnessLevel) {
+    return res.status(400).json({
+      error: "Age, weight, height, and fitness level are required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        profileComplete: true,
+        profile: {
+          update: {
+            age,
+            weight,
+            height,
+            fitnessLevel,
+            goals: goals || [],
+            injuries: injuries || [],
+          },
+        },
+      },
+      select: {
+        id: true,
+        profileComplete: true,
+        profile: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Profile completed",
+      user,
+    });
+  } catch (error) {
+    console.error("[USERS] Complete profile error:", error);
+    return res.status(500).json({
+      error: "Failed to complete profile",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ GET PROFILE STATUS ============
+
+export const getProfileStatus = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        profileComplete: true,
+        profile: {
+          select: {
+            age: true,
+            weight: true,
+            height: true,
+            fitnessLevel: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const missingFields = [];
+    if (!user.profile?.age) missingFields.push("age");
+    if (!user.profile?.weight) missingFields.push("weight");
+    if (!user.profile?.height) missingFields.push("height");
+    if (!user.profile?.fitnessLevel) missingFields.push("fitnessLevel");
+
+    return res.status(200).json({
+      profileComplete: user.profileComplete,
+      missingFields,
+    });
+  } catch (error) {
+    console.error("[USERS] Get profile status error:", error);
+    return res.status(500).json({
+      error: "Failed to get profile status",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ PERSONALIZATIONS ============
+
+export const getPersonalizations = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const personalizations = await prisma.userPersonalization.findMany({
+      where: { userId },
+    });
+
+    const personalizationsMap = {};
+    personalizations.forEach((p) => {
+      personalizationsMap[p.fieldName] = p.value;
+    });
+
+    return res.status(200).json({ personalizations: personalizationsMap });
+  } catch (error) {
+    console.error("[USERS] Get personalizations error:", error);
+    return res.status(500).json({
+      error: "Failed to get personalizations",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const setPersonalization = async (req, res) => {
+  const { userId } = req.params;
+  const { fieldName, value } = req.body;
+
+  if (!fieldName || value === undefined) {
+    return res.status(400).json({
+      error: "Field name and value are required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const personalization = await prisma.userPersonalization.upsert({
+      where: {
+        userId_fieldName: { userId, fieldName },
+      },
+      update: { value },
+      create: { userId, fieldName, value },
+    });
+
+    return res.status(200).json({
+      message: "Personalization saved",
+      personalization,
+    });
+  } catch (error) {
+    console.error("[USERS] Set personalization error:", error);
+    return res.status(500).json({
+      error: "Failed to save personalization",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const deletePersonalization = async (req, res) => {
+  const { userId, fieldName } = req.params;
+
+  try {
+    await prisma.userPersonalization.delete({
+      where: {
+        userId_fieldName: { userId, fieldName },
+      },
+    });
+
+    return res.status(200).json({
+      message: "Personalization deleted",
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        error: "Personalization not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+    console.error("[USERS] Delete personalization error:", error);
+    return res.status(500).json({
+      error: "Failed to delete personalization",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ WRAPPED / STATS SUMMARY ============
+
+export const getWrapped = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [checkIns, machineUsages, helpRequests, progressUpdates, userPoints] = await Promise.all([
+      prisma.checkIn.count({
+        where: { userId, entryTime: { gte: thirtyDaysAgo } },
+      }),
+      prisma.machineUsage.count({
+        where: { userId, startTime: { gte: thirtyDaysAgo } },
+      }),
+      prisma.helpRequest.count({
+        where: { userId, createdAt: { gte: thirtyDaysAgo } },
+      }),
+      prisma.progressUpdate.count({
+        where: { userId, status: "approved", createdAt: { gte: thirtyDaysAgo } },
+      }),
+      prisma.userPoints.findUnique({
+        where: { userId },
+        select: { totalPoints: true, currentPoints: true },
+      }),
+    ]);
+
+    return res.status(200).json({
+      wrapped: {
+        period: "30 days",
+        checkIns,
+        machineUsages,
+        helpRequests,
+        progressUpdates,
+        points: userPoints || { totalPoints: 0, currentPoints: 0 },
+      },
+    });
+  } catch (error) {
+    console.error("[USERS] Get wrapped error:", error);
+    return res.status(500).json({
+      error: "Failed to get wrapped",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};

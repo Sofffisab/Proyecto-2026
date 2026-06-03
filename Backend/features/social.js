@@ -449,3 +449,61 @@ export const getPeopleAtGym = async (req, res) => {
     });
   }
 };
+
+// ============ ALIASES FOR ROUTES ============
+
+export const initiateInteraction = sendSocialRequest;
+export const getMyInteractions = getMySocialRequests;
+
+// ============ PENDING REQUESTS ============
+
+export const getPendingRequests = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [requests, total] = await Promise.all([
+      prisma.socialInteraction.findMany({
+        where: {
+          receiverId: req.user.id,
+          status: STATUS.PENDING,
+        },
+        include: {
+          initiator: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.socialInteraction.count({
+        where: {
+          receiverId: req.user.id,
+          status: STATUS.PENDING,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      requests,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[SOCIAL] Get pending requests error:", error);
+    return res.status(500).json({
+      error: "Failed to get pending requests",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};

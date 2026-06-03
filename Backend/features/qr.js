@@ -602,3 +602,218 @@ export const getMachineUsageHistory = async (req, res) => {
     });
   }
 };
+
+// ============ ENTRY/EXIT QR ============
+
+export const generateEntryExitQR = async (req, res) => {
+
+  try {
+
+    const qrType = QR_TYPES.ENTRY_EXIT;
+
+    await prisma.qRCode.updateMany({
+      where: {
+        type: qrType,
+        isValid: true,
+      },
+      data: { isValid: false },
+    });
+
+    const code = generateQRCodeString();
+    const image = await QRCode.toDataURL(code);
+    const expiresAt = addDays(new Date(), 7);
+
+    const qrCode = await prisma.qRCode.create({
+      data: {
+        code,
+        image,
+        type: qrType,
+        expiresAt,
+        nextRegenerationAt: expiresAt,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Entry/Exit QR generated",
+      qrCode: {
+        id: qrCode.id,
+        code: qrCode.code,
+        image: qrCode.image,
+        expiresAt: qrCode.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error("[QR] Generate entry/exit QR error:", error);
+    return res.status(500).json({
+      error: "Failed to generate QR",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ REGENERATE QR ============
+
+export const regenerateQR = async (req, res) => {
+  const { qrCodeId } = req.params;
+
+  try {
+    const existingQR = await prisma.qRCode.findUnique({
+      where: { id: qrCodeId },
+    });
+
+    if (!existingQR) {
+      return res.status(404).json({
+        error: "QR code not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    // Invalidate old QR
+    await prisma.qRCode.update({
+      where: { id: qrCodeId },
+      data: { isValid: false },
+    });
+
+    // Generate new QR
+    const code = generateQRCodeString();
+    const image = await QRCode.toDataURL(code);
+    const expiresAt = addDays(new Date(), existingQR.type === QR_TYPES.PERSONAL ? 1 : 30);
+
+    const qrCode = await prisma.qRCode.create({
+      data: {
+        code,
+        image,
+        type: existingQR.type,
+        machineId: existingQR.machineId,
+        userId: existingQR.userId,
+        expiresAt,
+        nextRegenerationAt: expiresAt,
+      },
+    });
+
+    return res.status(201).json({
+      message: "QR regenerated",
+      qrCode: {
+        id: qrCode.id,
+        code: qrCode.code,
+        image: qrCode.image,
+        expiresAt: qrCode.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error("[QR] Regenerate QR error:", error);
+    return res.status(500).json({
+      error: "Failed to regenerate QR",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ GET QR CODES ============
+
+export const getQRCodes = async (req, res) => {
+  const { type, page = 1, limit = 20 } = req.query;
+
+  try {
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const where = { isValid: true };
+    if (type) where.type = type;
+
+    const [qrCodes, total] = await Promise.all([
+      prisma.qRCode.findMany({
+        where,
+        include: {
+          machine: {
+            select: { id: true, name: true },
+          },
+          user: {
+            select: { id: true, fullName: true, username: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.qRCode.count({ where }),
+    ]);
+
+    return res.status(200).json({
+      qrCodes,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[QR] Get QR codes error:", error);
+    return res.status(500).json({
+      error: "Failed to get QR codes",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ USE MACHINE (ALIAS) ============
+
+export const useMachine = async (req, res) => {
+  const { machineId, action } = req.body;
+
+  if (!machineId || !action) {
+    return res.status(400).json({
+      error: "Machine ID and action are required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  if (action === "start") {
+    req.params.machineId = machineId;
+    return startMachineUsage(req, res);
+  } else if (action === "end") {
+    req.params.machineId = machineId;
+    return endMachineUsage(req, res);
+  } else {
+    return res.status(400).json({
+      error: "Action must be 'start' or 'end'",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+};
+
+// ============ CHECK-IN HISTORY ============
+
+export const getCheckInHistory = async (req, res) => {
+  const { userId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [checkIns, total] = await Promise.all([
+      prisma.checkIn.findMany({
+        where: { userId },
+        orderBy: { entryTime: "desc" },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.checkIn.count({ where: { userId } }),
+    ]);
+
+    return res.status(200).json({
+      checkIns,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[QR] Get check-in history error:", error);
+    return res.status(500).json({
+      error: "Failed to get check-in history",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};

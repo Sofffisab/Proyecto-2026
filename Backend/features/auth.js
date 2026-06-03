@@ -8,7 +8,12 @@ import {
   ERROR_CODES,
 } from "../shared/utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is required");
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "30d";
 
@@ -458,6 +463,31 @@ export const resetPassword = async (req, res) => {
     return res.status(401).json({
       error: "Invalid reset token",
       code: ERROR_CODES.UNAUTHORIZED,
+    });
+  }
+};
+
+// ============ VALIDATE TOKEN ============
+
+export const validate = async (req, res) => {
+  try {
+    return res.status(200).json({
+      valid: true,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        fullName: req.user.fullName,
+        username: req.user.username,
+        role: req.user.role,
+        photoUrl: req.user.photoUrl,
+        profileComplete: req.user.profileComplete,
+      },
+    });
+  } catch (error) {
+    console.error("[AUTH] Validate error:", error);
+    return res.status(500).json({
+      error: "Validation failed",
+      code: ERROR_CODES.INTERNAL_ERROR,
     });
   }
 };

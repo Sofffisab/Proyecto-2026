@@ -883,3 +883,594 @@ export const deleteReward = async (req, res) => {
     });
   }
 };
+
+// ============ ALIASES ============
+
+export const getDashboard = getDashboardStats;
+export const setUserRole = updateUserRole;
+export const generateReportCtrl = generateReport;
+export const getMachines = getAllMachines;
+export const getMachine = async (req, res) => {
+  const { machineId } = req.params;
+
+  try {
+    const machine = await prisma.machine.findUnique({
+      where: { id: machineId },
+      include: {
+        reviews: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                username: true,
+                photoUrl: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    if (!machine) {
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    return res.status(200).json({ machine });
+  } catch (error) {
+    console.error("[ADMIN] Get machine error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ TRAINERS ============
+
+export const getTrainers = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [trainers, total] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: ROLES.TRAINER },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          username: true,
+          photoUrl: true,
+          lastLogin: true,
+          createdAt: true,
+        },
+        orderBy: { fullName: "asc" },
+        ...pagination,
+      }),
+      prisma.user.count({ where: { role: ROLES.TRAINER } }),
+    ]);
+
+    return res.status(200).json({
+      trainers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get trainers error:", error);
+    return res.status(500).json({
+      error: "Failed to get trainers",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ STATISTICS ============
+
+export const getGymStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalCheckIns,
+      todayCheckIns,
+      currentOccupancy,
+      totalMachines,
+      machinesInUse,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.checkIn.count({ where: { exitTime: null } }),
+      prisma.checkIn.count(),
+      prisma.checkIn.count({ where: { entryTime: { gte: today } } }),
+      prisma.checkIn.count({ where: { exitTime: null } }),
+      prisma.machine.count(),
+      prisma.machine.count({ where: { status: "in_use" } }),
+    ]);
+
+    return res.status(200).json({
+      stats: {
+        totalUsers,
+        activeUsers,
+        totalCheckIns,
+        todayCheckIns,
+        currentOccupancy,
+        totalMachines,
+        machinesInUse,
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get gym stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get gym stats",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getEmployeeStats = async (req, res) => {
+  const { trainerId } = req.params;
+
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [helpRequests, progressVerified, avgRating] = await Promise.all([
+      prisma.helpRequest.count({
+        where: {
+          claimedBy: trainerId,
+          status: STATUS.COMPLETED,
+          completedAt: { gte: thirtyDaysAgo },
+        },
+      }),
+      prisma.progressUpdate.count({
+        where: {
+          verifiedBy: trainerId,
+          status: STATUS.APPROVED,
+          verifiedAt: { gte: thirtyDaysAgo },
+        },
+      }),
+      prisma.helpRequest.aggregate({
+        where: {
+          claimedBy: trainerId,
+          rating: { not: null },
+        },
+        _avg: { rating: true },
+      }),
+    ]);
+
+    return res.status(200).json({
+      stats: {
+        period: "30 days",
+        helpRequestsCompleted: helpRequests,
+        progressVerified,
+        averageRating: avgRating._avg.rating || 0,
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get employee stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get employee stats",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getMachineStats = async (req, res) => {
+  const { machineId } = req.params;
+
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [totalUsages, uniqueUsers, avgDuration] = await Promise.all([
+      prisma.machineUsage.count({
+        where: {
+          machineId,
+          startTime: { gte: thirtyDaysAgo },
+        },
+      }),
+      prisma.machineUsage.groupBy({
+        by: ["userId"],
+        where: {
+          machineId,
+          startTime: { gte: thirtyDaysAgo },
+        },
+      }),
+      prisma.machineUsage.findMany({
+        where: {
+          machineId,
+          endTime: { not: null },
+          startTime: { gte: thirtyDaysAgo },
+        },
+        select: { startTime: true, endTime: true },
+      }),
+    ]);
+
+    const avgDurationMinutes =
+      avgDuration.length > 0
+        ? avgDuration.reduce((sum, u) => {
+            return sum + (new Date(u.endTime) - new Date(u.startTime)) / 1000 / 60;
+          }, 0) / avgDuration.length
+        : 0;
+
+    return res.status(200).json({
+      stats: {
+        period: "30 days",
+        totalUsages,
+        uniqueUsers: uniqueUsers.length,
+        averageDurationMinutes: Math.round(avgDurationMinutes),
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get machine stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine stats",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getAllMachineStats = async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const machineUsageStats = await prisma.machineUsage.groupBy({
+      by: ["machineId"],
+      where: { startTime: { gte: thirtyDaysAgo } },
+      _count: { id: true },
+    });
+
+    const machines = await prisma.machine.findMany({
+      select: { id: true, name: true, category: true, status: true },
+    });
+
+    const statsWithNames = machines.map((m) => {
+      const usage = machineUsageStats.find((u) => u.machineId === m.id);
+      return {
+        ...m,
+        usageCount: usage?._count?.id || 0,
+      };
+    });
+
+    return res.status(200).json({
+      stats: statsWithNames.sort((a, b) => b.usageCount - a.usageCount),
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get all machine stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine stats",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ ROUTINES (desde users.js pero en admin) ============
+
+export const getRoutines = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const routines = await prisma.userRoutine.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json({ routines });
+  } catch (error) {
+    console.error("[ADMIN] Get routines error:", error);
+    return res.status(500).json({
+      error: "Failed to get routines",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const createRoutine = async (req, res) => {
+  const { name, description, exercises, daysOfWeek, reminderTime, remindersEnabled } = req.body;
+  const userId = req.body.userId || req.user.id;
+
+  if (!name) {
+    return res.status(400).json({
+      error: "Routine name is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const routine = await prisma.userRoutine.create({
+      data: {
+        userId,
+        name,
+        description,
+        exercises: exercises || [],
+        daysOfWeek: daysOfWeek || [],
+        reminderTime,
+        remindersEnabled: remindersEnabled || false,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Routine created",
+      routine,
+    });
+  } catch (error) {
+    console.error("[ADMIN] Create routine error:", error);
+    return res.status(500).json({
+      error: "Failed to create routine",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const updateRoutine = async (req, res) => {
+  const { routineId } = req.params;
+  const { name, description, exercises, daysOfWeek, reminderTime, remindersEnabled } = req.body;
+
+  try {
+    const routine = await prisma.userRoutine.findUnique({
+      where: { id: routineId },
+    });
+
+    if (!routine) {
+      return res.status(404).json({
+        error: "Routine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    // Check ownership unless admin
+    if (routine.userId !== req.user.id && req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({
+        error: "Access denied",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (exercises !== undefined) updateData.exercises = exercises;
+    if (daysOfWeek !== undefined) updateData.daysOfWeek = daysOfWeek;
+    if (reminderTime !== undefined) updateData.reminderTime = reminderTime;
+    if (remindersEnabled !== undefined) updateData.remindersEnabled = remindersEnabled;
+
+    const updatedRoutine = await prisma.userRoutine.update({
+      where: { id: routineId },
+      data: updateData,
+    });
+
+    return res.status(200).json({
+      message: "Routine updated",
+      routine: updatedRoutine,
+    });
+  } catch (error) {
+    console.error("[ADMIN] Update routine error:", error);
+    return res.status(500).json({
+      error: "Failed to update routine",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const deleteRoutine = async (req, res) => {
+  const { routineId } = req.params;
+
+  try {
+    const routine = await prisma.userRoutine.findUnique({
+      where: { id: routineId },
+    });
+
+    if (!routine) {
+      return res.status(404).json({
+        error: "Routine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    // Check ownership unless admin
+    if (routine.userId !== req.user.id && req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({
+        error: "Access denied",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    await prisma.userRoutine.delete({
+      where: { id: routineId },
+    });
+
+    return res.status(200).json({
+      message: "Routine deleted",
+    });
+  } catch (error) {
+    console.error("[ADMIN] Delete routine error:", error);
+    return res.status(500).json({
+      error: "Failed to delete routine",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// ============ REVIEWS ============
+
+export const createReview = async (req, res) => {
+  const { machineId, trainerId, rating, comment } = req.body;
+
+  if (!rating || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({
+      error: "Rating must be an integer between 1 and 5",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  if (!machineId && !trainerId) {
+    return res.status(400).json({
+      error: "Either machineId or trainerId is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const review = await prisma.review.create({
+      data: {
+        userId: req.user.id,
+        machineId,
+        trainerId,
+        rating,
+        comment,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Review created",
+      review,
+    });
+  } catch (error) {
+    console.error("[ADMIN] Create review error:", error);
+    return res.status(500).json({
+      error: "Failed to create review",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getMachineReviews = async (req, res) => {
+  const { machineId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { machineId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.review.count({ where: { machineId } }),
+    ]);
+
+    return res.status(200).json({
+      reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get machine reviews error:", error);
+    return res.status(500).json({
+      error: "Failed to get reviews",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getTrainerReviews = async (req, res) => {
+  const { trainerId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { trainerId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              photoUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        ...pagination,
+      }),
+      prisma.review.count({ where: { trainerId } }),
+    ]);
+
+    return res.status(200).json({
+      reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get trainer reviews error:", error);
+    return res.status(500).json({
+      error: "Failed to get reviews",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const deleteReview = async (req, res) => {
+  const { reviewId } = req.params;
+
+  try {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        error: "Review not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    // Check ownership unless admin
+    if (review.userId !== req.user.id && req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({
+        error: "Access denied",
+        code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    await prisma.review.delete({
+      where: { id: reviewId },
+    });
+
+    return res.status(200).json({
+      message: "Review deleted",
+    });
+  } catch (error) {
+    console.error("[ADMIN] Delete review error:", error);
+    return res.status(500).json({
+      error: "Failed to delete review",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};

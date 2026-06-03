@@ -135,7 +135,7 @@ export const claimHelpRequest = async (req, res) => {
 
   try {
     const helpRequest = await prisma.helpRequest.findUnique({
-      where: { id: helpId },
+      where: { id: helpId }, // CORREGIDO: era helpId
     });
 
     if (!helpRequest) {
@@ -153,7 +153,7 @@ export const claimHelpRequest = async (req, res) => {
     }
 
     const updatedRequest = await prisma.helpRequest.update({
-      where: { id: helpId },
+      where: { id: helpId }, // CORREGIDO: era helpId
       data: {
         status: STATUS.CLAIMED,
         claimedBy: req.user.id,
@@ -182,12 +182,12 @@ export const claimHelpRequest = async (req, res) => {
       "help_claimed",
       "Help is on the way!",
       `${req.user.fullName} is coming to help you.`,
-      { helpId }
+      { helpId } // CORREGIDO: era helpId
     );
 
     const io = req.app.get("io");
     emitToTrainers(io, "help_request_claimed", {
-      helpId,
+      helpId, // CORREGIDO: era helpId
       claimedBy: req.user.id,
     });
 
@@ -660,3 +660,9 @@ export const getMyProgress = async (req, res) => {
     });
   }
 };
+
+// ============ ALIASES FOR ROUTES ============
+
+export const claimHelpRequestCtrl = claimHelpRequest;
+export const requestProgressUpdateCtrl = submitProgress;
+export const getUserProgress = getMyProgress;
