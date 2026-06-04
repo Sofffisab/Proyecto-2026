@@ -4,7 +4,7 @@ const globals = {
     secondary: '#ffffff',
     background: '#f5f5f5',
     text: '#333333',
-    textLight: '#888888',
+    textLight: '#177E89',
     border: '#dddddd',
     danger: '#cc0000',
   },
@@ -27,6 +27,8 @@ const globals = {
     md: 8,
     lg: 16,
   },
+  
+
 };
 
 export default globals;

@@ -140,4 +140,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default WireframeScreen;
+export default Wireframe|Screen;

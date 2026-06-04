@@ -48,7 +48,15 @@ export default function App() {
 
   return (
     <View style={styles.wrapper}>
-      <Header pageTitle="Page Title" />
+      <Header pageTitle="Editar Perfil"/>
+      <Text
+          style={{
+            color: globals.colors.textLight,
+            textDecorationLine: 'underline',
+          }}
+        >
+  Guardar
+    </Text>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Card title="Section A" content={lorem} />
         <Card
