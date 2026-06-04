@@ -1,7 +1,3 @@
-/*
- Estilos globales de la aplicacion.
- Modificar aqui afecta a toda la app de forma consistente.
- */
 const globals = {
   colors: {
     primary: '#000000',

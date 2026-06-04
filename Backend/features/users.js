@@ -1,5 +1,6 @@
 import { prisma } from "../prisma/prisma.js";
 import { ERROR_CODES, paginate } from "../shared/utils.js";
+import { put, del } from '@vercel/blob';
 
 // ============ PROFILE ============
 
@@ -205,9 +206,38 @@ export const uploadPhoto = async (req, res) => {
       });
     }
 
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { photoUrl: true },
+    });
+
+    const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+    
+    const mimeMatch = photoBase64.match(/^data:(image\/\w+);base64,/);
+    const contentType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const extension = contentType.split("/")[1];
+
+    const blob = await put(
+      `avatars/${req.user.id}-${Date.now()}.${extension}`,
+      buffer,
+      {
+        access: "public",
+        contentType,
+      }
+    );
+
+    if (currentUser?.photoUrl?.includes("blob.vercel-storage.com")) {
+      try {
+        await del(currentUser.photoUrl);
+      } catch (e) {
+        console.warn("[USERS] Failed to delete old photo:", e);
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { photoUrl: photoBase64 },
+      data: { photoUrl: blob.url },
       select: {
         id: true,
         photoUrl: true,
@@ -552,6 +582,7 @@ export const updateUser = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
+      select: { id: true, photoUrl: true },
     });
 
     if (!user) {
@@ -566,6 +597,27 @@ export const updateUser = async (req, res) => {
     if (username !== undefined) updateData.username = username.toLowerCase();
     if (email !== undefined) updateData.email = email.toLowerCase();
     if (photo) updateData.photoUrl = photo.buffer.toString("base64");
+    if (photo) { 
+      const extension = photo.mimetype.split("/")[1] || "jpeg";
+      const blob = await put(
+        `avatars/${userId}-${Date.now()}.${extension}`,
+        photo.buffer,
+        {
+          access: "public",
+          contentType: photo.mimetype,
+        }
+      );
+
+      if (user.photoUrl?.includes("blob.vercel-storage.com")) {
+        try {
+          await del(user.photoUrl);
+        } catch (e) {
+          console.warn("[USERS] Failed to delete old photo:", e);
+        }
+      }
+
+      updateData.photoUrl = blob.url;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -581,10 +633,12 @@ export const updateUser = async (req, res) => {
       },
     });
 
+    
     return res.status(200).json({
       message: "User updated",
       user: updatedUser,
     });
+
   } catch (error) {
     if (error.code === "P2002") {
       const field = error.meta?.target?.[0];

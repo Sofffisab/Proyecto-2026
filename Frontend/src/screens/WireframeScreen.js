@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Text, TouchableOpacity } from 'react-native';
-import globals from '../src/styles/globals';
+import globals from '../styles/globals';
+
+console.log('[v0] WireframeScreen loaded');
 
 const Header = ({ pageTitle }) => (
   <View style={styles.header}>
@@ -26,41 +28,44 @@ const Footer = ({ buttons, show }) => {
     <View style={styles.footer}>
       {buttons.map((btn, i) => (
         <TouchableOpacity key={i} style={styles.footerBtn} onPress={btn.onPress}>
-          <Text style={styles.footerIcon}>{btn.icon}</Text>
+          <Text style={styles.footerBtnText}>{btn.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
 };
 
-export default function App() {
+const WireframeScreen = () => {
+  console.log('[v0] WireframeScreen rendering');
   const [showFooter, setShowFooter] = useState(true);
 
   const footerButtons = [
-    { icon: '⌂', onPress: () => Alert.alert('Home') },
-    { icon: '◎', onPress: () => Alert.alert('Search') },
-    { icon: '◈', onPress: () => Alert.alert('Scan') },
-    { icon: '◇', onPress: () => Alert.alert('Activity') },
-    { icon: '◉', onPress: () => Alert.alert('Profile') },
+    { label: 'Home', onPress: () => Alert.alert('Home') },
+    { label: 'Profile', onPress: () => Alert.alert('Profile') },
+    { label: 'Settings', onPress: () => Alert.alert('Settings') },
   ];
-
-  const lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
 
   return (
     <View style={styles.wrapper}>
-      <Header pageTitle="Page Title" />
+      <Header pageTitle="Dashboard" />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Card title="Section A" content={lorem} />
         <Card
-          title="Section B"
-          content={lorem}
-          isInteractive
-          onPress={() => Alert.alert('Section B')}
+          title="Static Card"
+          content="This card displays static information only."
         />
-        <Card title="Section C" content={lorem} />
         <Card
-          title="Section D"
-          content={lorem}
+          title="Interactive Card"
+          content="Tap to trigger an action."
+          isInteractive
+          onPress={() => Alert.alert('Pressed', 'This is an interactive card.')}
+        />
+        <Card
+          title="User Profile"
+          content="Profile details are displayed here."
+        />
+        <Card
+          title="Toggle Footer"
+          content="Tap to show or hide the footer."
           isInteractive
           onPress={() => setShowFooter(!showFooter)}
         />
@@ -68,7 +73,7 @@ export default function App() {
       <Footer buttons={footerButtons} show={showFooter} />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -79,15 +84,13 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: globals.spacing.md,
     paddingHorizontal: globals.spacing.lg,
-    backgroundColor: globals.colors.background,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: globals.colors.border,
+    backgroundColor: globals.colors.primary,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: globals.fontSize.lg,
+    fontSize: globals.fontSize.xl,
     fontWeight: 'bold',
-    color: globals.colors.text,
+    color: globals.colors.secondary,
   },
   scroll: {
     flex: 1,
@@ -106,14 +109,14 @@ const styles = StyleSheet.create({
     borderColor: globals.colors.border,
   },
   cardTitle: {
-    fontSize: globals.fontSize.md,
+    fontSize: globals.fontSize.lg,
     fontWeight: 'bold',
-    color: globals.colors.text,
+    color: globals.colors.primary,
     marginBottom: globals.spacing.sm,
   },
   cardContent: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textLight,
+    fontSize: globals.fontSize.md,
+    color: globals.colors.text,
   },
   footer: {
     width: '100%',
@@ -121,7 +124,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: globals.spacing.md,
-    backgroundColor: globals.colors.background,
+    backgroundColor: globals.colors.primary,
     borderTopWidth: 1,
     borderTopColor: globals.colors.border,
   },
@@ -130,8 +133,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: globals.spacing.sm,
   },
-  footerIcon: {
-    fontSize: globals.fontSize.xl,
-    color: globals.colors.text,
+  footerBtnText: {
+    fontSize: globals.fontSize.md,
+    color: globals.colors.secondary,
+    fontWeight: '600',
   },
 });
+
+export default WireframeScreen;

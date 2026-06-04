@@ -1,12 +1,10 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../prisma/prisma.js";
-import {
-  validateEmail,
-  validatePassword,
-  validateUsername,
-  ERROR_CODES,
-} from "../shared/utils.js";
+import { validateEmail, validatePassword, validateUsername, ERROR_CODES, } from "../shared/utils.js";
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -100,6 +98,25 @@ export const register = async (req, res) => {
       },
     });
 
+    const verificationToken = jwt.sign(
+      { userId: user.id, type: "verify-email" },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+    await resend.emails.send({
+      from: 'noreply@tudominio.com',
+      to: user.email,
+      subject: 'Verifica tu email',
+      html: `
+        <h1>Bienvenido!</h1>
+        <p>Haz clic para verificar tu email:</p>
+        <a href="${verifyLink}">Verificar email</a>
+      `,
+    });
+
     const tokens = generateTokens(user);
 
     return res.status(201).json({
@@ -126,6 +143,51 @@ export const register = async (req, res) => {
     return res.status(500).json({
       error: "Registration failed",
       code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      error: "Verification token is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (decoded.type !== "verify-email") {
+      return res.status(401).json({
+        error: "Invalid token type",
+        code: ERROR_CODES.UNAUTHORIZED,
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: decoded.userId },
+      data: {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    return res.status(200).json({
+      message: "Email verified successfully",
+    });
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        error: "Verification token expired",
+        code: ERROR_CODES.UNAUTHORIZED,
+      });
+    }
+    return res.status(401).json({
+      error: "Invalid verification token",
+      code: ERROR_CODES.UNAUTHORIZED,
     });
   }
 };
@@ -395,7 +457,19 @@ export const requestPasswordReset = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    console.log(`[AUTH] Password reset token for ${email}: ${resetToken}`);
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    await resend.emails.send({
+      from: 'noreply@tudominio.com',
+      to: user.email,
+      subject: 'Restablecer contraseña',
+      html: `
+        <h1>Restablecer contraseña</h1>
+        <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
+        <a href="${resetLink}">Restablecer contraseña</a>
+        <p>Este enlace expira en 1 hora.</p>
+      `,
+    });
 
     return res.status(200).json({
       message: "If the email exists, a reset link has been sent",
