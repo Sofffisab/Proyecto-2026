@@ -8,7 +8,7 @@
     <title>Document</title>
 </head>
 
-<body>
+<body class="body">
     <div class="texto">
         <h1 class="h1">Editar perfil</h1>
         <h1 class="Guardar">Guardar</h1>
@@ -19,59 +19,71 @@
     </div>
 
 <div class="EEdropdown">
+
   <div class="Edropdown">
     <div class="dropdown">
-        <button class="btn"> <img class="img" src="file:///C:/Users/49550709/Downloads/Group%202.png" alt="">Nombre</button>
-
-        <div class="menu">
-            <input type="text" placeholder="Escribí algo 1...">
-        </div>
-    </div>
-
-    
-</div>
-
-<div class="Edropdown">
-  <div class="dropdown">
-      <button class="btn"> <img class="img" src="file:///C:/Users/49550709/Downloads/Group%203.png" alt=""> Correo electronico</button>
+      <button class="btn">
+  <img class="img" src="file:///C:/Users/49550709/Downloads/Group%202.png" alt="">
+  Nombre
+  <span class="Texto"></span>
+</button>
 
       <div class="menu">
-          <input type="text" placeholder="Escribí algo 1...">
+        <input type="text" placeholder="Escribí algo 1...">
       </div>
+    </div>
   </div>
 
   <div class="Edropdown">
     <div class="dropdown">
-        <button class="btn"> <img class="img" src="file:///C:/Users/49550709/Downloads/Group%2010%20(3).png" alt=""> Fecha de nacimiento</button>
-  
-        <div class="menu">
-            <input type="text" placeholder="Escribí algo 1...">
-        </div>
-    </div>
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%203.png" alt="">
+        Correo electrónico
+      </button>
 
-    <div class="Edropdown">
-      <div class="dropdown">
-          <button class="btn"> <img class = "img"src="file:///C:/Users/49550709/Downloads/Group%2013%20(2).png" alt="">Sexo</button>
-    
-          <div class="menu">
-              <input type="text" placeholder="Escribí algo 1...">
-          </div>
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
       </div>
+    </div>
+  </div>
 
-      <div class="Edropdown">
-        <div class="dropdown">
-            <button class="btn">Abrir 1</button>
-      
-            <div class="menu">
-                <input type="text" placeholder="Escribí algo 1...">
-            </div>
-        </div>
-  
+  <div class="Edropdown">
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%2010%20(3).png" alt="">
+        Fecha de nacimiento
+      </button>
 
-  
-</div>
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
+    </div>
+  </div>
+
+  <div class="Edropdown">
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%2013%20(2).png" alt="">
+        Sexo
+      </button>
+
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
+    </div>
+  </div>
+
+</div> 
 
 
+<div class="Edropdown">
+  <div class="dropdown">
+    <button class="btn">Abrir 1</button>
+
+    <div class="menu">
+      <input type="text" placeholder="Escribí algo 1...">
+    </div>
+  </div>
 </div>
     
 
@@ -106,7 +118,21 @@ document.querySelectorAll(".dropdown").forEach(drop => {
     e.stopPropagation();
   });
 });
+
+const inputs = document.querySelectorAll(".menu input");
+
+inputs.forEach(input => {
+  input.addEventListener("input", () => {
+    const valor = input
+      .closest(".dropdown")
+      .querySelector(".Texto");
+
+    valor.textContent = input.value;
+  });
+});
 </script>
+
+
 
 
 </body>

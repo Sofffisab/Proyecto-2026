@@ -7,6 +7,10 @@
     justify-content: center;
 }
 
+.body{
+  background-color: #F2F1F2;
+}
+
 .Eimagen, .h1{
     display: flex;
     justify-content: center;
@@ -34,44 +38,39 @@
 }
 
 .dropdown {
-    display: flex;
-    display: inline-block;
-    position: relative;
-  }
+  display: flex;
+  flex-direction: column;
+  width: 900px;
+}
   
   .btn {
     display: flex;
     padding: -5px;
-    width: 600px;
+    width: 900px;
     height: 50px;
     cursor: pointer;
     background-color: white;
     font-size: 10px;
     color: grey;
+    border: none;
 
   }
   
   .menu {
-    display: none;
-    position: absolute;
-    top: 45px;
-    left: 0;
-  
-    background: white;
-    padding: 10px;
-  
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  }
-  
-  .menu.active {
-    display: block;
-  }
+  display: none;
+  padding: 10px;
+  width: 100%;
+}
+
+.menu.active {
+  display: block;
+  background-color: white;
+}
   
   input {
     padding: 8px;
-    width: 500px;
-    border-radius: 6px;
+    width: 900px;
+    border-radius: 8px;
   }
 
   .Edropdown{
@@ -79,9 +78,14 @@
     align-items: center;
     flex-direction: column;
     gap: 0;
+    border: none;
   }
    
   .EEdropdown{
    margin-top: 20px;
   }
- 
+.Texto {
+  margin-top: 19px;
+  color: black;
+  font-size: 14px;
+}

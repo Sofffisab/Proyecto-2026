@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Text, TouchableOpacity } from 'react-native';
 import globals from '../src/styles/globals';
 
+
 const Header = ({ pageTitle }) => (
   <View style={styles.header}>
     <Text style={styles.headerTitle}>{pageTitle}</Text>
@@ -48,15 +49,12 @@ export default function App() {
 
   return (
     <View style={styles.wrapper}>
-      <Header pageTitle="Editar Perfil"/>
-      <Text
-          style={{
-            color: globals.colors.textLight,
-            textDecorationLine: 'underline',
-          }}
-        >
-  Guardar
-    </Text>
+      <Header
+  pageTitle="Editar Perfil"
+  subtitle="Modificá tu información personal"
+/>
+      
+      
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Card title="Section A" content={lorem} />
         <Card
