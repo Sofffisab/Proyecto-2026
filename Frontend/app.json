@@ -1,50 +1,34 @@
 {
   "expo": {
-    "name": "MiApp",
-    "slug": "mi-app",
-    "entryPoint": "./app/index.js",    
+    "name": "Frontend",
+    "slug": "Frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": null,    
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": null,      
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTabletMode": true
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "package": "com.anonymous.miapp"
+      }
     },
     "web": {
+      "favicon": "./assets/favicon.png"
     },
+    "scheme": "tu-app-scheme",
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true
-          }
-        }
-      ]
-    ],
-    
-    "extra": {
-      "eas": {
-        "projectId": "YOUR_PROJECT_ID"
-      }
-    }
+      "expo-router"
+    ]
   }
 }
