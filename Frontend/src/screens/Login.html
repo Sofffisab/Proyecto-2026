@@ -18,13 +18,16 @@
         <div class="imagen" ><img src="file:///C:/Users/49550709/Downloads/Group%202.png" alt=""></div>
     </div>
 
+    <img class="foto" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/Group 40.png" alt="">
+
 <div class="EEdropdown">
 
   <div class="Edropdown">
     <div class="dropdown">
       <button class="btn">
-  <img class="img" src="file:///C:/Users/49550709/Downloads/Group%202.png" alt="">
+  <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/Group 31.png" alt="">
   Nombre
+  <img class="img3" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
   <span class="Texto"></span>
 </button>
 
@@ -37,8 +40,9 @@
   <div class="Edropdown">
     <div class="dropdown">
       <button class="btn">
-        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%203.png" alt="">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_envelope-outline.png" alt="">
         Correo electrónico
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
       </button>
 
       <div class="menu">
@@ -47,11 +51,12 @@
     </div>
   </div>
 
-  <div class="Edropdown">
+  <div class="Edropdown"> 
     <div class="dropdown">
       <button class="btn">
-        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%2010%20(3).png" alt="">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_present-outline.png" alt="">
         Fecha de nacimiento
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
       </button>
 
       <div class="menu">
@@ -60,31 +65,71 @@
     </div>
   </div>
 
-  <div class="Edropdown">
-    <div class="dropdown">
-      <button class="btn">
-        <img class="img" src="file:///C:/Users/49550709/Downloads/Group%2013%20(2).png" alt="">
-        Sexo
-      </button>
-
-      <div class="menu">
-        <input type="text" placeholder="Escribí algo 1...">
-      </div>
-    </div>
-  </div>
+  
 
 </div> 
 
 
 <div class="Edropdown">
-  <div class="dropdown">
-    <button class="btn">Abrir 1</button>
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/ph_gender-male-light.png" alt="">
+        Sexo
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
+      </button>
 
-    <div class="menu">
-      <input type="text" placeholder="Escribí algo 1...">
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
     </div>
   </div>
+
+<div class="EEdropdown">
+  <div class="Edropdown">
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/Group 34.png" alt="">
+        Nivel de entrenamiento
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
+      </button>
+
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
+    </div>
+  </div>
+
+  <div class="Edropdown">
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_award-outline.png" alt="">
+        Objetivo principal
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
+      </button>
+
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
+    </div>
+    <br>
+    <div class="dropdown">
+      <button class="btn">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_award-outline.png" alt="">
+        
+        <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/Imagenes/basil_caret-right-outline.png" alt="">
+      </button>
+
+      <div class="menu">
+        <input type="text" placeholder="Escribí algo 1...">
+      </div>
+    </div>
+  </div>
+  
 </div>
+
+
+
+
     
 
   
@@ -101,35 +146,40 @@ botones.forEach((btn) => {
     const menu = btn.nextElementSibling;
     menu.classList.toggle("active");
 
+    const flecha3 = btn.querySelector(".img3");
+    if (flecha3) {
+      flecha3.classList.toggle("rotada");
+    }
+
+    const flecha6 = btn.querySelector(".img6");
+    if (flecha6) {
+      flecha6.classList.toggle("rotada");
+    }
+
     e.stopPropagation();
   });
 });
 
-// cerrar SOLO si haces click afuera del dropdown
 document.addEventListener("click", () => {
   document.querySelectorAll(".menu").forEach(menu => {
     menu.classList.remove("active");
   });
+
+  document.querySelectorAll(".img3").forEach(flecha => {
+    flecha.classList.remove("rotada");
+  });
+
+  document.querySelectorAll(".img6").forEach(flecha => {
+    flecha.classList.remove("rotada");
+  });
 });
 
-// EVITAR que el click dentro del dropdown lo cierre
 document.querySelectorAll(".dropdown").forEach(drop => {
   drop.addEventListener("click", (e) => {
     e.stopPropagation();
   });
 });
 
-const inputs = document.querySelectorAll(".menu input");
-
-inputs.forEach(input => {
-  input.addEventListener("input", () => {
-    const valor = input
-      .closest(".dropdown")
-      .querySelector(".Texto");
-
-    valor.textContent = input.value;
-  });
-});
 </script>
 
 

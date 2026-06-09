@@ -53,6 +53,7 @@
     font-size: 10px;
     color: grey;
     border: none;
+    gap: 10px;
 
   }
   
@@ -69,7 +70,7 @@
   
   input {
     padding: 8px;
-    width: 900px;
+    width: 870px;
     border-radius: 8px;
   }
 
@@ -88,4 +89,36 @@
   margin-top: 19px;
   color: black;
   font-size: 14px;
+}
+.foto{
+  position: absolute;
+  margin-left: 725px;
+  margin-top: -30px;
+}
+.img3{
+  width: 30px;
+  height: 30px;
+  margin-top: 10px;
+  margin-left: 770px;
+  transition: transform 0.3s ease;
+}
+
+.img3.rotada{
+  transform: rotate(90deg);
+}
+
+.btn .img6 {
+   display: flex;
+   position: absolute;
+   width: 35px;
+   height: 35px;
+   margin-left: 855px;
+}
+
+.img6{
+  transition: transform 0.3s ease;
+}
+
+.rotada{
+  transform: rotate(90deg);
 }
