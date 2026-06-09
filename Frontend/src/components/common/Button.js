@@ -2,12 +2,11 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 
 /**
- * Boton reutilizable para toda la app.
+ * Reusable button component.
  *
- * Props:
- * - label (string): texto que muestra el boton
- * - onPress (function): que hace cuando lo apretás
- * - variant (string): 'primary' | 'secondary' | 'danger'  (default: 'primary')
+ * @param {string}   label    - Text displayed inside the button.
+ * @param {function} onPress  - Callback fired when the button is pressed.
+ * @param {string}   [variant='primary'] - Visual style: 'primary' | 'secondary' | 'danger'.
  */
 function Button({ label, onPress, variant = 'primary' }) {
   return (
@@ -54,5 +53,5 @@ const styles = StyleSheet.create({
     color: globals.colors.secondary,
   },
 });
-   
+
 export default Button;

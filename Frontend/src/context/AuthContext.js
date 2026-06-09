@@ -1,28 +1,30 @@
+// src/context/AuthContext.js
+
 import { createContext, useContext, useState } from 'react';
 
 /**
- * Contexto de autenticacion.
- * Guarda el usuario actual y su rol.
- * Cualquier componente puede leerlo con useAuth().
+ * Authentication context.
+ * Stores the current user and their role.
+ * Any component can read it via useAuth().
  */
 const AuthContext = createContext(null);
 
 /**
- * Proveedor del contexto. Envuelve toda la app en App.js.
+ * Context provider. Wraps the entire app in _layout.js.
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   /**
-   * Simula el login con un rol elegido.
-   * @param {string} role - uno de los valores de ROLES
+   * Sets the authenticated user with the given role.
+   * @param {string} role - One of the values defined in ROLES.
    */
   function login(role) {
     setUser({ role });
   }
 
   /**
-   * Cierra la sesion y vuelve al login.
+   * Clears the session and returns to the login screen.
    */
   function logout() {
     setUser(null);
@@ -36,13 +38,14 @@ export function AuthProvider({ children }) {
 }
 
 /**
- * Hook para usar el contexto en cualquier componente.
- * Uso: const { user, login, logout } = useAuth();
+ * Hook to consume the auth context in any component.
+ * Usage: const { user, login, logout } = useAuth();
+ * Must be used inside an AuthProvider.
  */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth debe usarse dentro de AuthProvider');
+    throw new Error('useAuth must be used inside an AuthProvider');
   }
   return context;
 }

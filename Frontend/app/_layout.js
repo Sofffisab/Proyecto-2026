@@ -4,6 +4,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
+import { AuthProvider } from '../src/context/AuthContext';
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -15,16 +17,19 @@ export default function RootLayout() {
     if (loaded || error) {
       SplashScreen.hideAsync();
     }
-  } , [loaded, error]);
+  }, [loaded, error]);
 
   if (!loaded && !error) {
     return null;
   }
 
   return (
-    <Stack>
-      {/*screenOptions={{ headerShown: false }} oculta la barra superior por defecto si usas Tailwind */}
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index"        options={{ title: 'Home' }} />
+        <Stack.Screen name="profile"      options={{ title: 'Profile' }} />
+        <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
+      </Stack>
+    </AuthProvider>
   );
 }
