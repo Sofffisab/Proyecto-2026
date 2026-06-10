@@ -1,27 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-
+import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
 
   useEffect(() => {
-    if ((loaded || error) && !isLoading) {
+    if (!isLoading) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error, isLoading]);
+  }, [isLoading]);
 
-  if ((!loaded && !error) || isLoading) {
+  if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#177E89" />

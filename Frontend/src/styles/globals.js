@@ -1,10 +1,10 @@
 const globals = {
   colors: {
-    primary: '#000000',
-    secondary: '#ffffff',
-    background: '#f5f5f5',
-    text: '#333333',
-    textLight: '#177E89',
+    primary: '#177E89',
+    secondary: '#E5E5E5',
+    background: '#ffffff',
+    text: '#04151F',
+    textLight: '#ACF39D',
     border: '#dddddd',
     danger: '#cc0000',
   },

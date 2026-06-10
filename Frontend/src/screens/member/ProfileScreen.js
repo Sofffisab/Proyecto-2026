@@ -39,7 +39,7 @@ function ProfileScreen({ onEditPress }) {
         <Text style={styles.headerTitle}>Your Profile</Text>
         <TouchableOpacity onPress={onEditPress} style={styles.editButton}>
           <Image
-            source={require('../../../assets/images/edit-icon.png')}
+            source={require('../../assets/Group 29 (4).png')}
             style={styles.editIcon}
           />
         </TouchableOpacity>
