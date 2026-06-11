@@ -68,10 +68,29 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
+
     if (user.accountPaused) {
       return res.status(403).json({
         error: "Account is paused",
         code: ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    const emailVerificationWhitelist = [
+      '/api/auth/verify-email',
+      '/api/auth/logout'
+    ];
+
+    const currentPath = req.path;
+    const isWhitelisted = emailVerificationWhitelist.some(path => 
+      currentPath.startsWith(path)
+    );
+
+    if (!user.emailVerified && !isWhitelisted) {
+      return res.status(403).json({
+        error: "Email verification required",
+        code: "EMAIL_NOT_VERIFIED",
+        message: "Please verify your email before accessing this resource"
       });
     }
 

@@ -61,11 +61,15 @@ export const getAllUsers = async (req, res) => {
 
     if (role) where.role = role;
     if (search) {
+      const sanitizedSearch = search.trim().slice(0, 100).replace(/[^a-zA-Z0-9@._-]/g, '');
+      if (sanitizedSearch.length > 0) {
+
       where.OR = [
-        { fullName: { contains: search, mode: "insensitive" } },
-        { username: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+        { fullName: { contains: sanitizedSearch, mode: "insensitive" } },
+        { username: { contains: sanitizedSearch, mode: "insensitive" } },
+        { email: { contains: sanitizedSearch, mode: "insensitive" } },
       ];
+  }
     }
 
     const [users, total] = await Promise.all([
@@ -1470,6 +1474,657 @@ export const deleteReview = async (req, res) => {
     console.error("[ADMIN] Delete review error:", error);
     return res.status(500).json({
       error: "Failed to delete review",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+
+// ============ STATISTICS ============
+
+export const getEmployeeStats = async (req, res) => {
+  const { trainerId } = req.params;
+  try {
+    const [helpRequests, completedHelp, avgRating] = await Promise.all([
+      prisma.helpRequest.count({ where: { trainerId, status: STATUS.COMPLETED } }),
+      prisma.helpRequest.count({ where: { trainerId, status: STATUS.COMPLETED } }),
+      prisma.helpRequest.aggregate({
+        where: { trainerId, status: STATUS.COMPLETED },
+        _avg: { rating: true }
+      })
+    ]);
+    return res.status(200).json({
+      stats: { helpRequests, completedHelp, avgRating: avgRating._avg.rating || 0 }
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get employee stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get employee stats",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+export const getMachineStats = async (req, res) => {
+  const { machineId } = req.params;
+  try {
+    const [uses, avgRating] = await Promise.all([
+      prisma.machineUsage.count({ where: { machineId } }),
+      prisma.review.aggregate({
+        where: { machineId },
+        _avg: { rating: true }
+      })
+    ]);
+    return res.status(200).json({
+      stats: { uses, avgRating: avgRating._avg.rating || 0 }
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get machine stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine stats",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+// ============ MACHINES ============
+
+export const getMachine = async (req, res) => {
+  const { machineId } = req.params;
+  try {
+    const machine = await prisma.machine.findUnique({
+      where: { id: machineId },
+      include: { reviews: true }
+    });
+    if (!machine) {
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND
+      });
+    }
+    return res.status(200).json({ machine });
+  } catch (error) {
+    console.error("[ADMIN] Get machine error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+// ============ REVIEWS ============
+
+export const createReview = async (req, res) => {
+  const { machineId, trainerId, rating, comment } = req.body;
+  if (!rating || (!machineId && !trainerId)) {
+    return res.status(400).json({
+      error: "Rating and target are required",
+      code: ERROR_CODES.VALIDATION_ERROR
+    });
+  }
+  try {
+    const review = await prisma.review.create({
+      data: {
+        userId: req.user.id,
+        machineId: machineId || null,
+        trainerId: trainerId || null,
+        rating,
+        comment
+      }
+    });
+    return res.status(201).json({ message: "Review created", review });
+  } catch (error) {
+    console.error("[ADMIN] Create review error:", error);
+    return res.status(500).json({
+      error: "Failed to create review",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+export const getMachineReviews = async (req, res) => {
+  const { machineId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { machineId },
+        include: { user: { select: { id: true, fullName: true, photoUrl: true } } },
+        orderBy: { createdAt: "desc" },
+        ...pagination
+      }),
+      prisma.review.count({ where: { machineId } })
+    ]);
+    return res.status(200).json({
+      reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get machine reviews error:", error);
+    return res.status(500).json({
+      error: "Failed to get reviews",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+export const getTrainerReviews = async (req, res) => {
+  const { trainerId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { trainerId },
+        include: { user: { select: { id: true, fullName: true, photoUrl: true } } },
+        orderBy: { createdAt: "desc" },
+        ...pagination
+      }),
+      prisma.review.count({ where: { trainerId } })
+    ]);
+    return res.status(200).json({
+      reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get trainer reviews error:", error);
+    return res.status(500).json({
+      error: "Failed to get reviews",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+export const deleteReview = async (req, res) => {
+  const { reviewId } = req.params;
+  try {
+    const review = await prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) {
+      return res.status(404).json({
+        error: "Review not found",
+        code: ERROR_CODES.NOT_FOUND
+      });
+    }
+    await prisma.review.delete({ where: { id: reviewId } });
+    return res.status(200).json({ message: "Review deleted" });
+  } catch (error) {
+    console.error("[ADMIN] Delete review error:", error);
+    return res.status(500).json({
+      error: "Failed to delete review",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+// ============ TRAINERS ============
+
+export const getTrainers = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  try {
+    const pagination = paginate(parseInt(page), parseInt(limit));
+    const [trainers, total] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: ROLES.TRAINER },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          username: true,
+          photoUrl: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        ...pagination
+      }),
+      prisma.user.count({ where: { role: ROLES.TRAINER } })
+    ]);
+    return res.status(200).json({
+      trainers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error("[ADMIN] Get trainers error:", error);
+    return res.status(500).json({
+      error: "Failed to get trainers",
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+};
+
+export async function getEmployeeStats(req, res) {
+  try {
+    const { employeeId } = req.params;
+    
+    const trainer = await db.trainer.findUnique({
+      where: { id: employeeId },
+      include: {
+        reviews: true,
+        clients: {
+          include: {
+            _count: { select: { checkIns: true } }
+          }
+        }
+      }
+    });
+
+    if (!trainer) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Trainer not found'
+      });
+    }
+
+    const avgRating = trainer.reviews.length > 0
+      ? (trainer.reviews.reduce((sum, r) => sum + r.rating, 0) / trainer.reviews.length).toFixed(2)
+      : 0;
+
+    res.status(200).json({
+      trainerId: trainer.id,
+      name: trainer.name,
+      email: trainer.email,
+      totalClients: trainer.clients.length,
+      averageRating: parseFloat(avgRating),
+      totalReviews: trainer.reviews.length,
+      clientWorkoutStats: trainer.clients.map(client => ({
+        clientId: client.id,
+        clientName: client.firstName,
+        totalWorkouts: client._count?.checkIns || 0
+      }))
+    });
+
+  } catch (error) {
+    console.error('[admin.getEmployeeStats]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch employee stats'
+    });
+  }
+}
+
+export async function getMachineStats(req, res) {
+  try {
+    const { machineId } = req.params;
+
+    const machine = await db.machine.findUnique({
+      where: { id: machineId },
+      include: {
+        reviews: true,
+        checkIns: {
+          select: {
+            caloriesBurned: true,
+            duration: true
+          }
+        }
+      }
+    });
+
+    if (!machine) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Machine not found'
+      });
+    }
+
+    const avgRating = machine.reviews.length > 0
+      ? (machine.reviews.reduce((sum, r) => sum + r.rating, 0) / machine.reviews.length).toFixed(2)
+      : 0;
+
+    const totalCalories = machine.checkIns.reduce((sum, c) => sum + (c.caloriesBurned || 0), 0);
+    const avgDuration = machine.checkIns.length > 0
+      ? Math.round(machine.checkIns.reduce((sum, c) => sum + c.duration, 0) / machine.checkIns.length)
+      : 0;
+
+    res.status(200).json({
+      machineId: machine.id,
+      name: machine.name,
+      status: machine.status,
+      totalUsages: machine.checkIns.length,
+      averageRating: parseFloat(avgRating),
+      totalReviews: machine.reviews.length,
+      totalCaloriesBurned: totalCalories,
+      averageDurationMinutes: avgDuration
+    });
+
+  } catch (error) {
+    console.error('[admin.getMachineStats]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch machine stats'
+    });
+  }
+}
+
+export async function getTrainerReviews(req, res) {
+  try {
+    const { trainerId } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    const reviews = await db.review.findMany({
+      where: {
+        targetType: 'TRAINER',
+        targetId: trainerId
+      },
+      include: {
+        reviewer: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+      skip: parseInt(offset)
+    });
+
+    const total = await db.review.count({
+      where: { targetType: 'TRAINER', targetId: trainerId }
+    });
+
+    res.status(200).json({
+      reviews,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (error) {
+    console.error('[admin.getTrainerReviews]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch trainer reviews'
+    });
+  }
+}
+
+export async function getMachineReviews(req, res) {
+  try {
+    const { machineId } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    const reviews = await db.review.findMany({
+      where: {
+        targetType: 'MACHINE',
+        targetId: machineId
+      },
+      include: {
+        reviewer: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+      skip: parseInt(offset)
+    });
+
+    const total = await db.review.count({
+      where: { targetType: 'MACHINE', targetId: machineId }
+    });
+
+    res.status(200).json({
+      reviews,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (error) {
+    console.error('[admin.getMachineReviews]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch machine reviews'
+    });
+  }
+}
+
+export async function createReview(req, res) {
+  try {
+    const { userId } = req.user;
+    const { targetId, targetType, rating, comment } = req.body;
+
+    if (!targetId || !targetType || !rating) {
+      return res.status(400).json({
+        error: 'invalid_input',
+        message: 'targetId, targetType, and rating are required'
+      });
+    }
+
+    if (![1, 2, 3, 4, 5].includes(rating)) {
+      return res.status(400).json({
+        error: 'invalid_input',
+        message: 'rating must be between 1 and 5'
+      });
+    }
+
+    const existingReview = await db.review.findFirst({
+      where: {
+        reviewerId: userId,
+        targetId,
+        targetType
+      }
+    });
+
+    if (existingReview) {
+      return res.status(409).json({
+        error: 'conflict',
+        message: 'You have already reviewed this'
+      });
+    }
+
+    const review = await db.review.create({
+      data: {
+        reviewerId: userId,
+        targetId,
+        targetType,
+        rating,
+        comment
+      },
+      include: {
+        reviewer: {
+          select: { id: true, firstName: true }
+        }
+      }
+    });
+
+    res.status(201).json(review);
+
+  } catch (error) {
+    console.error('[admin.createReview]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to create review'
+    });
+  }
+}
+
+export async function deleteReview(req, res) {
+  try {
+    const { userId } = req.user;
+    const { reviewId } = req.params;
+
+    const review = await db.review.findUnique({
+      where: { id: reviewId }
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Review not found'
+      });
+    }
+
+    if (review.reviewerId !== userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'forbidden',
+        message: 'You cannot delete this review'
+      });
+    }
+
+    await db.review.delete({
+      where: { id: reviewId }
+    });
+
+    res.status(204).send();
+
+  } catch (error) {
+    console.error('[admin.deleteReview]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to delete review'
+    });
+  }
+}
+
+export async function getTrainerStats(req, res) {
+  try {
+    const { trainerId } = req.params;
+
+    const trainer = await db.trainer.findUnique({
+      where: { id: trainerId },
+      include: {
+        reviews: true,
+        sessions: {
+          select: { duration: true }
+        }
+      }
+    });
+
+    if (!trainer) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Trainer not found'
+      });
+    }
+
+    const avgRating = trainer.reviews.length > 0
+      ? (trainer.reviews.reduce((sum, r) => sum + r.rating, 0) / trainer.reviews.length).toFixed(2)
+      : 0;
+
+    const totalSessionTime = trainer.sessions.reduce((sum, s) => sum + s.duration, 0);
+
+    res.status(200).json({
+      trainerId: trainer.id,
+      name: trainer.name,
+      averageRating: parseFloat(avgRating),
+      totalReviews: trainer.reviews.length,
+      totalSessions: trainer.sessions.length,
+      totalSessionHours: Math.round(totalSessionTime / 60)
+    });
+
+  } catch (error) {
+    console.error('[admin.getTrainerStats]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch trainer stats'
+    });
+  }
+}
+
+// ============ STATISTICS ============
+
+export const getEmployeeStats = async (req, res) => {
+  try {
+    const { trainerId } = req.params;
+
+    const trainer = await prisma.user.findUnique({
+      where: { id: trainerId, role: ROLES.TRAINER },
+      include: {
+        clients: {
+          select: {
+            id: true,
+            fullName: true,
+            checkIns: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (!trainer) {
+      return res.status(404).json({
+        error: "Trainer not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const totalClients = trainer.clients.length;
+    const totalSessions = trainer.clients.reduce((sum, client) => 
+      sum + client.checkIns.length, 0
+    );
+
+    return res.status(200).json({
+      trainerId: trainer.id,
+      name: trainer.fullName,
+      totalClients,
+      totalSessions,
+      averageClientsPerSession: Math.round(totalSessions / (totalClients || 1)),
+    });
+
+  } catch (error) {
+    console.error("[ADMIN] Get employee stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get employee statistics",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+export const getMachineStats = async (req, res) => {
+  try {
+    const { machineId } = req.params;
+
+    const machine = await prisma.machine.findUnique({
+      where: { id: machineId },
+      include: {
+        checkIns: {
+          select: {
+            id: true,
+            caloriesBurned: true,
+            duration: true,
+          },
+        },
+      },
+    });
+
+    if (!machine) {
+      return res.status(404).json({
+        error: "Machine not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const totalUses = machine.checkIns.length;
+    const totalCalories = machine.checkIns.reduce((sum, c) => 
+      sum + (c.caloriesBurned || 0), 0
+    );
+    const avgDuration = totalUses > 0
+      ? Math.round(machine.checkIns.reduce((sum, c) => sum + c.duration, 0) / totalUses)
+      : 0;
+
+    return res.status(200).json({
+      machineId: machine.id,
+      name: machine.name,
+      totalUses,
+      totalCalories,
+      averageDurationMinutes: avgDuration,
+    });
+
+  } catch (error) {
+    console.error("[ADMIN] Get machine stats error:", error);
+    return res.status(500).json({
+      error: "Failed to get machine statistics",
       code: ERROR_CODES.INTERNAL_ERROR,
     });
   }

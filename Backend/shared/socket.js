@@ -73,15 +73,6 @@ export const setupSocketHandlers = (io) => {
       console.log(`[SOCKET] ${socket.user.username} left gym room`);
     });
 
-    socket.on("typing", (data) => {
-      if (data.receiverId) {
-        socket.to(`user:${data.receiverId}`).emit("user_typing", {
-          userId: socket.user.id,
-          username: socket.user.username,
-        });
-      }
-    });
-
     socket.on("disconnect", () => {
       connectedUsers.delete(userId);
       console.log(`[SOCKET] User disconnected: ${socket.user.username}`);

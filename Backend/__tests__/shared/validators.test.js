@@ -1,4 +1,5 @@
 import { loginSchema, registerSchema } from '../../shared/validators.js';
+import { jest } from '@jest/globals';
 
 describe('Validadores Zod', () => {
   it('debe aceptar un login con datos correctos', () => {

@@ -1,3 +1,4 @@
+import { sendPushAndNotification } from "../features/notifications.js";
 import cron from "node-cron";
 import { prisma } from "../prisma/prisma.js";
 import { addDays, generateQRCodeString, subMinutes } from "./utils.js";
@@ -193,8 +194,6 @@ export const setupRemindersCron = () => {
           },
         },
       });
-
-      const { sendPushAndNotification } = await import("../features/notifications.js");
 
       for (const routine of routinesWithReminders) {
         if (routine.reminderTime === currentTime) {

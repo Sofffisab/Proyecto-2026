@@ -76,10 +76,7 @@ export const claimReward = async (req, res) => {
   const { rewardId } = req.params;
 
   try {
-    const [reward, userPoints] = await Promise.all([
-      prisma.reward.findUnique({ where: { id: rewardId } }),
-      prisma.userPoints.findUnique({ where: { userId: req.user.id } }),
-    ]);
+    const reward = await prisma.reward.findUnique({ where: { id: rewardId } });
 
     if (!reward) {
       return res.status(404).json({
@@ -95,12 +92,9 @@ export const claimReward = async (req, res) => {
       });
     }
 
-    if (reward.quantity !== null && reward.quantity <= 0) {
-      return res.status(400).json({
-        error: "Reward is out of stock",
-        code: ERROR_CODES.VALIDATION_ERROR,
-      });
-    }
+    const userPoints = await prisma.userPoints.findUnique({
+      where: { userId: req.user.id },
+    });
 
     if (!userPoints || userPoints.currentPoints < reward.pointsCost) {
       return res.status(400).json({
@@ -109,30 +103,48 @@ export const claimReward = async (req, res) => {
       });
     }
 
-    const [claim, _, updatedReward] = await prisma.$transaction([
-      prisma.rewardClaim.create({
-        data: {
-          rewardId,
-          userId: req.user.id,
-          status: STATUS.PENDING,
-        },
-      }),
-      prisma.userPoints.update({
-        where: { userId: req.user.id },
-        data: {
-          currentPoints: { decrement: reward.pointsCost },
-        },
-      }),
-      reward.quantity !== null
-        ? prisma.reward.update({
-            where: { id: rewardId },
+    const [claim, updatedReward] = await prisma.$transaction(
+      async (tx) => {
+        let updatedReward = null;
+
+        if (reward.quantity !== null && reward.quantity > 0) {
+          updatedReward = await tx.reward.update({
+            where: { id: rewardId, quantity: { gt: 0 } },
             data: {
               quantity: { decrement: 1 },
               available: reward.quantity - 1 > 0,
             },
-          })
-        : prisma.reward.findUnique({ where: { id: rewardId } }),
-    ]);
+          });
+
+          if (!updatedReward) {
+            throw new Error("Out of stock");
+          }
+        } else if (reward.quantity === null) {
+          // Sin límite de stock
+          updatedReward = reward;
+        } else {
+          throw new Error("Out of stock");
+        }
+
+        const claim = await tx.rewardClaim.create({
+          data: {
+            rewardId,
+            userId: req.user.id,
+            status: STATUS.PENDING,
+          },
+        });
+
+        await tx.userPoints.update({
+          where: { userId: req.user.id },
+          data: {
+            currentPoints: { decrement: reward.pointsCost },
+          },
+        });
+
+        return [claim, updatedReward];
+      },
+      { timeout: 10000 }
+    );
 
     await sendPushAndNotification(
       req.user.id,
@@ -148,6 +160,12 @@ export const claimReward = async (req, res) => {
       pointsDeducted: reward.pointsCost,
     });
   } catch (error) {
+    if (error.message === "Out of stock") {
+      return res.status(400).json({
+        error: "Reward is out of stock",
+        code: ERROR_CODES.VALIDATION_ERROR,
+      });
+    }
     console.error("[GAMIFICATION] Claim reward error:", error);
     return res.status(500).json({
       error: "Failed to claim reward",

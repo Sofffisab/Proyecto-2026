@@ -1,5 +1,6 @@
 import { requireRole } from '../../shared/middlewares.js';
 import { ROLES, ERROR_CODES } from '../../shared/utils.js';
+import { jest } from '@jest/globals';
 
 describe('Middlewares de Autenticación y Roles', () => {
   it('requireRole debe bloquear a un usuario que no tiene el rol necesario', () => {

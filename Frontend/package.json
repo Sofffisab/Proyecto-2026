@@ -46,5 +46,22 @@
     "react-native-reanimated": "~3.10.1",
     "react-test-renderer": "^19.2.7",
     "tailwindcss": "^3.4.19"
+  },
+  "expo": {
+    "name": "Gym Fitness App",
+    "slug": "gym-fitness-app",
+    "version": "1.0.0",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#177E89"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#177E89"
+      }
+    }
   }
 }

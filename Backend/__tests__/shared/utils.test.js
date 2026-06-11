@@ -1,4 +1,5 @@
 import { parsePaginationParams, sanitizeString } from '../../shared/utils.js';
+import { jest } from '@jest/globals';
 
 describe('Utils', () => {
   it('parsePaginationParams debe devolver valores por defecto si no hay input', () => {

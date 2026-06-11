@@ -596,7 +596,6 @@ export const updateUser = async (req, res) => {
     if (fullName !== undefined) updateData.fullName = fullName;
     if (username !== undefined) updateData.username = username.toLowerCase();
     if (email !== undefined) updateData.email = email.toLowerCase();
-    if (photo) updateData.photoUrl = photo.buffer.toString("base64");
     if (photo) { 
       const extension = photo.mimetype.split("/")[1] || "jpeg";
       const blob = await put(
@@ -967,3 +966,299 @@ export const getWrapped = async (req, res) => {
     });
   }
 };
+
+export const getWrapped = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const [
+      user,
+      totalCheckIns,
+      totalMinutes,
+      pointsData,
+      machinesUsed,
+      topMachine,
+      topExercise,
+      streakData
+    ] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.checkIn.count({ where: { userId } }),
+      prisma.checkIn.aggregate({
+        where: { userId, checkOutTime: { not: null } },
+        _sum: { duration: true }
+      }),
+      prisma.userPoints.findUnique({
+        where: { userId },
+        select: { totalPoints: true, currentPoints: true }
+      }),
+      prisma.machineUsage.groupBy({
+        by: ["machineId"],
+        where: { userId },
+        _count: true,
+        orderBy: { _count: { machineId: "desc" } },
+        take: 3
+      }),
+      prisma.machineUsage.groupBy({
+        by: ["machineId"],
+        where: { userId },
+        _count: true,
+        orderBy: { _count: { machineId: "desc" } },
+        take: 1
+      }),
+      prisma.userRoutine.findMany({
+        where: { userId, completedCount: { gt: 0 } },
+        select: { name: true, completedCount: true },
+        orderBy: { completedCount: "desc" },
+        take: 1
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true }
+      })
+    ]);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+        code: ERROR_CODES.NOT_FOUND,
+      });
+    }
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentCheckIns = await prisma.checkIn.findMany({
+      where: { userId, checkInTime: { gte: thirtyDaysAgo } },
+      select: { checkInTime: true },
+      orderBy: { checkInTime: "desc" }
+    });
+
+    let currentStreak = 0;
+    let lastDate = null;
+    for (const checkIn of recentCheckIns) {
+      const checkInDate = new Date(checkIn.checkInTime).toDateString();
+      if (!lastDate) {
+        lastDate = checkInDate;
+        currentStreak = 1;
+      } else if (new Date(lastDate).getTime() - new Date(checkInDate).getTime() <= 24 * 60 * 60 * 1000) {
+        currentStreak++;
+        lastDate = checkInDate;
+      } else {
+        break;
+      }
+    }
+
+    return res.status(200).json({
+      wrapped: {
+        user: {
+          name: user.fullName,
+          username: user.username,
+          joinDate: user.createdAt,
+        },
+        stats: {
+          totalCheckIns,
+          totalMinutes: totalMinutes._sum.duration || 0,
+          totalPoints: pointsData?.totalPoints || 0,
+          currentStreak,
+          machinesUsed: machinesUsed.length,
+          topMachine: topMachine[0] || null,
+          topExercise: topExercise[0] || null,
+        },
+        achievements: {
+          checkInsThisMonth: totalCheckIns > 20 ? "Consistency King" : null,
+          pointsEarned: (pointsData?.totalPoints || 0) > 1000 ? "Points Champion" : null,
+          machinesMastered: machinesUsed.length > 5 ? "Equipment Master" : null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("[USERS] Get wrapped error:", error);
+    return res.status(500).json({
+      error: "Failed to get wrapped data",
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+  }
+};
+
+// AGREGAR AL FINAL DE users.js (antes de export default)
+
+export async function getWrapped(req, res) {
+  try {
+    const { userId } = req.user;
+    
+    // Verificar que userId existe
+    if (!userId) {
+      return res.status(401).json({
+        error: 'unauthorized',
+        message: 'User not authenticated'
+      });
+    }
+
+    // Obtener datos del usuario
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      include: {
+        progress: {
+          where: {
+            createdAt: {
+              gte: new Date(new Date().getFullYear(), 0, 1) // Desde inicio del año
+            }
+          }
+        },
+        rewards: {
+          where: {
+            claimedAt: {
+              gte: new Date(new Date().getFullYear(), 0, 1)
+            }
+          }
+        },
+        routines: true,
+        checkIns: {
+          where: {
+            createdAt: {
+              gte: new Date(new Date().getFullYear(), 0, 1)
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'User not found'
+      });
+    }
+
+    // Calcular estadísticas anuales
+    const totalWorkouts = user.checkIns.length;
+    const totalPoints = user.progress.reduce((sum, p) => sum + (p.pointsGained || 0), 0);
+    const totalRewardsClaimed = user.rewards.filter(r => r.claimedAt).length;
+    const favoriteRoutine = user.routines.sort((a, b) => 
+      b.completedCount - a.completedCount
+    )[0];
+
+    // Calcular promedio de calorías por mes
+    const monthlyStats = {};
+    user.checkIns.forEach(checkin => {
+      const month = new Date(checkin.createdAt).getMonth();
+      if (!monthlyStats[month]) {
+        monthlyStats[month] = { count: 0, calories: 0 };
+      }
+      monthlyStats[month].count += 1;
+      monthlyStats[month].calories += checkin.caloriesBurned || 0;
+    });
+
+    res.status(200).json({
+      year: new Date().getFullYear(),
+      totalWorkouts,
+      totalPoints,
+      totalRewardsClaimed,
+      favoriteRoutine: favoriteRoutine ? favoriteRoutine.name : null,
+      averageCaloriesPerMonth: Object.entries(monthlyStats).map(([month, data]) => ({
+        month: parseInt(month),
+        workouts: data.count,
+        calories: Math.round(data.calories / (data.count || 1))
+      })),
+      streakDays: calculateStreak(user.checkIns),
+      level: Math.floor(totalPoints / 1000) + 1,
+      nextLevelPoints: ((Math.floor(totalPoints / 1000) + 1) * 1000) - totalPoints
+    });
+
+  } catch (error) {
+    console.error('[users.getWrapped]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch wrapped data'
+    });
+  }
+}
+
+export async function getPersonalizations(req, res) {
+  try {
+    const { userId } = req.user;
+
+    const personalizations = await db.userPersonalization.findMany({
+      where: { userId }
+    });
+
+    res.status(200).json(personalizations || []);
+  } catch (error) {
+    console.error('[users.getPersonalizations]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to fetch personalizations'
+    });
+  }
+}
+
+export async function setPersonalization(req, res) {
+  try {
+    const { userId } = req.user;
+    const { key, value } = req.body;
+
+    if (!key || value === undefined) {
+      return res.status(400).json({
+        error: 'invalid_input',
+        message: 'key and value are required'
+      });
+    }
+
+    const personalization = await db.userPersonalization.upsert({
+      where: { userId_key: { userId, key } },
+      update: { value },
+      create: { userId, key, value }
+    });
+
+    res.status(200).json(personalization);
+  } catch (error) {
+    console.error('[users.setPersonalization]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to set personalization'
+    });
+  }
+}
+
+export async function deletePersonalization(req, res) {
+  try {
+    const { userId } = req.user;
+    const { key } = req.params;
+
+    await db.userPersonalization.delete({
+      where: { userId_key: { userId, key } }
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('[users.deletePersonalization]', error);
+    res.status(500).json({
+      error: 'internal_error',
+      message: 'Failed to delete personalization'
+    });
+  }
+}
+
+function calculateStreak(checkIns) {
+  if (checkIns.length === 0) return 0;
+  
+  const sortedCheckIns = checkIns.sort((a, b) => 
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  let streak = 1;
+  const today = new Date();
+  let currentDate = new Date(sortedCheckIns[0].createdAt);
+
+  for (let i = 1; i < sortedCheckIns.length; i++) {
+    const nextDate = new Date(sortedCheckIns[i].createdAt);
+    const dayDiff = Math.floor((currentDate - nextDate) / (1000 * 60 * 60 * 24));
+    
+    if (dayDiff === 1) {
+      streak += 1;
+      currentDate = nextDate;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}

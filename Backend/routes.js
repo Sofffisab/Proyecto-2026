@@ -2,26 +2,32 @@ import { Router } from "express";
 import multer from "multer";
 import * as auth from "./features/auth.js";
 import * as users from "./features/users.js";
-import * as qr from "./features/qr.js";
 import * as gamification from "./features/gamification.js";
 import * as notifications from "./features/notifications.js";
 import * as assistance from "./features/assistance.js";
 import * as social from "./features/social.js";
-import * as admin from "./features/admin.js";
+import * as admin from './admin.js';
+import * as qr from './qr.js';
+import * as machines from './machines.js';
 import * as trainer from "./features/trainer.js";
 import { requireAuth,  requireRole, requireSelfOrAdmin,  requireSelfOrTrainer, requireProfileComplete,} from "./shared/middlewares.js";
 import { ROLES } from "./shared/utils.js";
-import {  validate,  loginSchema,  registerSchema, updateUserSchema, updateSettingsSchema, completeProfileSchema, updateProfileSchema, personalizationSchema, progressSchema, pointsManualSchema, rewardSchema, updateRewardSchema, rateHelpSchema, helpRequestSchema, reportSchema, routineSchema, interactionSchema, machineSchema,  updateMachineSchema,  reviewSchema,  roleUpdateSchema, gymSettingsSchema,} from "./shared/validators.js";
+import {  validate,  loginSchema,  registerSchema, updateUserSchema, updateSettingsSchema, completeProfileSchema, updateProfileSchema, personalizationSchema, progressSchema, pointsManualSchema, rewardSchema, updateRewardSchema, rateHelpSchema, helpRequestSchema, reportSchema, routineSchema, interactionSchema, machineSchema,  updateMachineSchema,  reviewSchema,  roleUpdateSchema, gymSettingsSchema, loginQRSchema, emailSchema, resetPasswordSchema, changePasswordSchema} from "./shared/validators.js";
+import { validateWithZod, loginSchema } from "./shared/validators.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/auth/login", validate(loginSchema), auth.login);
+router.post("/auth/login", validateWithZod(loginSchema), auth.login);
 router.post("/auth/register", upload.single("photo"), validate(registerSchema), auth.register);
 router.get("/auth/verify-email/:token", auth.verifyEmail);
 router.post("/auth/refresh", auth.refreshToken);
 router.get("/auth/validate", requireAuth, auth.validate);
 router.post("/auth/logout", requireAuth, auth.logout);
+router.post("/auth/login-by-qr", validate(loginQRSchema), auth.loginByQR);  // ⭐ AGREGAR
+router.post("/auth/request-password-reset", validate(emailSchema), auth.requestPasswordReset);  // ⭐ AGREGAR
+router.post("/auth/reset-password", validate(resetPasswordSchema), auth.resetPassword);  // ⭐ AGREGAR
+router.post("/auth/change-password", requireAuth, validate(changePasswordSchema), auth.changePassword);  // ⭐ AGREGAR
 
 router.get("/users/me", requireAuth, users.getCurrentUser);
 router.get("/users/:userId", requireAuth, requireSelfOrAdmin, users.getUser);
@@ -88,42 +94,65 @@ router.get("/help/pending", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN)
 router.get("/help/my-requests", requireAuth, assistance.getMyHelpRequests);
 router.delete("/help/:helpId", requireAuth, assistance.cancelHelpRequest);
 
-router.get("/statistics/gym", requireAuth, requireRole(ROLES.ADMIN), admin.getGymStats);
-router.get("/statistics/employee/:trainerId", requireAuth, requireRole(ROLES.ADMIN), admin.getEmployeeStats);
-router.get("/statistics/machine/:machineId", requireAuth, requireRole(ROLES.ADMIN), admin.getMachineStats);
-router.get("/statistics/machines", requireAuth, requireRole(ROLES.ADMIN), admin.getAllMachineStats);
+router.get("/statistics/gym", requireAuth, requireRole(ROLES.ADMIN), admin.getDashboardStats);
+router.get("/statistics/employee/:trainerId", requireAuth, requireRole(ROLES.ADMIN), admin.getEmployeeStats); // CREAR ESTA FUNCIÓN
+router.get("/statistics/machine/:machineId", requireAuth, requireRole(ROLES.ADMIN), admin.getMachineStats); // CREAR ESTA FUNCIÓN
+router.get("/statistics/machines", requireAuth, requireRole(ROLES.ADMIN), admin.getAllMachines);
 router.get("/statistics/reports", requireAuth, requireRole(ROLES.ADMIN), admin.getReports);
-router.post("/statistics/reports", requireAuth, requireRole(ROLES.ADMIN), validate(reportSchema), admin.generateReportCtrl);
+router.post("/statistics/reports", requireAuth, requireRole(ROLES.ADMIN), validate(reportSchema), admin.generateReport);
 
-router.get("/routines/:userId", requireAuth, requireSelfOrTrainer, admin.getRoutines);
-router.post("/routines", requireAuth, validate(routineSchema), admin.createRoutine);
-router.put("/routines/:routineId", requireAuth, validate(routineSchema), admin.updateRoutine);
-router.delete("/routines/:routineId", requireAuth, admin.deleteRoutine);
+router.get("/routines", requireAuth, users.getRoutines);  // Cambié a GET /routines (sin userId)
+router.post("/routines", requireAuth, validate(routineSchema), users.createRoutine);
+router.put("/routines/:routineId", requireAuth, validate(routineSchema), users.updateRoutine);
+router.delete("/routines/:routineId", requireAuth, users.deleteRoutine);
 
 router.post("/social/interact", requireAuth, requireProfileComplete, validate(interactionSchema), social.initiateInteraction);
 router.post("/social/:interactionId/confirm", requireAuth, social.confirmInteraction);
 router.get("/social/interactions", requireAuth, social.getMyInteractions);
 router.get("/social/pending", requireAuth, social.getPendingRequests);
 
-router.get("/machines", requireAuth, admin.getMachines);
-router.get("/machines/:machineId", requireAuth, admin.getMachine);
+
+router.get("/machines", requireAuth, machines.getMachines);
+router.get("/machines/:machineId", requireAuth, machines.getMachine);
 router.post("/machines", requireAuth, requireRole(ROLES.ADMIN), validate(machineSchema), admin.createMachine);
 router.put("/machines/:machineId", requireAuth, requireRole(ROLES.ADMIN), validate(updateMachineSchema), admin.updateMachine);
 router.delete("/machines/:machineId", requireAuth, requireRole(ROLES.ADMIN), admin.deleteMachine);
 
-router.post("/reviews", requireAuth, validate(reviewSchema), admin.createReview);
-router.get("/reviews/machine/:machineId", requireAuth, admin.getMachineReviews);
-router.get("/reviews/trainer/:trainerId", requireAuth, admin.getTrainerReviews);
-router.delete("/reviews/:reviewId", requireAuth, admin.deleteReview);
+router.post("/reviews", requireAuth, validate(reviewSchema), admin.createReview); // CREAR ESTA FUNCIÓN
+router.get("/reviews/machine/:machineId", requireAuth, admin.getMachineReviews); // CREAR ESTA FUNCIÓN
+router.get("/reviews/trainer/:trainerId", requireAuth, admin.getTrainerReviews); // CREAR ESTA FUNCIÓN
+router.delete("/reviews/:reviewId", requireAuth, admin.deleteReview); // CREAR ESTA FUNCIÓN
 
-router.get("/admin/dashboard", requireAuth, requireRole(ROLES.ADMIN), admin.getDashboard);
+
+router.get("/admin/dashboard", requireAuth, requireRole(ROLES.ADMIN), admin.getDashboardStats);
 router.get("/admin/users", requireAuth, requireRole(ROLES.ADMIN), admin.getAllUsers);
-router.patch("/admin/users/:userId/role", requireAuth, requireRole(ROLES.ADMIN), validate(roleUpdateSchema), admin.setUserRole);
+router.patch("/admin/users/:userId/role", requireAuth, requireRole(ROLES.ADMIN), validate(roleUpdateSchema), admin.updateUserRole);
 router.get("/admin/trainers", requireAuth, requireRole(ROLES.ADMIN), admin.getTrainers);
 router.get("/admin/settings", requireAuth, requireRole(ROLES.ADMIN), admin.getGymSettings);
 router.put("/admin/settings", requireAuth, requireRole(ROLES.ADMIN), validate(gymSettingsSchema), admin.updateGymSettings);
 
 router.get("/gym/active-users", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), trainer.getActiveUsersForTrainer);
 router.get("/trainers/:trainerId/last-interaction/:userId", requireAuth, requireRole(ROLES.TRAINER, ROLES.ADMIN), trainer.getLastInteraction);
+
+
+// Wrapped/Yearly stats
+router.get('/api/users/wrapped', authenticateToken, getWrapped);
+
+// Personalizations
+router.get('/api/users/personalizations', authenticateToken, getPersonalizations);
+router.post('/api/users/personalizations', authenticateToken, setPersonalization);
+router.delete('/api/users/personalizations/:key', authenticateToken, deletePersonalization);
+
+// Admin stats
+router.get('/api/admin/employees/:employeeId/stats', authenticateToken, requireRole('ADMIN'), getEmployeeStats);
+router.get('/api/admin/machines/:machineId/stats', authenticateToken, requireRole('ADMIN'), getMachineStats);
+router.get('/api/admin/trainers/:trainerId/stats', authenticateToken, requireRole('ADMIN'), getTrainerStats);
+
+// Reviews
+router.get('/api/admin/trainers/:trainerId/reviews', authenticateToken, getTrainerReviews);
+router.get('/api/admin/machines/:machineId/reviews', authenticateToken, getMachineReviews);
+router.post('/api/reviews', authenticateToken, createReview);
+router.delete('/api/reviews/:reviewId', authenticateToken, deleteReview);
+
 
 export default router;
