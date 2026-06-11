@@ -7,6 +7,10 @@ const globals = {
     textLight: '#ACF39D',
     border: '#dddddd',
     danger: '#cc0000',
+    textMuted: '#888888',
+    avatarPlaceholder: '#D4D0D0',
+    badge: '#F2F1F2',
+    sectionCard: '#F5F5F5',
   },
   spacing: {
     xs: 4,

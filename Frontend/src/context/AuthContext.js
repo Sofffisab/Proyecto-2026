@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tokens, setTokens] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     restoreSession();
@@ -23,23 +24,35 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Error restoring session:', err);
+      setError('Error restoring session');
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (email, password) => {
+    setError(null);
+    setIsLoading(true);
+
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch('http://localhost:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        const errorMsg = data.error || 'Login failed';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
 
       setUser(data.user);
@@ -54,21 +67,30 @@ export function AuthProvider({ children }) {
         refreshToken: data.refreshToken,
       }));
 
+      setError(null);
       return data.user;
     } catch (err) {
+      if (err.name === 'AbortError') {
+        setError('Request timeout - server not responding');
+      } else {
+        setError(err.message || 'Login failed');
+      }
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async () => {
     setUser(null);
     setTokens(null);
+    setError(null);
     await AsyncStorage.removeItem('user');
     await AsyncStorage.removeItem('tokens');
   };
 
   return (
-    <AuthContext.Provider value={{ user, tokens, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, tokens, isLoading, error, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

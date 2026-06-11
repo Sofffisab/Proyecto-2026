@@ -1,71 +1,66 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
 import Footer from '../../components/common/Footer';
 
-export default function HomeScreen({ onNavigate }) {
-  const [showFooter, setShowFooter] = useState(true);
+// Recibimos las props de navegación enviadas desde app/index.js
+export default function HomeScreen({ onGoToProfile, onGoToEditProfile, onNavigate }) {
+  const [isLoading, setIsLoading] = useState(true);
 
-  const footerButtons = [
-    { label: 'Home',    onPress: () => Alert.alert('Home') },
-    { label: 'Search',  onPress: () => Alert.alert('Search') },
-    { label: 'Scan',    onPress: () => Alert.alert('Scan') },
-    { label: 'Profile', onPress: () => router.push('/profile') },
-  ];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={globals.colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.wrapper}>
+    <View style={styles.container}>
       <Header pageTitle="Home" subtitle="Welcome back" />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Provisional navigation — remove once real nav is wired up */}
-        <Card
-          title="Go to Profile Screen"
-          content="Provisional button to preview ProfileScreen."
-          isInteractive
-          onPress={() => router.push('/profile')}
-        />
-        <Card
-          title="Go to Edit Profile Screen"
-          content="Provisional button to preview EditProfileScreen."
-          isInteractive
-          onPress={() => router.push('/edit-profile')}
-        />
+      <ScrollView style={styles.content}>
+        <View style={styles.buttonGroup}>
+          {/* Usamos 'label' y conectamos el 'onPress' */}
+          <Button label="Go to Profile Screen" onPress={onGoToProfile} />
+          <Button label="Go to Edit Profile Screen" onPress={onGoToEditProfile} />
+        </View>
 
-        <Card title="Section A" content={lorem} />
-        <Card
-          title="Section B"
-          content={lorem}
-          isInteractive
-          onPress={() => Alert.alert('Section B')}
-        />
-        <Card title="Section C" content={lorem} />
-        <Card
-          title="Section D"
-          content={lorem}
-          isInteractive
-          onPress={() => setShowFooter((v) => !v)}
-        />
+        <Card title="Section A" content="Provisional section" />
+        <Card title="Section B" content="Provisional section" />
       </ScrollView>
 
-      <Footer buttons={footerButtons} show={showFooter} />
+      <Footer />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     flex: 1,
     backgroundColor: globals.colors.background,
   },
-  scroll: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: globals.colors.background,
   },
-  scrollContent: {
-    paddingVertical: globals.spacing.md,
+  content: {
+    flex: 1,
+    padding: globals.spacing.md,
   },
+  buttonGroup: {
+    marginBottom: globals.spacing.lg,
+  }
 });
