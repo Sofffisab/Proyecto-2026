@@ -1,8 +1,10 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import prisma from "../config/prisma.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 export async function register(data) {
   const { email, password, firstName, lastName, role } = data;
@@ -23,7 +25,7 @@ export async function register(data) {
       passwordHash,
       firstName,
       lastName,
-      role,
+      role: role ?? "USER",
     },
   });
 
@@ -47,16 +49,19 @@ export async function login(data) {
     throw new Error("Invalid credentials");
   }
 
-  const token = jwt.sign(
-    {
-      userId: user.id,
-      role: user.role,
-    },
-    JWT_SECRET,
+  const accessToken = jwt.sign(
+    { userId: user.id, role: user.role },
+    ACCESS_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user.id },
+    REFRESH_SECRET,
     { expiresIn: "7d" }
   );
 
-  return { user, token };
+  return { user, accessToken, refreshToken };
 }
 
 export async function me(userId) {
@@ -67,4 +72,90 @@ export async function me(userId) {
       trainerProfile: true,
     },
   });
+}
+
+export async function refreshToken(data) {
+  const { refreshToken } = data;
+
+  let payload;
+  try {
+    payload = jwt.verify(refreshToken, REFRESH_SECRET);
+  } catch {
+    throw new Error("Invalid or expired refresh token");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+  });
+
+  if (!user || !user.isActive) {
+    throw new Error("User not found or disabled");
+  }
+
+  const accessToken = jwt.sign(
+    { userId: user.id, role: user.role },
+    ACCESS_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  return { accessToken };
+}
+
+export async function logout() {
+  // Stateless JWT: client discards tokens.
+  // If a Redis blacklist is added (error #27), invalidate here.
+  return { success: true };
+}
+
+export async function forgotPassword(data) {
+  const { email } = data;
+
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) return { success: true };
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetToken: resetTokenHash,
+      passwordResetExpires: expiresAt,
+    },
+  });
+
+  // TODO: send resetToken via email (wire to email.service.js)
+  return { success: true };
+}
+
+export async function resetPassword(data) {
+  const { token, password } = data;
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    throw new Error("Invalid or expired reset token");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
+  });
+
+  return { success: true };
 }

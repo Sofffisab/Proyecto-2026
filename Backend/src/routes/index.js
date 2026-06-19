@@ -2,7 +2,7 @@ import express from 'express';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { authorize } from '../middlewares/role.middleware.js';
 import { apiRateLimiter } from '../middlewares/rateLimiter.js';
-import { validateSchema } from '../middlewares/schemas.js';
+import { validateSchema } from '../validators/schemas.js';
 
 // Controllers
 import * as authController from '../controllers/auth.controller.js';
@@ -31,7 +31,7 @@ const router = express.Router();
 // ============================================
 router.post('/auth/register', apiRateLimiter, validateSchema(authSchemas.registerSchema), authController.register);
 router.post('/auth/login', apiRateLimiter, validateSchema(authSchemas.loginSchema), authController.login);
-router.post('/auth/refresh', apiRateLimiter, validateSchema(authSchemas.refreshSchema), authController.refreshToken);
+router.post('/auth/refresh', apiRateLimiter, validateSchema(authSchemas.refreshTokenSchema), authController.refreshToken);
 router.post('/auth/logout', authenticate, authController.logout);
 router.post('/auth/forgot-password', apiRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
 router.post('/auth/reset-password', apiRateLimiter, validateSchema(authSchemas.resetPasswordSchema), authController.resetPassword);
@@ -39,12 +39,13 @@ router.post('/auth/reset-password', apiRateLimiter, validateSchema(authSchemas.r
 // ============================================
 // USER ROUTES
 // ============================================
-router.get('/users/profile', authenticate, userController.getProfile);
-router.get('/users/:id', authenticate, userController.getUserById);
-router.get('/users', authenticate, authorize(['ADMIN']), userController.getAllUsers);
-router.patch('/users/profile/update', authenticate, validateSchema(userSchemas.updateProfileSchema), userController.updateProfile);
-router.post('/users/change-password', authenticate, validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
-router.patch('/users/:id/role', authenticate, authorize(['ADMIN']), validateSchema(userSchemas.updateRoleSchema), userController.updateUserRole);
+router.get('/users/me', authenticate, userController.getMe);
+router.patch('/users/me', authenticate, validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
+router.post('/users/me/change-password', authenticate, validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
+router.get('/users', authenticate, authorize(['ADMIN']), userController.getUsers);
+router.get('/users/:id', authenticate, authorize(['ADMIN', 'TRAINER']), userController.getUserById);
+router.patch('/users/:id/role', authenticate, authorize(['ADMIN']), validateSchema(userSchemas.updateRoleSchema), userController.changeRole);
+router.patch('/users/:id/deactivate', authenticate, authorize(['ADMIN']), userController.deactivate);
 router.patch('/users/:id/notification-preferences', authenticate, validateSchema(userSchemas.notificationPreferencesSchema), userController.updateNotificationPreferences);
 
 // ============================================
@@ -79,13 +80,13 @@ router.post('/routines/:id/complete-day', authenticate, apiRateLimiter, routineC
 // REWARDS ROUTES
 // ============================================
 router.get('/rewards', authenticate, rewardController.getAvailableRewards);
+router.get('/rewards/user/redemptions', authenticate, rewardController.getUserRedemptions);
 router.get('/rewards/:id', authenticate, rewardController.getRewardById);
 router.post('/rewards/:id/redeem', authenticate, apiRateLimiter, rewardController.redeemReward);
 router.post('/rewards', authenticate, authorize(['ADMIN', 'TRAINER']), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
 router.patch('/rewards/:id', authenticate, authorize(['ADMIN', 'TRAINER']), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
 router.post('/rewards/:id/approve', authenticate, authorize(['ADMIN']), validateSchema(progressSchemas.approveRedemptionSchema), rewardController.approveRedemption);
 router.post('/rewards/:id/reject', authenticate, authorize(['ADMIN']), validateSchema(progressSchemas.rejectRedemptionSchema), rewardController.rejectRedemption);
-router.get('/rewards/user/redemptions', authenticate, rewardController.getUserRedemptions);
 
 // ============================================
 // GAMIFICATION ROUTES
@@ -140,20 +141,18 @@ router.get('/qr/gym/:gymId', authenticate, authorize(['TRAINER', 'ADMIN']), qrCo
 // NOTIFICATIONS ROUTES
 // ============================================
 router.get('/notifications', authenticate, notificationController.getNotifications);
-router.patch('/notifications/:id/read', authenticate, notificationController.markAsRead);
 router.patch('/notifications/read-all', authenticate, notificationController.markAllAsRead);
+router.patch('/notifications/:id/read', authenticate, notificationController.markAsRead);
 router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
 router.get('/notifications/unread/count', authenticate, notificationController.getUnreadCount);
 
 // ============================================
 // ANALYTICS ROUTES
 // ============================================
-router.get('/analytics/user', authenticate, analyticsController.getUserAnalytics);
+router.get('/analytics/me', authenticate, analyticsController.getUserAnalytics);
 router.get('/analytics/gym', authenticate, authorize(['ADMIN', 'TRAINER']), analyticsController.getGymAnalytics);
 router.get('/analytics/leaderboard', authenticate, analyticsController.getGlobalLeaderboard);
-router.get('/analytics/leaderboard/:period', authenticate, analyticsController.getLeaderboardByPeriod);
 router.get('/analytics/rank', authenticate, analyticsController.getUserRank);
 router.get('/analytics/engagement', authenticate, authorize(['ADMIN']), analyticsController.getEngagementMetrics);
-router.get('/analytics/revenue', authenticate, authorize(['ADMIN']), analyticsController.getRevenueAnalytics);
 
 export default router;
