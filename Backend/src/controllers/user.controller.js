@@ -2,7 +2,7 @@ import * as userService from "../services/user.service.js";
 
 export async function getMe(req, res, next) {
   try {
-    const user = await userService.getById(req.user.id);
+    const user = await userService.getById(req.user.id, req.user.role);
     res.json(user);
   } catch (err) {
     next(err);
@@ -29,7 +29,8 @@ export async function getUsers(req, res, next) {
 
 export async function getUserById(req, res, next) {
   try {
-    const user = await userService.getById(req.params.id);
+    const user = await userService.getById(req.params.id, req.user.role);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json(user);
   } catch (err) {
     next(err);
@@ -38,10 +39,7 @@ export async function getUserById(req, res, next) {
 
 export async function changeRole(req, res, next) {
   try {
-    const user = await userService.changeRole(
-      req.params.id,
-      req.body.role
-    );
+    const user = await userService.updateRole(req.params.id, req.body.role);
     res.json(user);
   } catch (err) {
     next(err);
@@ -50,8 +48,26 @@ export async function changeRole(req, res, next) {
 
 export async function deactivate(req, res, next) {
   try {
-    const user = await userService.deactivate(req.params.id);
+    const user = await userService.deactivateUser(req.params.id);
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function changePassword(req, res, next) {
+  try {
+    await userService.changePassword(req.user.id, req.body);
+    res.json({ success: true, message: 'Password updated' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateNotificationPreferences(req, res, next) {
+  try {
+    const settings = await userService.updateNotificationPreferences(req.params.id, req.body);
+    res.json(settings);
   } catch (err) {
     next(err);
   }

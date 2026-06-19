@@ -1,21 +1,38 @@
 import prisma from "../config/prisma.js";
 
-export async function getUsers() {
+export async function getAll() {
   return prisma.user.findMany({
-    include: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
       trainerProfile: true,
     },
   });
 }
 
-export async function getUserById(id) {
-  return prisma.user.findUnique({
+export async function getById(id, callerRole = 'USER') {
+  const user = await prisma.user.findUnique({
     where: { id },
     include: {
       trainerProfile: true,
       settings: true,
     },
   });
+
+  if (!user) return null;
+
+  // Only ADMIN can see sensitive fields
+  if (callerRole !== 'ADMIN') {
+    const { medicalConditions, objectives, deliveryAddress, passwordHash, ...safeUser } = user;
+    return safeUser;
+  }
+
+  return user;
 }
 
 export async function updateRole(id, role) {

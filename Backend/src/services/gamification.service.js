@@ -11,15 +11,11 @@ export async function addPoints(userId, points, reason) {
 }
 
 export async function getPoints(userId) {
-  const transactions =
-    await prisma.pointTransaction.findMany({
-      where: { userId },
-    });
+  const transactions = await prisma.pointTransaction.findMany({
+    where: { userId },
+  });
 
-  const total = transactions.reduce(
-    (acc, t) => acc + t.points,
-    0
-  );
+  const total = transactions.reduce((acc, t) => acc + t.points, 0);
 
   return {
     totalPoints: total,
@@ -28,11 +24,31 @@ export async function getPoints(userId) {
 }
 
 export async function unlockAchievement(userId, achievementId) {
-  return prisma.userAchievement.create({
-    data: {
-      userId,
-      achievementId,
-    },
+  // Wrapped in a transaction: both the achievement record and the
+  // points reward are created atomically — if one fails, neither persists.
+  return prisma.$transaction(async (tx) => {
+    const achievement = await tx.achievement.findUnique({
+      where: { id: achievementId },
+    });
+
+    if (!achievement) throw new Error("Achievement not found");
+
+    const userAchievement = await tx.userAchievement.create({
+      data: { userId, achievementId },
+    });
+
+    // Award points for unlocking the achievement
+    if (achievement.pointsRequired > 0) {
+      await tx.pointTransaction.create({
+        data: {
+          userId,
+          points: achievement.pointsRequired,
+          reason: `Achievement unlocked: ${achievement.name}`,
+        },
+      });
+    }
+
+    return userAchievement;
   });
 }
 
