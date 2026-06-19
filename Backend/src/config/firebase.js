@@ -1,22 +1,32 @@
 import admin from "firebase-admin";
 
-let firebaseApp = null;
+let firebase = null;
 
-if (!admin.apps.length) {
-  firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(
-        /\\n/g,
-        "\n"
-      ),
-    }),
-  });
-} else {
-  firebaseApp = admin.app();
+try {
+  if (
+    !process.env.FIREBASE_PROJECT_ID ||
+    !process.env.FIREBASE_CLIENT_EMAIL ||
+    !process.env.FIREBASE_PRIVATE_KEY
+  ) {
+    throw new Error("Firebase env vars are not set");
+  }
+
+  if (!admin.apps.length) {
+    firebase = admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      }),
+    });
+  } else {
+    firebase = admin.app();
+  }
+
+  console.log("[firebase] Initialized");
+} catch (err) {
+  console.warn("[firebase] Push notifications unavailable:", err.message);
 }
 
-export const firebase = firebaseApp;
-
+export { firebase };
 export default firebase;

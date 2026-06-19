@@ -1,45 +1,56 @@
 import Ably from "ably";
 
-const ably = new Ably.Realtime({
-  key: process.env.ABLY_API_KEY,
-});
-
-/**
- * Channels centralizados del sistema
- */
-export const channels = {
-  presence: ably.channels.get("presence"),
-  assistance: ably.channels.get("assistance"),
-  social: ably.channels.get("social"),
-  notifications: ably.channels.get("notifications"),
+let ably = null;
+let channels = {
+  presence: null,
+  assistance: null,
+  social: null,
+  notifications: null,
 };
 
-/**
- * PRESENCE EVENTS
- */
+try {
+  if (!process.env.ABLY_API_KEY) {
+    throw new Error("ABLY_API_KEY is not set");
+  }
+
+  ably = new Ably.Realtime({ key: process.env.ABLY_API_KEY });
+
+  channels = {
+    presence: ably.channels.get("presence"),
+    assistance: ably.channels.get("assistance"),
+    social: ably.channels.get("social"),
+    notifications: ably.channels.get("notifications"),
+  };
+
+  console.log("[ably] Connected");
+} catch (err) {
+  console.warn("[ably] Realtime unavailable — running without Ably:", err.message);
+}
+
+export { channels };
+
+function safePublish(channel, event, data) {
+  if (!channel) {
+    console.warn(`[ably] Skipping publish "${event}" — channel not available`);
+    return;
+  }
+  channel.publish(event, data);
+}
+
 export function emitPresenceEvent(event, data) {
-  channels.presence.publish(event, data);
+  safePublish(channels.presence, event, data);
 }
 
-/**
- * ASSISTANCE EVENTS
- */
 export function emitAssistanceEvent(event, data) {
-  channels.assistance.publish(event, data);
+  safePublish(channels.assistance, event, data);
 }
 
-/**
- * SOCIAL EVENTS
- */
 export function emitSocialEvent(event, data) {
-  channels.social.publish(event, data);
+  safePublish(channels.social, event, data);
 }
 
-/**
- * NOTIFICATIONS EVENTS
- */
 export function emitNotificationEvent(data) {
-  channels.notifications.publish("GENERIC_NOTIFICATION", data);
+  safePublish(channels.notifications, "GENERIC_NOTIFICATION", data);
 }
 
 export default ably;

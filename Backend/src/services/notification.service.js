@@ -23,3 +23,12 @@ export async function markAsRead(notificationId) {
     data: { read: true },
   });
 }
+
+export {
+  createNotification,
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  getUnreadCount,
+} from "./communication.service.js";

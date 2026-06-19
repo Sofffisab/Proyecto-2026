@@ -20,8 +20,10 @@ export async function updateMe(req, res, next) {
 
 export async function getUsers(req, res, next) {
   try {
-    const users = await userService.getAll();
-    res.json(users);
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    const users = await userService.getAll({ limit, offset });
+    res.json({ success: true, data: users });
   } catch (err) {
     next(err);
   }
@@ -30,7 +32,7 @@ export async function getUsers(req, res, next) {
 export async function getUserById(req, res, next) {
   try {
     const user = await userService.getById(req.params.id, req.user.role);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
     res.json(user);
   } catch (err) {
     next(err);
@@ -58,7 +60,7 @@ export async function deactivate(req, res, next) {
 export async function changePassword(req, res, next) {
   try {
     await userService.changePassword(req.user.id, req.body);
-    res.json({ success: true, message: 'Password updated' });
+    res.json({ success: true, message: "Password updated" });
   } catch (err) {
     next(err);
   }

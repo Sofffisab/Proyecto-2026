@@ -1,67 +1,39 @@
 import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";
+import redis from "../config/redis.js";
 
-export const authenticate = async (
-  req,
-  res,
-  next
-) => {
+export const authenticate = async (req, res, next) => {
   try {
-    const authHeader =
-      req.headers.authorization;
-
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ")
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const token =
-      authHeader.split(" ")[1];
+    const token = authHeader.split(" ")[1];
 
-    const payload = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET
-    );
+    // Verificar blacklist de Redis si está disponible
+    if (redis) {
+      const isBlacklisted = await redis.get(`blacklist:${token}`);
+      if (isBlacklisted) {
+        return res.status(401).json({ success: false, message: "Token has been revoked" });
+      }
+    }
 
-    const user =
-      await prisma.user.findUnique({
-        where: {
-          id: payload.userId,
-        },
-        include: {
-          trainerProfile: true,
-          settings: true,
-        },
-      });
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found",
-      });
+      return res.status(401).json({ success: false, message: "User not found" });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: "Account disabled",
-      });
+      return res.status(403).json({ success: false, message: "Account disabled" });
     }
 
     req.user = user;
-
     next();
-  } catch {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid token",
-    });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
-
-export default authenticate;

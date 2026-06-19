@@ -2,7 +2,7 @@ import express from 'express';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { authorize } from '../middlewares/role.middleware.js';
 import { apiRateLimiter } from '../middlewares/rateLimiter.js';
-import { validateSchema } from '../validators/schemas.js';
+import { cacheResponse } from '../middlewares/cache.middleware.js';
 
 // Controllers
 import * as authController from '../controllers/auth.controller.js';
@@ -25,6 +25,8 @@ import { requireActiveAccount } from '../middlewares/deactivation.middleware.js'
 import * as authSchemas from '../validators/auth.schemas.js';
 import * as userSchemas from '../validators/user.schemas.js';
 import * as progressSchemas from '../validators/progress.schemas.js';
+import { validateSchema } from '../validators/schemas.js';
+
 
 const router = express.Router();
 
@@ -92,6 +94,8 @@ router.post('/rewards', authenticate, authorize(['ADMIN', 'TRAINER']), validateS
 router.patch('/rewards/:id', authenticate, authorize(['ADMIN', 'TRAINER']), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
 router.post('/rewards/:id/approve', authenticate, authorize(['ADMIN']), validateSchema(progressSchemas.approveRedemptionSchema), rewardController.approveRedemption);
 router.post('/rewards/:id/reject', authenticate, authorize(['ADMIN']), validateSchema(progressSchemas.rejectRedemptionSchema), rewardController.rejectRedemption);
+router.patch('/rewards/redemptions/:id/ship', authenticate, authorize(['ADMIN']), rewardController.ship);
+router.patch('/rewards/redemptions/:id/deliver', authenticate, authorize(['ADMIN']), rewardController.deliver);
 
 // ============================================
 // GAMIFICATION ROUTES
@@ -162,5 +166,9 @@ router.get('/analytics/gym', authenticate, authorize(['ADMIN', 'TRAINER']), anal
 router.get('/analytics/leaderboard', authenticate, analyticsController.getGlobalLeaderboard);
 router.get('/analytics/rank', authenticate, analyticsController.getUserRank);
 router.get('/analytics/engagement', authenticate, authorize(['ADMIN']), analyticsController.getEngagementMetrics);
+
+router.get('/users/me',         authenticate, cacheResponse(60),  userController.getMe);
+router.get('/analytics/me',     authenticate, cacheResponse(120), analyticsController.getUserAnalytics);
+router.get('/gamification/points', authenticate, cacheResponse(30), gamificationController.getPoints);
 
 export default router;

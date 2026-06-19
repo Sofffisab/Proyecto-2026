@@ -35,3 +35,8 @@ export async function getWrapped(userId) {
     orderBy: { year: "desc" },
   });
 }
+
+export {
+  generateWrapped,
+  getWrapped,
+} from "./insights.service.js";

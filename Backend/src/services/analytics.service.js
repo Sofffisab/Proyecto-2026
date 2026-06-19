@@ -65,3 +65,8 @@ export async function getGymAnalytics() {
     totalSessions: sessions.length,
   };
 }
+
+export {
+  getUserAnalytics,
+  getGymAnalytics,
+} from "./insights.service.js";

@@ -1,3 +1,4 @@
+// src/constants/points.js
 /**
  * IMPORTANT
  * ----------------------------------
@@ -17,6 +18,8 @@ export const POINTS = {
   PROGRESS_UPDATE: 20,
 
   SOCIAL_CHALLENGE_COMPLETED: 30,
+
+  SOCIAL_CHALLENGE_ATTEMPTED: 10,
 
   SCANNED_BY_USER: 10,
 

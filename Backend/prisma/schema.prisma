@@ -173,12 +173,13 @@ model GymSession {
 }
 
 model Machine {
-  id            String @id @default(uuid())
-  name          String
-  qrToken       String @unique
-  active        Boolean @default(true)
-  createdAt     DateTime @default(now())
-  usages        MachineUsage[]
+  id                String @id @default(uuid())
+  name              String
+  qrToken           String @unique
+  qrTokenUpdatedAt  DateTime @default(now())
+  active            Boolean @default(true)
+  createdAt         DateTime @default(now())
+  usages            MachineUsage[]
 
   @@index([active])
 }

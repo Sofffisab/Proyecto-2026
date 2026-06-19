@@ -1,33 +1,34 @@
 import prisma from "../config/prisma.js";
+import { completeChallengeByQR } from "./challenge.service.js";
 
-export async function scan(userId, targetId, type) {
-  // type: USER | MACHINE | SOCIAL
-
+/**
+ * Procesa el escaneo de un QR.
+ * @param {string} scannerId - Usuario que escanea
+ * @param {string} targetId  - ID del target (usuario, máquina, etc.)
+ * @param {string} type      - "USER" | "MACHINE" | "ENTRY_EXIT"
+ */
+export async function scan(scannerId, targetId, type) {
   if (type === "USER") {
-    const isValidChallenge =
-      await prisma.socialChallenge.findFirst({
-        where: {
-          OR: [
-            { userId, partnerUserId: targetId },
-            { userId: targetId, partnerUserId: userId },
-          ],
-          status: "ACCEPTED",
-        },
-      });
-
-    if (!isValidChallenge) {
-      throw new Error("Invalid transaction");
-    }
-
-    await prisma.socialInteraction.create({
-      data: {
-        userId,
-        targetUserId: targetId,
-        type: "SOCIAL_SCAN",
+    // Buscar un desafío activo (ACCEPTED) entre los dos usuarios
+    const challenge = await prisma.socialChallenge.findFirst({
+      where: {
+        OR: [
+          { userId: scannerId, partnerUserId: targetId },
+          { userId: targetId, partnerUserId: scannerId },
+        ],
+        status: "ACCEPTED",
       },
     });
 
-    return { success: true, message: "Social interaction completed" };
+    if (!challenge) {
+      throw new Error(
+        "No active accepted challenge found between these users"
+      );
+    }
+
+    await completeChallengeByQR(challenge.id, scannerId, targetId);
+
+    return { success: true, message: "Challenge completed via QR scan" };
   }
 
   if (type === "MACHINE") {
@@ -41,6 +42,9 @@ export async function scan(userId, targetId, type) {
   throw new Error("Invalid QR type");
 }
 
+/**
+ * @param {string} userId
+ */
 export async function getMyQR(userId) {
   return prisma.user.findUnique({
     where: { id: userId },
@@ -50,3 +54,11 @@ export async function getMyQR(userId) {
     },
   });
 }
+
+
+export {
+  getUserQR,
+  regenerateMachineQR,
+  validateQRPayload,
+  processScan as scan,
+} from "./verification.service.js";

@@ -26,3 +26,10 @@ export async function sendProgressEmail(user, message) {
     `<p>${message}</p>`
   );
 }
+
+export {
+  sendEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+  sendProgressEmail,
+} from "./communication.service.js";
