@@ -62,6 +62,7 @@ router.post('/gym/checkin', authenticate, apiRateLimiter, validateSchema(userSch
 router.post('/gym/checkout', authenticate, apiRateLimiter, gymController.checkOut);
 router.get('/gym/sessions', authenticate, gymController.getSessionHistory);
 router.get('/gym/sessions/:id', authenticate, gymController.getSessionById);
+router.post('/gym/sessions/:id/rate-trainer', authenticate, gymController.rateTrainer);
 
 // ============================================
 // PROGRESS ROUTES

@@ -35,3 +35,21 @@ export async function presentUsers(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * POST /gym/sessions/:id/rate-trainer
+ * Body: { trainerId: string, rating: number (1–5) }
+ */
+export async function rateTrainer(req, res, next) {
+  try {
+    const result = await gymService.rateTrainer(
+      req.params.id,
+      req.user.id,
+      req.body.trainerId,
+      req.body.rating
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}

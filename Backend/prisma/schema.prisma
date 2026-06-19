@@ -253,6 +253,23 @@ model TrainerRating {
   @@index([userId])
 }
 
+model Assistance {
+  id              String           @id @default(uuid())
+  userId          String
+  trainerId       String?
+  status          AssistanceStatus @default(PENDING)
+  requestedAt     DateTime         @default(now())
+  assignedAt      DateTime?
+  completedAt     DateTime?
+
+  user            User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
+  trainer         User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([trainerId])
+  @@index([status])
+}
+
 model Routine {
   id            String @id @default(uuid())
   userId        String
