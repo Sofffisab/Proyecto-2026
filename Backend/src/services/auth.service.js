@@ -2,7 +2,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../config/prisma.js";
-import redis from "../config/redis.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -70,22 +69,7 @@ export async function refreshToken(data) {
   return { accessToken };
 }
 
-export async function logout(accessToken) {
-  // Si Redis está disponible, agregar el token a la blacklist hasta que expire
-  if (redis && accessToken) {
-    try {
-      const decoded = jwt.decode(accessToken);
-      if (decoded?.exp) {
-        const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-        if (ttl > 0) {
-          await redis.set(`blacklist:${accessToken}`, "1", { ex: ttl });
-        }
-      }
-    } catch {
-      // No bloquear el logout si Redis falla
-    }
-  }
-
+export async function logout() {
   return { success: true };
 }
 
@@ -93,7 +77,6 @@ export async function forgotPassword(data) {
   const { email } = data;
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Siempre retornar success para evitar email enumeration
   if (!user) return { success: true };
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -105,7 +88,6 @@ export async function forgotPassword(data) {
     data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
   });
 
-  // TODO: wire to communication.service.js sendPasswordResetEmail(user, resetToken)
   return { success: true };
 }
 

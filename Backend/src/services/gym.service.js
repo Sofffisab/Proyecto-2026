@@ -34,51 +34,85 @@ export async function getCurrentSession(userId) {
   });
 }
 
-export async function getPresentUsers() {
+export async function getSessionHistory(userId) {
   return prisma.gymSession.findMany({
-    where: { checkOutAt: null },
-    include: {
-      user: {
-        select: { id: true, firstName: true, lastName: true, role: true },
-      },
-    },
+    where: { userId },
+    orderBy: { checkInAt: "desc" },
   });
 }
 
-/**
- * Califica a un trainer al finalizar una sesión.
- * Reglas:
- *   1. La sesión debe existir y pertenecer al usuario.
- *   2. La sesión debe estar finalizada (checkOutAt no null).
- *   3. Debe existir una Assistance COMPLETED que vincule al trainer
- *      con ese usuario — garantiza que la interacción fue real.
- *   4. El usuario no puede calificar al mismo trainer más de una vez
- *      por sesión.
- *
- * @param {string} sessionId
- * @param {string} userId    - Usuario que califica
- * @param {string} trainerId - Trainer a calificar
- * @param {number} rating    - Valor entre 1 y 5
- */
+export async function getSessionById(sessionId, userId) {
+  return prisma.gymSession.findFirst({
+    where: { id: sessionId, userId },
+  });
+}
+
+export async function getPresentUsers() {
+  // Fetch all users currently checked in
+  const activeSessions = await prisma.gymSession.findMany({
+    where: { checkOutAt: null },
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          createdAt: true,
+          settings: { select: { trainerPreference: true } },
+        },
+      },
+    },
+  });
+
+  // For each user, find when they last received assistance
+  const enriched = await Promise.all(
+    activeSessions.map(async (session) => {
+      const lastAssistance = await prisma.assistance.findFirst({
+        where: { userId: session.userId, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        select: { completedAt: true },
+      });
+
+      return {
+        ...session,
+        lastAssistanceAt: lastAssistance?.completedAt ?? null,
+      };
+    })
+  );
+
+  // Sort: longest since last assistance first, then by trainerPreference, then by seniority
+  enriched.sort((a, b) => {
+    const aTime = a.lastAssistanceAt ? new Date(a.lastAssistanceAt).getTime() : 0;
+    const bTime = b.lastAssistanceAt ? new Date(b.lastAssistanceAt).getTime() : 0;
+
+    if (aTime !== bTime) return aTime - bTime; // oldest assistance first (most urgent)
+
+    const aPref = a.user.settings?.trainerPreference ? 0 : 1;
+    const bPref = b.user.settings?.trainerPreference ? 0 : 1;
+    if (aPref !== bPref) return aPref - bPref;
+
+    return new Date(a.user.createdAt).getTime() - new Date(b.user.createdAt).getTime();
+  });
+
+  return enriched;
+}
+
 export async function rateTrainer(sessionId, userId, trainerId, rating) {
   if (rating < 1 || rating > 5) {
     throw new Error("Rating must be between 1 and 5");
   }
 
-  // 1. Verificar que la sesión existe y pertenece al usuario
   const session = await prisma.gymSession.findUnique({
     where: { id: sessionId },
   });
 
   if (!session) throw new Error("Session not found");
   if (session.userId !== userId) throw new Error("Session does not belong to this user");
-
-  // 2. La sesión debe estar finalizada
   if (!session.checkOutAt) {
     throw new Error("Session must be completed before rating a trainer");
   }
 
-  // 3. Verificar que existe una Assistance COMPLETED entre este trainer y este usuario
   const validAssistance = await prisma.assistance.findFirst({
     where: {
       userId,
@@ -88,10 +122,9 @@ export async function rateTrainer(sessionId, userId, trainerId, rating) {
   });
 
   if (!validAssistance) {
-    throw new Error("No completed assistance found for this trainer in this session");
+    throw new Error("No completed assistance found for this trainer");
   }
 
-  // 4. El usuario no puede calificar al mismo trainer dos veces en la misma sesión
   const alreadyRated = await prisma.trainerRating.findFirst({
     where: { userId, trainerId, gymSessionId: sessionId },
   });
@@ -109,7 +142,6 @@ export async function rateTrainer(sessionId, userId, trainerId, rating) {
     },
   });
 
-  // Recalcular métricas del trainer con el nuevo rating
   await updateTrainerMetrics(trainerId);
 
   return trainerRating;

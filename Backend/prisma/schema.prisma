@@ -203,19 +203,17 @@ model MachineUsage {
   @@index([startedAt])
 }
 
-
-
 model Assistance {
-  id              String @id @default(uuid()) 
+  id              String           @id @default(uuid())
   userId          String
-  trainerId       String
+  trainerId       String?
   status          AssistanceStatus @default(PENDING)
-  requestedAt     DateTime @default(now())
+  requestedAt     DateTime         @default(now())
   assignedAt      DateTime?
   completedAt     DateTime?
 
-  user            User @relation("AssistanceUser", fields: [userId], references: [id], onDelete: Cascade)
-  trainer         User @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  user            User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
+  trainer         User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([trainerId])
@@ -253,23 +251,6 @@ model TrainerRating {
   @@index([userId])
 }
 
-model Assistance {
-  id              String           @id @default(uuid())
-  userId          String
-  trainerId       String?
-  status          AssistanceStatus @default(PENDING)
-  requestedAt     DateTime         @default(now())
-  assignedAt      DateTime?
-  completedAt     DateTime?
-
-  user            User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
-  trainer         User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([trainerId])
-  @@index([status])
-}
-
 model Routine {
   id            String @id @default(uuid())
   userId        String
@@ -287,12 +268,12 @@ model Routine {
 model RoutineRequest {
   id            String @id @default(uuid())
   userId        String
-  trainerId     String
+  trainerId     String?
   status        RoutineRequestStatus @default(PENDING)
   createdAt     DateTime @default(now())
 
   user          User @relation("RoutineRequestUser", fields: [userId], references: [id], onDelete: Cascade)
-  trainer       User @relation("RoutineRequestTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer       User? @relation("RoutineRequestTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([trainerId])
@@ -370,8 +351,11 @@ model Reward {
   id            String @id @default(uuid())
   name          String
   description   String
+  pointsCost    Int    @default(0)
   active        Boolean @default(true)
   createdAt     DateTime @default(now())
+
+  redemptions   RewardRedemption[]
 }
 
 model RewardRedemption {
@@ -479,4 +463,5 @@ model Wrapped {
 
   @@index([userId])
   @@index([year])
+  @@unique([userId, year])
 }

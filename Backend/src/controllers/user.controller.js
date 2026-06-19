@@ -39,6 +39,25 @@ export async function getUserById(req, res, next) {
   }
 }
 
+export async function getTrainers(req, res, next) {
+  try {
+    const trainers = await userService.getTrainers();
+    res.json({ success: true, data: trainers });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getTrainerById(req, res, next) {
+  try {
+    const trainer = await userService.getTrainerById(req.params.id);
+    if (!trainer) return res.status(404).json({ success: false, message: "Trainer not found" });
+    res.json({ success: true, data: trainer });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function changeRole(req, res, next) {
   try {
     const user = await userService.updateRole(req.params.id, req.body.role);

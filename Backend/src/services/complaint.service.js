@@ -1,6 +1,20 @@
 import prisma from "../config/prisma.js";
+import { addPoints } from "./gamification.service.js";
+import { POINTS } from "../constants/points.js";
 
 export async function createComplaint(data) {
+  if (data.reporterId === data.reportedUserId) {
+    throw new Error("Cannot report yourself");
+  }
+
+  const reportedUser = await prisma.user.findUnique({
+    where: { id: data.reportedUserId },
+  });
+
+  if (!reportedUser) {
+    throw new Error("Reported user not found");
+  }
+
   return prisma.complaint.create({
     data: {
       reporterId: data.reporterId,
@@ -19,7 +33,7 @@ export async function getComplaints() {
 }
 
 export async function approveComplaint(id, reviewerId) {
-  return prisma.complaint.update({
+  const complaint = await prisma.complaint.update({
     where: { id },
     data: {
       status: "APPROVED",
@@ -27,6 +41,14 @@ export async function approveComplaint(id, reviewerId) {
       reviewedAt: new Date(),
     },
   });
+
+  await addPoints(
+    complaint.reportedUserId,
+    POINTS.APPROVED_COMPLAINT_PENALTY,
+    "Complaint approved against user"
+  );
+
+  return complaint;
 }
 
 export async function rejectComplaint(id, reviewerId) {

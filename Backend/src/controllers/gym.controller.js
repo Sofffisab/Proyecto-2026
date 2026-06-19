@@ -18,10 +18,20 @@ export async function checkOut(req, res, next) {
   }
 }
 
-export async function currentSession(req, res, next) {
+export async function getSessionHistory(req, res, next) {
   try {
-    const session = await gymService.getCurrentSession(req.user.id);
-    res.json(session);
+    const data = await gymService.getSessionHistory(req.user.id);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getSessionById(req, res, next) {
+  try {
+    const data = await gymService.getSessionById(req.params.id, req.user.id);
+    if (!data) return res.status(404).json({ success: false, message: "Session not found" });
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -36,10 +46,6 @@ export async function presentUsers(req, res, next) {
   }
 }
 
-/**
- * POST /gym/sessions/:id/rate-trainer
- * Body: { trainerId: string, rating: number (1–5) }
- */
 export async function rateTrainer(req, res, next) {
   try {
     const result = await gymService.rateTrainer(

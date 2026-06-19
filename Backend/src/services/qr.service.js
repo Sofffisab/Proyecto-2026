@@ -1,15 +1,8 @@
 import prisma from "../config/prisma.js";
 import { completeChallengeByQR } from "./challenge.service.js";
 
-/**
- * Procesa el escaneo de un QR.
- * @param {string} scannerId - Usuario que escanea
- * @param {string} targetId  - ID del target (usuario, máquina, etc.)
- * @param {string} type      - "USER" | "MACHINE" | "ENTRY_EXIT"
- */
 export async function scan(scannerId, targetId, type) {
   if (type === "USER") {
-    // Buscar un desafío activo (ACCEPTED) entre los dos usuarios
     const challenge = await prisma.socialChallenge.findFirst({
       where: {
         OR: [
@@ -32,6 +25,32 @@ export async function scan(scannerId, targetId, type) {
   }
 
   if (type === "MACHINE") {
+    const activeSession = await prisma.gymSession.findFirst({
+      where: { userId: scannerId, checkOutAt: null },
+      orderBy: { checkInAt: "desc" },
+    });
+
+    if (!activeSession) {
+      throw new Error("User has no active gym session");
+    }
+
+    const machine = await prisma.machine.findUnique({
+      where: { id: targetId },
+    });
+
+    if (!machine || !machine.active) {
+      throw new Error("Machine not found or inactive");
+    }
+
+    await prisma.machineUsage.create({
+      data: {
+        userId: scannerId,
+        machineId: targetId,
+        gymSessionId: activeSession.id,
+        startedAt: new Date(),
+      },
+    });
+
     return { success: true, message: "Machine scan registered" };
   }
 
@@ -42,9 +61,6 @@ export async function scan(scannerId, targetId, type) {
   throw new Error("Invalid QR type");
 }
 
-/**
- * @param {string} userId
- */
 export async function getMyQR(userId) {
   return prisma.user.findUnique({
     where: { id: userId },
@@ -54,11 +70,3 @@ export async function getMyQR(userId) {
     },
   });
 }
-
-
-export {
-  getUserQR,
-  regenerateMachineQR,
-  validateQRPayload,
-  processScan as scan,
-} from "./verification.service.js";

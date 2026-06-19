@@ -1,12 +1,35 @@
 import prisma from "../config/prisma.js";
+import { getPoints } from "./gamification.service.js";
 
 export async function generateReward(userId, rewardId) {
-  return prisma.rewardRedemption.create({
-    data: {
-      userId,
-      rewardId,
-      status: "PENDING",
-    },
+  const reward = await prisma.reward.findUnique({ where: { id: rewardId } });
+
+  if (!reward) throw new Error("Reward not found");
+  if (!reward.active) throw new Error("Reward is not active");
+
+  const { totalPoints } = await getPoints(userId);
+  if (totalPoints < reward.pointsCost) {
+    throw new Error(
+      `Not enough points. Required: ${reward.pointsCost}, available: ${totalPoints}`
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.pointTransaction.create({
+      data: {
+        userId,
+        points: -reward.pointsCost,
+        reason: `Reward redeemed: ${reward.name}`,
+      },
+    });
+
+    return tx.rewardRedemption.create({
+      data: {
+        userId,
+        rewardId,
+        status: "PENDING",
+      },
+    });
   });
 }
 

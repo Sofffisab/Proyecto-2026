@@ -1,7 +1,8 @@
 import Ably from "ably";
 
 let ably = null;
-let channels = {
+
+const channels = {
   presence: null,
   assistance: null,
   social: null,
@@ -15,14 +16,12 @@ try {
 
   ably = new Ably.Realtime({ key: process.env.ABLY_API_KEY });
 
-  channels = {
-    presence: ably.channels.get("presence"),
-    assistance: ably.channels.get("assistance"),
-    social: ably.channels.get("social"),
-    notifications: ably.channels.get("notifications"),
-  };
+  channels.presence      = ably.channels.get("presence");
+  channels.assistance    = ably.channels.get("assistance");
+  channels.social        = ably.channels.get("social");
+  channels.notifications = ably.channels.get("notifications");
 
-  console.log("[ably] Connected");
+  console.log("[ably] Realtime connected");
 } catch (err) {
   console.warn("[ably] Realtime unavailable — running without Ably:", err.message);
 }

@@ -19,14 +19,15 @@ import * as qrController from '../controllers/qr.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as analyticsController from '../controllers/analytics.controller.js';
 import * as syncController from '../controllers/sync.controller.js';
+import * as noteController from '../controllers/note.controller.js';
 import { requireActiveAccount } from '../middlewares/deactivation.middleware.js';
+import { runJobs } from '../jobs/index.js';
 
 // Schemas
 import * as authSchemas from '../validators/auth.schemas.js';
 import * as userSchemas from '../validators/user.schemas.js';
 import * as progressSchemas from '../validators/progress.schemas.js';
 import { validateSchema } from '../validators/schemas.js';
-
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.post('/auth/reset-password', apiRateLimiter, validateSchema(authSchemas.r
 // ============================================
 // USER ROUTES
 // ============================================
-router.get('/users/me', authenticate, userController.getMe);
+router.get('/users/me', authenticate, cacheResponse(60), userController.getMe);
 router.patch('/users/me', authenticate, validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
 router.post('/users/me/change-password', authenticate, validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.get('/users', authenticate, authorize(['ADMIN']), userController.getUsers);
@@ -54,6 +55,16 @@ router.get('/users/:id', authenticate, authorize(['ADMIN', 'TRAINER']), userCont
 router.patch('/users/:id/role', authenticate, authorize(['ADMIN']), validateSchema(userSchemas.updateRoleSchema), userController.changeRole);
 router.patch('/users/:id/deactivate', authenticate, authorize(['ADMIN']), userController.deactivate);
 router.patch('/users/:id/notification-preferences', authenticate, validateSchema(userSchemas.notificationPreferencesSchema), userController.updateNotificationPreferences);
+router.get('/users/:id/notes', authenticate, authorize(['TRAINER', 'ADMIN']), noteController.getNotes);
+router.post('/users/:id/notes', authenticate, authorize(['TRAINER']), noteController.createNote);
+router.patch('/users/:id/notes/:noteId', authenticate, authorize(['TRAINER']), noteController.updateNote);
+router.delete('/users/:id/notes/:noteId', authenticate, authorize(['TRAINER']), noteController.deleteNote);
+
+// ============================================
+// TRAINER ROUTES
+// ============================================
+router.get('/trainers', authenticate, userController.getTrainers);
+router.get('/trainers/:id', authenticate, userController.getTrainerById);
 
 // ============================================
 // GYM CHECK-IN ROUTES
@@ -63,6 +74,7 @@ router.post('/gym/checkout', authenticate, apiRateLimiter, gymController.checkOu
 router.get('/gym/sessions', authenticate, gymController.getSessionHistory);
 router.get('/gym/sessions/:id', authenticate, gymController.getSessionById);
 router.post('/gym/sessions/:id/rate-trainer', authenticate, gymController.rateTrainer);
+router.get('/gym/present-users', authenticate, authorize(['TRAINER', 'ADMIN']), gymController.presentUsers);
 
 // ============================================
 // PROGRESS ROUTES
@@ -77,6 +89,8 @@ router.get('/progress/stats/summary', authenticate, progressController.getProgre
 // ============================================
 // ROUTINE ROUTES
 // ============================================
+router.get('/routines/suggestion', authenticate, routineController.getSuggestion);
+router.post('/routine-requests', authenticate, routineController.requestPersonalized);
 router.post('/routines', authenticate, validateSchema(progressSchemas.createRoutineSchema), routineController.createRoutine);
 router.get('/routines', authenticate, routineController.getUserRoutines);
 router.get('/routines/:id', authenticate, routineController.getRoutineById);
@@ -101,7 +115,7 @@ router.patch('/rewards/redemptions/:id/deliver', authenticate, authorize(['ADMIN
 // ============================================
 // GAMIFICATION ROUTES
 // ============================================
-router.get('/gamification/points', authenticate, gamificationController.getPoints);
+router.get('/gamification/points', authenticate, cacheResponse(30), gamificationController.getPoints);
 router.get('/gamification/badges', authenticate, gamificationController.getBadges);
 router.get('/gamification/badges/all', authenticate, gamificationController.getAllBadges);
 router.post('/gamification/badges/:id/claim', authenticate, apiRateLimiter, gamificationController.claimBadge);
@@ -109,7 +123,7 @@ router.get('/gamification/achievements', authenticate, gamificationController.ge
 router.get('/gamification/wrapped', authenticate, gamificationController.getWrapped);
 
 // ============================================
-// CHALLENGES ROUTES
+// CHALLENGES & SOCIAL ROUTES
 // ============================================
 router.post('/challenges', authenticate, authorize(['TRAINER', 'ADMIN']), validateSchema(progressSchemas.createChallengeSchema), challengeController.createChallenge);
 router.get('/challenges/active', authenticate, challengeController.getActiveChallenges);
@@ -119,6 +133,8 @@ router.post('/challenges/:id/join', authenticate, apiRateLimiter, challengeContr
 router.post('/challenges/:id/complete', authenticate, apiRateLimiter, validateSchema(progressSchemas.completeChallengeSchema), challengeController.completeChallenge);
 router.post('/challenges/:id/cancel', authenticate, authorize(['TRAINER', 'ADMIN']), validateSchema(progressSchemas.cancelChallengeSchema), challengeController.cancelChallenge);
 router.get('/challenges/:id/leaderboard', authenticate, challengeController.getChallengeLeaderboard);
+router.get('/social/challenge/active', authenticate, challengeController.getActive);
+router.get('/social/history', authenticate, challengeController.getHistory);
 
 // ============================================
 // ASSISTANCE ROUTES
@@ -146,9 +162,12 @@ router.post('/complaints/:id/reject', authenticate, authorize(['ADMIN']), valida
 router.post('/qr/generate', authenticate, authorize(['TRAINER', 'ADMIN']), validateSchema(progressSchemas.generateQRSchema), qrController.generateQR);
 router.post('/qr/validate', authenticate, apiRateLimiter, validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get('/qr/gym/:gymId', authenticate, authorize(['TRAINER', 'ADMIN']), qrController.getGymQRCodes);
+router.post('/qr/machines', authenticate, authorize(['ADMIN', 'TRAINER']), qrController.createMachine);
 
+// ============================================
+// SYNC
+// ============================================
 router.post('/sync', authenticate, syncController.syncOfflineActions);
-
 
 // ============================================
 // NOTIFICATIONS ROUTES
@@ -162,14 +181,26 @@ router.get('/notifications/unread/count', authenticate, notificationController.g
 // ============================================
 // ANALYTICS ROUTES
 // ============================================
-router.get('/analytics/me', authenticate, analyticsController.getUserAnalytics);
+router.get('/analytics/me', authenticate, cacheResponse(120), analyticsController.getUserAnalytics);
 router.get('/analytics/gym', authenticate, authorize(['ADMIN', 'TRAINER']), analyticsController.getGymAnalytics);
 router.get('/analytics/leaderboard', authenticate, analyticsController.getGlobalLeaderboard);
 router.get('/analytics/rank', authenticate, analyticsController.getUserRank);
 router.get('/analytics/engagement', authenticate, authorize(['ADMIN']), analyticsController.getEngagementMetrics);
 
-router.get('/users/me',         authenticate, cacheResponse(60),  userController.getMe);
-router.get('/analytics/me',     authenticate, cacheResponse(120), analyticsController.getUserAnalytics);
-router.get('/gamification/points', authenticate, cacheResponse(30), gamificationController.getPoints);
+// ============================================
+// CRON ROUTES 
+// ============================================
+router.get('/cron/jobs', async (req, res, next) => {
+  try {
+    const secret = req.headers.authorization?.replace('Bearer ', '');
+    if (secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    await runJobs();
+    res.json({ success: true, message: 'Jobs executed' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

@@ -33,6 +33,32 @@ export async function getById(id, callerRole = "USER") {
   return user;
 }
 
+export async function getTrainers() {
+  return prisma.user.findMany({
+    where: { role: "TRAINER", isActive: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      createdAt: true,
+      trainerProfile: true,
+    },
+  });
+}
+
+export async function getTrainerById(id) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: { trainerProfile: true },
+  });
+
+  if (!user || user.role !== "TRAINER") return null;
+
+  const { medicalConditions, objectives, deliveryAddress, passwordHash, ...safeUser } = user;
+  return safeUser;
+}
+
 export async function update(id, data) {
   const { passwordHash, role, isActive, ...safeData } = data;
   return prisma.user.update({ where: { id }, data: safeData });

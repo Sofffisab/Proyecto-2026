@@ -2,13 +2,7 @@ import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 
-/**
- * @param {string} userIdA - Primer participante
- * @param {string} userIdB - Segundo participante
- * @param {string} [station] - Estación o máquina donde se lleva a cabo
- */
 export async function assignChallenge(userIdA, userIdB, station) {
-  // Verificar que ninguno de los dos tenga los desafíos sociales desactivados
   const [settingsA, settingsB] = await Promise.all([
     prisma.userSettings.findUnique({ where: { userId: userIdA } }),
     prisma.userSettings.findUnique({ where: { userId: userIdB } }),
@@ -18,7 +12,6 @@ export async function assignChallenge(userIdA, userIdB, station) {
     throw new Error("One or both users have social challenges disabled");
   }
 
-  // No crear un desafío duplicado si ya hay uno activo entre estos dos
   const existing = await prisma.socialChallenge.findFirst({
     where: {
       OR: [
@@ -39,18 +32,11 @@ export async function assignChallenge(userIdA, userIdB, station) {
       partnerUserId: userIdB,
       station,
       status: "ASSIGNED",
-      // Expira en 24 horas si ninguno actúa
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
     },
   });
 }
 
-/**
- * Un participante acepta el desafío asignado por la app.
- * Cualquiera de los dos puede aceptar primero.
- * @param {string} challengeId
- * @param {string} callerId - ID del usuario que acepta
- */
 export async function acceptChallenge(challengeId, callerId) {
   return prisma.$transaction(async (tx) => {
     const challenge = await tx.socialChallenge.findUnique({
@@ -87,11 +73,6 @@ export async function acceptChallenge(challengeId, callerId) {
   });
 }
 
-/**
- * Un participante rechaza el desafío.
- * @param {string} challengeId
- * @param {string} callerId
- */
 export async function rejectChallenge(challengeId, callerId) {
   return prisma.$transaction(async (tx) => {
     const challenge = await tx.socialChallenge.findUnique({
@@ -108,8 +89,6 @@ export async function rejectChallenge(challengeId, callerId) {
       throw new Error(`Cannot reject a challenge with status: ${challenge.status}`);
     }
 
-    // Si rechaza habiendo aceptado previamente, el que aceptó igual recibe puntos
-    // por haber intentado (ver constants/points.js SOCIAL_CHALLENGE_ATTEMPTED)
     if (challenge.status === "ACCEPTED") {
       const participantWhoAccepted =
         callerId === challenge.userId
@@ -143,15 +122,6 @@ export async function rejectChallenge(challengeId, callerId) {
   });
 }
 
-/**
- * Completa el desafío mediante escaneo QR mutuo.
- * El flujo es: usuario A escanea el QR de usuario B (o viceversa).
- * Esto se llama desde qr.service.js cuando se detecta un scan de tipo SOCIAL.
- * Ambos participantes reciben puntos completos.
- * @param {string} challengeId
- * @param {string} scannerId - Quien escanea
- * @param {string} scannedId - Cuyo QR fue escaneado
- */
 export async function completeChallengeByQR(challengeId, scannerId, scannedId) {
   return prisma.$transaction(async (tx) => {
     const challenge = await tx.socialChallenge.findUnique({
@@ -160,7 +130,6 @@ export async function completeChallengeByQR(challengeId, scannerId, scannedId) {
 
     if (!challenge) throw new Error("Challenge not found");
 
-    // Ambos deben ser participantes
     const participantIds = [challenge.userId, challenge.partnerUserId];
     if (!participantIds.includes(scannerId) || !participantIds.includes(scannedId)) {
       throw new Error("Both users must be participants of this challenge");
@@ -183,7 +152,6 @@ export async function completeChallengeByQR(challengeId, scannerId, scannedId) {
       },
     });
 
-    // Ambos participantes reciben puntos completos
     await addPoints(
       challenge.userId,
       POINTS.SOCIAL_CHALLENGE_COMPLETED,
@@ -199,10 +167,6 @@ export async function completeChallengeByQR(challengeId, scannerId, scannedId) {
   });
 }
 
-/**
- * Devuelve los desafíos activos (ASSIGNED o ACCEPTED) de un usuario.
- * @param {string} userId
- */
 export async function getActiveChallenges(userId) {
   return prisma.socialChallenge.findMany({
     where: {
@@ -217,10 +181,6 @@ export async function getActiveChallenges(userId) {
   });
 }
 
-/**
- * Devuelve el historial completo de desafíos de un usuario.
- * @param {string} userId
- */
 export async function getChallengeHistory(userId) {
   return prisma.socialChallenge.findMany({
     where: {
@@ -231,5 +191,21 @@ export async function getChallengeHistory(userId) {
       partner: { select: { id: true, firstName: true, lastName: true } },
     },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+// Error 14: active social challenges for the current user
+export async function getActiveSocialChallenges(userId) {
+  return getActiveChallenges(userId);
+}
+
+// Error 15: social interaction history with target user details
+export async function getSocialHistory(userId) {
+  return prisma.socialInteraction.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      target: { select: { id: true, firstName: true, lastName: true, role: true } },
+    },
   });
 }
