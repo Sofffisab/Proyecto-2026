@@ -1,12 +1,12 @@
 import { getGymAnalytics } from "../services/analytics.service.js";
+import { runPatternAnalysisForAll } from "../services/patternAnalysis.service.js";
 
-/**
- * Job de métricas globales del gym
- */
 export async function runAnalyticsJob() {
   const data = await getGymAnalytics();
+  console.log("[analyticsJob] Gym analytics snapshot:", data);
 
-  console.log("Gym analytics snapshot:", data);
+  await runPatternAnalysisForAll();
+  console.log("[analyticsJob] Pattern analysis complete.");
 
-  // futuro: guardar en tabla analytics_snapshot
+  // futuro: guardar snapshot en tabla analytics_snapshot
 }

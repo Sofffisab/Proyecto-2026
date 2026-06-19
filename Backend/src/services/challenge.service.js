@@ -1,6 +1,15 @@
 import prisma from "../config/prisma.js";
 
 export async function assignChallenge(userId, partnerUserId, station) {
+  const [userSettings, partnerSettings] = await Promise.all([
+    prisma.userSettings.findUnique({ where: { userId } }),
+    prisma.userSettings.findUnique({ where: { userId: partnerUserId } }),
+  ]);
+
+  if (userSettings?.disableSocial || partnerSettings?.disableSocial) {
+    throw new Error("One or both users have social challenges disabled");
+  }
+
   return prisma.socialChallenge.create({
     data: {
       userId,

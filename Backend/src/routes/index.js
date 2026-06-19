@@ -18,6 +18,8 @@ import * as complaintController from '../controllers/complaint.controller.js';
 import * as qrController from '../controllers/qr.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as analyticsController from '../controllers/analytics.controller.js';
+import * as syncController from '../controllers/sync.controller.js';
+import { requireActiveAccount } from '../middlewares/deactivation.middleware.js';
 
 // Schemas
 import * as authSchemas from '../validators/auth.schemas.js';
@@ -25,6 +27,9 @@ import * as userSchemas from '../validators/user.schemas.js';
 import * as progressSchemas from '../validators/progress.schemas.js';
 
 const router = express.Router();
+
+router.use(authenticate);
+router.use(requireActiveAccount);
 
 // ============================================
 // AUTH ROUTES
@@ -136,6 +141,9 @@ router.post('/complaints/:id/reject', authenticate, authorize(['ADMIN']), valida
 router.post('/qr/generate', authenticate, authorize(['TRAINER', 'ADMIN']), validateSchema(progressSchemas.generateQRSchema), qrController.generateQR);
 router.post('/qr/validate', authenticate, apiRateLimiter, validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get('/qr/gym/:gymId', authenticate, authorize(['TRAINER', 'ADMIN']), qrController.getGymQRCodes);
+
+router.post('/sync', authenticate, syncController.syncOfflineActions);
+
 
 // ============================================
 // NOTIFICATIONS ROUTES

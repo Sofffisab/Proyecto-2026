@@ -1,6 +1,15 @@
 import prisma from "../config/prisma.js";
+import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 
 export async function requestAssistance(userId) {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+  });
+
+  if (settings?.disableAssistance) {
+    throw new Error("Assistance requests are disabled for this user");
+  }
+
   return prisma.assistance.create({
     data: {
       userId,
@@ -21,13 +30,20 @@ export async function assignAssistance(assistanceId, trainerId) {
 }
 
 export async function completeAssistance(assistanceId) {
-  return prisma.assistance.update({
+  const assistance = await prisma.assistance.update({
     where: { id: assistanceId },
     data: {
       status: "COMPLETED",
       completedAt: new Date(),
     },
   });
+
+  // Recalcular métricas del trainer al completar la asistencia
+  if (assistance.trainerId) {
+    await updateTrainerMetrics(assistance.trainerId);
+  }
+
+  return assistance;
 }
 
 export async function getPendingAssistance() {
