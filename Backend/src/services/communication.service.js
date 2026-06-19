@@ -1,5 +1,5 @@
-import { Resend } from "resend";
-import prisma from "../config/prisma.js";
+import { Resend } from 'resend';
+import prisma from '../config/prisma.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // ============================================
 
 /**
- * Crea una notificación in-app en la base de datos.
+ * Creates an in-app notification in the database.
  * @param {string} userId
  * @param {string} title
  * @param {string} body
@@ -22,7 +22,7 @@ export async function createNotification(userId, title, body) {
 export async function getNotifications(userId, { limit = 20, offset = 0 } = {}) {
   return prisma.notification.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     take: limit,
     skip: offset,
   });
@@ -55,7 +55,7 @@ export async function getUnreadCount(userId) {
 // ============================================
 
 /**
- * Envía un email transaccional via Resend.
+ * Sends a transactional email via Resend.
  * @param {string} to
  * @param {string} subject
  * @param {string} html
@@ -72,8 +72,8 @@ export async function sendEmail(to, subject, html) {
 export async function sendWelcomeEmail(user) {
   return sendEmail(
     user.email,
-    "Bienvenido al Gym App",
-    `<h1>Hola ${user.firstName}</h1><p>Bienvenido a nuestra plataforma. ¡A entrenar!</p>`
+    'Welcome to Gym App',
+    `<h1>Hi ${user.firstName}</h1><p>Welcome to our platform. Time to train!</p>`
   );
 }
 
@@ -81,8 +81,8 @@ export async function sendPasswordResetEmail(user, resetToken) {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   return sendEmail(
     user.email,
-    "Recuperar contraseña",
-    `<p>Hacé clic en el siguiente link para resetear tu contraseña (válido por 1 hora):</p>
+    'Reset your password',
+    `<p>Click the following link to reset your password (valid for 1 hour):</p>
      <a href="${resetUrl}">${resetUrl}</a>`
   );
 }
@@ -90,7 +90,7 @@ export async function sendPasswordResetEmail(user, resetToken) {
 export async function sendProgressEmail(user, message) {
   return sendEmail(
     user.email,
-    "Actualización de progreso",
+    'Progress update',
     `<p>${message}</p>`
   );
 }
@@ -100,7 +100,7 @@ export async function sendProgressEmail(user, message) {
 // ============================================
 
 /**
- * Notifica al usuario tanto in-app como por email.
+ * Notifies the user both in-app and via email.
  * @param {{ id: string, email: string }} user
  * @param {string} title
  * @param {string} body

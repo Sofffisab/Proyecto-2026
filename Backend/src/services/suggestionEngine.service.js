@@ -1,11 +1,10 @@
-// src/services/suggestionEngine.service.js
-import prisma from "../config/prisma.js";
-import { createNotification } from "./notification.service.js";
+import prisma from '../config/prisma.js';
+import { createNotification } from './notification.service.js';
 
 /**
- * Evalúa el progreso de un usuario contra sus metas activas.
- * Si lleva más de 7 días sin actualizar o el progreso es menor al 20%,
- * genera una notificación de sugerencia.
+ * Evaluates a user's progress against their active goals.
+ * If more than 7 days have passed without an update, or progress is below 20%,
+ * generates a suggestion notification.
  * @param {string} userId
  */
 export async function evaluateUserProgress(userId) {
@@ -13,7 +12,7 @@ export async function evaluateUserProgress(userId) {
     where: { userId, active: true },
     include: {
       progress: {
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         take: 1,
       },
     },
@@ -29,30 +28,29 @@ export async function evaluateUserProgress(userId) {
 
     const progressPercent = lastEntry ? lastEntry.progressPercent : 0;
 
-    // Sin actualización en más de 7 días
+    // No update in more than 7 days
     if (daysSinceUpdate === null || daysSinceUpdate > 7) {
       await createNotification(
         userId,
-        "No olvides registrar tu progreso",
-        `Llevas ${daysSinceUpdate ?? "varios"} días sin actualizar tu meta de tipo "${goal.type}". ¡Mantenete constante!`
+        "Don't forget to log your progress",
+        `You haven't updated your ${goal.type} goal in ${daysSinceUpdate ?? 'several'} days. Stay consistent!`
       );
       continue;
     }
 
-    // Progreso menor al 20% del objetivo
+    // Progress below 20% of goal
     if (progressPercent < 20) {
       await createNotification(
         userId,
-        "Tu progreso necesita atención",
-        `Tu meta de tipo "${goal.type}" está al ${progressPercent.toFixed(0)}%. Considerá ajustar tu rutina o consultar con un entrenador.`
+        'Your progress needs attention',
+        `Your ${goal.type} goal is at ${progressPercent.toFixed(0)}%. Consider adjusting your routine or consulting a trainer.`
       );
     }
   }
 }
 
 /**
- * Corre el motor de sugerencias para todos los usuarios activos.
- * Usado por el job diario.
+ * Runs the suggestion engine for all active users. Called by the daily job.
  */
 export async function runSuggestionEngineForAll() {
   const users = await prisma.user.findMany({

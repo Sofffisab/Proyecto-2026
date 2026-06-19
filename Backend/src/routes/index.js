@@ -1,3 +1,4 @@
+// Backend/src/routes/index.js
 import express from 'express';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { authorize } from '../middlewares/role.middleware.js';
@@ -31,7 +32,9 @@ import { validateSchema } from '../validators/schemas.js';
 
 const router = express.Router();
 
-router.use(authenticate);
+// Global middleware — requireActiveAccount only.
+// authenticate is applied per-route individually; applying it here too
+// would run it twice and potentially corrupt req.user on the second pass.
 router.use(requireActiveAccount);
 
 // ============================================
@@ -188,7 +191,7 @@ router.get('/analytics/rank', authenticate, analyticsController.getUserRank);
 router.get('/analytics/engagement', authenticate, authorize(['ADMIN']), analyticsController.getEngagementMetrics);
 
 // ============================================
-// CRON ROUTES 
+// CRON ROUTES
 // ============================================
 router.get('/cron/jobs', async (req, res, next) => {
   try {

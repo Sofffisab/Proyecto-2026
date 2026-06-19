@@ -1,16 +1,16 @@
-import { recalculatePoints } from "./points.job.js";
-import { runAnalyticsJob } from "./analytics.job.js";
-import { generateAnnualWrapped } from "./wrapped.job.js";
-import { checkInactiveProgress } from "./progress.job.js";
-import { processComplaints } from "./complaints.job.js";
+import { recalculatePoints } from './points.job.js';
+import { runAnalyticsJob } from './analytics.job.js';
+import { generateAnnualWrapped } from './wrapped.job.js';
+import { checkInactiveProgress } from './progress.job.js';
+import { processComplaints } from './complaints.job.js';
 
 const RETRY_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 2000;
 
 /**
- * Ejecuta una función con reintentos ante fallos transitorios.
- * @param {string} name - Nombre del job para logging
- * @param {Function} fn - Función async a ejecutar
+ * Runs a function with retries on transient failures.
+ * @param {string} name - Job name for logging
+ * @param {Function} fn - Async function to execute
  */
 async function withRetry(name, fn) {
   for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
@@ -29,18 +29,18 @@ async function withRetry(name, fn) {
 }
 
 /**
- * Entry point para cron system (Vercel / manual execution).
- * Cada job corre aislado con reintentos — un fallo no detiene los demás.
+ * Entry point for the cron system (Vercel / manual execution).
+ * Each job runs in isolation with retries — one failure does not stop the others.
  */
 export async function runJobs() {
-  console.log("[jobs] Starting job run...");
+  console.log('[jobs] Starting job run...');
 
-  await withRetry("recalculatePoints", recalculatePoints);
-  await withRetry("runAnalyticsJob", runAnalyticsJob);
-  await withRetry("checkInactiveProgress", checkInactiveProgress);
-  await withRetry("processComplaints", processComplaints);
+  await withRetry('recalculatePoints', recalculatePoints);
+  await withRetry('runAnalyticsJob', runAnalyticsJob);
+  await withRetry('checkInactiveProgress', checkInactiveProgress);
+  await withRetry('processComplaints', processComplaints);
 
-  console.log("[jobs] Job run complete.");
+  console.log('[jobs] Job run complete.');
 }
 
 export async function runWrappedJob(year = new Date().getFullYear()) {
