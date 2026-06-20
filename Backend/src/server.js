@@ -1,11 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const compression = require("compression");
-
+import compression from "compression";
 import routes from "./routes/index.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 
@@ -19,9 +15,7 @@ app.use(
 );
 
 app.use(helmet());
-
 app.use(compression());
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

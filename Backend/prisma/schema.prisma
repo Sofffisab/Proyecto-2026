@@ -82,50 +82,53 @@ enum RewardRedemptionStatus {
 }
 
 model User {
-  id                 String @id @default(uuid())
-  email              String @unique
-  passwordHash       String
-  firstName          String
-  lastName           String
-  birthday           DateTime?
-  gender             Gender?
-  role               Role @default(USER)
-  trainingLevel      String?
-  medicalConditions  Json?
-  objectives         Json?
-  deliveryAddress    String?
-  isActive           Boolean @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  settings           UserSettings?
-  trainerProfile     TrainerProfile?
-  gymSessions        GymSession[]
-  machineUsages      MachineUsage[]
-  assistanceRequests Assistance[] @relation("AssistanceUser")
-  trainerAssistances Assistance[] @relation("AssistanceTrainer")
-  trainerNotes       TrainerNote[] @relation("TrainerNotesAuthor")
-  userNotes          TrainerNote[] @relation("TrainerNotesUser")
-  ratingsReceived    TrainerRating[] @relation("TrainerRatingsTrainer")
-  ratingsSent        TrainerRating[] @relation("TrainerRatingsUser")
-  routines           Routine[]
-  routineRequests    RoutineRequest[] @relation("RoutineRequestUser")
-  assignedRoutines   RoutineRequest[] @relation("RoutineRequestTrainer")
-  goals              Goal[]
-  progressEntries    ProgressEntry[]
-  pointTransactions  PointTransaction[]
-  achievements       UserAchievement[]
-  rewardRedemptions  RewardRedemption[]
-  socialChallenges   SocialChallenge[] @relation("ChallengeOwner")
-  socialPartners     SocialChallenge[] @relation("ChallengePartner")
-  socialInteractions SocialInteraction[] @relation("SocialUser")
-  socialTargets      SocialInteraction[] @relation("SocialTarget")
-  complaintsCreated  Complaint[] @relation("ComplaintReporter")
-  complaintsReceived Complaint[] @relation("ComplaintReported")
-  complaintsReviewed Complaint[] @relation("ComplaintReviewer")
-  reviewRequests     PointReviewRequest[] @relation("ReviewRequestUser")
-  reviewedRequests   PointReviewRequest[] @relation("ReviewRequestReviewer")
-  notifications      Notification[]
-  wrappeds           Wrapped[]
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  passwordHash         String
+  firstName            String
+  lastName             String
+  birthday             DateTime?
+  gender               Gender?
+  role                 Role      @default(USER)
+  trainingLevel        String?
+  medicalConditions    Json?
+  objectives           Json?
+  deliveryAddress      String?
+  isActive             Boolean   @default(true)
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  settings             UserSettings?
+  trainerProfile       TrainerProfile?
+  gymSessions          GymSession[]
+  machineUsages        MachineUsage[]
+  assistanceRequests   Assistance[]        @relation("AssistanceUser")
+  trainerAssistances   Assistance[]        @relation("AssistanceTrainer")
+  trainerNotes         TrainerNote[]       @relation("TrainerNotesAuthor")
+  userNotes            TrainerNote[]       @relation("TrainerNotesUser")
+  ratingsReceived      TrainerRating[]     @relation("TrainerRatingsTrainer")
+  ratingsSent          TrainerRating[]     @relation("TrainerRatingsUser")
+  routines             Routine[]
+  routineRequests      RoutineRequest[]    @relation("RoutineRequestUser")
+  assignedRoutines     RoutineRequest[]    @relation("RoutineRequestTrainer")
+  goals                Goal[]
+  progressEntries      ProgressEntry[]
+  pointTransactions    PointTransaction[]
+  achievements         UserAchievement[]
+  rewardRedemptions    RewardRedemption[]
+  socialChallenges     SocialChallenge[]   @relation("ChallengeOwner")
+  socialPartners       SocialChallenge[]   @relation("ChallengePartner")
+  socialInteractions   SocialInteraction[] @relation("SocialUser")
+  socialTargets        SocialInteraction[] @relation("SocialTarget")
+  complaintsCreated    Complaint[]         @relation("ComplaintReporter")
+  complaintsReceived   Complaint[]         @relation("ComplaintReported")
+  complaintsReviewed   Complaint[]         @relation("ComplaintReviewer")
+  reviewRequests       PointReviewRequest[] @relation("ReviewRequestUser")
+  reviewedRequests     PointReviewRequest[] @relation("ReviewRequestReviewer")
+  notifications        Notification[]
+  wrappeds             Wrapped[]
 
   @@index([email])
   @@index([role])
@@ -133,69 +136,70 @@ model User {
 }
 
 model UserSettings {
-  id                 String @id @default(uuid())
-  userId             String @unique
-  disableAssistance  Boolean @default(false)
-  disableSocial      Boolean @default(false)
-  trainerPreference  String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  disableAssistance Boolean  @default(false)
+  disableSocial     Boolean  @default(false)
+  trainerPreference String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TrainerProfile {
-  id               String @id @default(uuid())
-  userId           String @unique
-  specialties      String[]
-  averageRating    Float @default(0)
-  totalRatings     Int @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  specialties   String[]
+  averageRating Float    @default(0)
+  totalRatings  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  user             User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GymSession {
-  id                String @id @default(uuid())
-  userId            String
-  checkInAt         DateTime
-  checkOutAt        DateTime?
-  durationMinutes   Int?
-  createdAt         DateTime @default(now())
+  id              String    @id @default(uuid())
+  userId          String
+  checkInAt       DateTime
+  checkOutAt      DateTime?
+  durationMinutes Int?
+  createdAt       DateTime  @default(now())
 
-  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  machineUsages     MachineUsage[]
-  ratings           TrainerRating[]
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  machineUsages   MachineUsage[]
+  ratings         TrainerRating[]
 
   @@index([userId])
   @@index([checkInAt])
 }
 
 model Machine {
-  id                String @id @default(uuid())
-  name              String
-  qrToken           String @unique
-  qrTokenUpdatedAt  DateTime @default(now())
-  active            Boolean @default(true)
-  createdAt         DateTime @default(now())
-  usages            MachineUsage[]
+  id               String   @id @default(uuid())
+  name             String
+  qrToken          String   @unique
+  qrTokenUpdatedAt DateTime @default(now())
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  usages           MachineUsage[]
 
   @@index([active])
 }
 
 model MachineUsage {
-  id                String @id @default(uuid())
-  userId            String
-  machineId         String
-  gymSessionId      String
-  startedAt         DateTime
-  endedAt           DateTime?
-  durationMinutes   Int?
+  id              String      @id @default(uuid())
+  userId          String
+  machineId       String
+  gymSessionId    String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int?
 
-  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  machine           Machine @relation(fields: [machineId], references: [id])
-  gymSession        GymSession @relation(fields: [gymSessionId], references: [id])
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  machine         Machine     @relation(fields: [machineId], references: [id])
+  gymSession      GymSession? @relation(fields: [gymSessionId], references: [id])
 
   @@index([userId])
   @@index([machineId])
@@ -204,16 +208,16 @@ model MachineUsage {
 }
 
 model Assistance {
-  id              String           @id @default(uuid())
-  userId          String
-  trainerId       String?
-  status          AssistanceStatus @default(PENDING)
-  requestedAt     DateTime         @default(now())
-  assignedAt      DateTime?
-  completedAt     DateTime?
+  id          String           @id @default(uuid())
+  userId      String
+  trainerId   String?
+  status      AssistanceStatus @default(PENDING)
+  requestedAt DateTime         @default(now())
+  assignedAt  DateTime?
+  completedAt DateTime?
 
-  user            User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
-  trainer         User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  user        User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
+  trainer     User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([trainerId])
@@ -221,59 +225,59 @@ model Assistance {
 }
 
 model TrainerNote {
-  id            String @id @default(uuid())
-  trainerId     String
-  userId        String
-  note          String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  trainerId String
+  userId    String
+  note      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  trainer       User @relation("TrainerNotesAuthor", fields: [trainerId], references: [id], onDelete: Cascade)
-  user          User @relation("TrainerNotesUser", fields: [userId], references: [id], onDelete: Cascade)
+  trainer   User @relation("TrainerNotesAuthor", fields: [trainerId], references: [id], onDelete: Cascade)
+  user      User @relation("TrainerNotesUser",   fields: [userId],    references: [id], onDelete: Cascade)
 
   @@index([trainerId])
   @@index([userId])
 }
 
 model TrainerRating {
-  id            String @id @default(uuid())
-  trainerId     String
-  userId        String
-  gymSessionId  String?
-  rating        Int
-  createdAt     DateTime @default(now())
+  id           String      @id @default(uuid())
+  trainerId    String
+  userId       String
+  gymSessionId String?
+  rating       Int
+  createdAt    DateTime    @default(now())
 
-  trainer       User @relation("TrainerRatingsTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
-  user          User @relation("TrainerRatingsUser", fields: [userId], references: [id], onDelete: Cascade)
-  gymSession    GymSession? @relation(fields: [gymSessionId], references: [id])
+  trainer      User        @relation("TrainerRatingsTrainer", fields: [trainerId],    references: [id], onDelete: Cascade)
+  user         User        @relation("TrainerRatingsUser",    fields: [userId],       references: [id], onDelete: Cascade)
+  gymSession   GymSession? @relation(fields: [gymSessionId], references: [id])
 
   @@index([trainerId])
   @@index([userId])
 }
 
 model Routine {
-  id            String @id @default(uuid())
-  userId        String
-  name          String?
-  isCustom      Boolean @default(false)
-  content       Json
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  userId    String
+  name      String?
+  isCustom  Boolean  @default(false)
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model RoutineRequest {
-  id            String @id @default(uuid())
-  userId        String
-  trainerId     String?
-  status        RoutineRequestStatus @default(PENDING)
-  createdAt     DateTime @default(now())
+  id        String               @id @default(uuid())
+  userId    String
+  trainerId String?
+  status    RoutineRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
 
-  user          User @relation("RoutineRequestUser", fields: [userId], references: [id], onDelete: Cascade)
-  trainer       User? @relation("RoutineRequestTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  user      User  @relation("RoutineRequestUser",    fields: [userId],    references: [id], onDelete: Cascade)
+  trainer   User? @relation("RoutineRequestTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([trainerId])
@@ -281,26 +285,26 @@ model RoutineRequest {
 }
 
 model Goal {
-  id              String @id @default(uuid())
-  userId          String
-  type            GoalType
-  subType         String?
-  action          GoalAction
-  targetValue     Float
-  currentValue    Float @default(0)
-  difficulty      GoalDifficulty @default(MEDIUM)
-  active          Boolean @default(true)
-  createdAt       DateTime @default(now())
+  id           String         @id @default(uuid())
+  userId       String
+  type         GoalType
+  subType      String?
+  action       GoalAction
+  targetValue  Float
+  currentValue Float          @default(0)
+  difficulty   GoalDifficulty @default(MEDIUM)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
 
-  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  progress        ProgressEntry[]
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress     ProgressEntry[]
 
   @@index([userId])
   @@index([type])
 }
 
 model ProgressEntry {
-  id              String @id @default(uuid())
+  id              String   @id @default(uuid())
   userId          String
   goalId          String
   value           Float
@@ -308,85 +312,86 @@ model ProgressEntry {
   createdAt       DateTime @default(now())
 
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal            Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  goal            Goal @relation(fields: [goalId],  references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([goalId])
 }
 
 model PointTransaction {
-  id          String @id @default(uuid())
-  userId      String
-  points      Int
-  reason      String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  points    Int
+  reason    String
+  createdAt DateTime @default(now())
 
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model Achievement {
-  id            String @id @default(uuid())
-  name          String
-  description   String
+  id             String   @id @default(uuid())
+  name           String
+  description    String
   pointsRequired Int
-  createdAt     DateTime @default(now())
-  users         UserAchievement[]
+  createdAt      DateTime @default(now())
+
+  users          UserAchievement[]
 }
 
 model UserAchievement {
-  id            String @id @default(uuid())
+  id            String   @id @default(uuid())
   userId        String
   achievementId String
   unlockedAt    DateTime @default(now())
 
-  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId],        references: [id], onDelete: Cascade)
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model Reward {
-  id            String @id @default(uuid())
-  name          String
-  description   String
-  pointsCost    Int    @default(0)
-  active        Boolean @default(true)
-  createdAt     DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  pointsCost  Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  redemptions   RewardRedemption[]
+  redemptions RewardRedemption[]
 }
 
 model RewardRedemption {
-  id            String @id @default(uuid())
-  userId        String
-  rewardId      String
-  status        RewardRedemptionStatus @default(PENDING)
-  approvedBy    String?
-  approvedAt    DateTime?
-  shippedAt     DateTime?
-  deliveredAt   DateTime?
-  createdAt     DateTime @default(now())
+  id          String                 @id @default(uuid())
+  userId      String
+  rewardId    String
+  status      RewardRedemptionStatus @default(PENDING)
+  approvedBy  String?
+  approvedAt  DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime               @default(now())
 
-  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reward        Reward @relation(fields: [rewardId], references: [id])
+  user        User   @relation(fields: [userId],   references: [id], onDelete: Cascade)
+  reward      Reward @relation(fields: [rewardId], references: [id])
 
   @@index([userId])
   @@index([status])
 }
 
 model SocialChallenge {
-  id              String @id @default(uuid())
-  userId          String
-  partnerUserId   String
-  station         String?
-  status          SocialChallengeStatus @default(ASSIGNED)
-  expiresAt       DateTime?
-  createdAt       DateTime @default(now())
+  id            String                @id @default(uuid())
+  userId        String
+  partnerUserId String
+  station       String?
+  status        SocialChallengeStatus @default(ASSIGNED)
+  expiresAt     DateTime?
+  createdAt     DateTime              @default(now())
 
-  user            User @relation("ChallengeOwner", fields: [userId], references: [id], onDelete: Cascade)
-  partner         User @relation("ChallengePartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  user          User @relation("ChallengeOwner",   fields: [userId],        references: [id], onDelete: Cascade)
+  partner       User @relation("ChallengePartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([partnerUserId])
@@ -394,66 +399,66 @@ model SocialChallenge {
 }
 
 model SocialInteraction {
-  id            String @id @default(uuid())
-  userId        String
-  targetUserId  String
-  type          String
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid())
+  userId       String
+  targetUserId String
+  type         String
+  createdAt    DateTime @default(now())
 
-  user          User @relation("SocialUser", fields: [userId], references: [id], onDelete: Cascade)
-  target        User @relation("SocialTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  user         User @relation("SocialUser",   fields: [userId],       references: [id], onDelete: Cascade)
+  target       User @relation("SocialTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([targetUserId])
 }
 
 model Complaint {
-  id              String @id @default(uuid())
-  reporterId      String
-  reportedUserId  String
-  reason          String
-  message         String?
-  status          ComplaintStatus @default(PENDING)
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  createdAt       DateTime @default(now())
+  id             String          @id @default(uuid())
+  reporterId     String
+  reportedUserId String
+  reason         String
+  message        String?
+  status         ComplaintStatus @default(PENDING)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime        @default(now())
 
-  reporter        User @relation("ComplaintReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reported        User @relation("ComplaintReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
-  reviewer        User? @relation("ComplaintReviewer", fields: [reviewedBy], references: [id])
+  reporter       User  @relation("ComplaintReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
+  reported       User  @relation("ComplaintReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reviewer       User? @relation("ComplaintReviewer", fields: [reviewedBy],     references: [id])
 
   @@index([reportedUserId])
   @@index([status])
 }
 
 model PointReviewRequest {
-  id            String @id @default(uuid())
-  userId        String
-  reason        String
-  resolved      Boolean @default(false)
-  reviewedBy    String?
-  createdAt     DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  reason     String
+  resolved   Boolean  @default(false)
+  reviewedBy String?
+  createdAt  DateTime @default(now())
 
-  user          User @relation("ReviewRequestUser", fields: [userId], references: [id], onDelete: Cascade)
-  reviewer      User? @relation("ReviewRequestReviewer", fields: [reviewedBy], references: [id])
+  user       User  @relation("ReviewRequestUser",     fields: [userId],     references: [id], onDelete: Cascade)
+  reviewer   User? @relation("ReviewRequestReviewer", fields: [reviewedBy], references: [id])
 }
 
 model Notification {
-  id          String @id @default(uuid())
-  userId      String
-  title       String
-  body        String
-  read        Boolean @default(false)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([read])
 }
 
 model Wrapped {
-  id          String @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
   year        Int
   payload     Json

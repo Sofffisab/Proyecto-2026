@@ -1,21 +1,56 @@
 import * as gamificationService from "../services/gamification.service.js";
+import * as engagementService from "../services/engagement.service.js";
+import * as insightsService from "../services/insights.service.js";
 
-export async function points(req, res, next) {
+export async function getPoints(req, res, next) {
   try {
-    const data = await gamificationService.getPoints(
-      req.user.id
-    );
-    res.json(data);
+    const data = await gamificationService.getPoints(req.user.id);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
 }
 
-export async function achievements(req, res, next) {
+export async function getAchievements(req, res, next) {
   try {
-    const data =
-      await gamificationService.getAchievements(req.user.id);
-    res.json(data);
+    const data = await gamificationService.getAchievements(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getBadges(req, res, next) {
+  try {
+    const data = await gamificationService.getAchievements(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAllBadges(req, res, next) {
+  try {
+    const data = await engagementService.getAllAchievements();
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function claimBadge(req, res, next) {
+  try {
+    const data = await gamificationService.unlockAchievement(req.user.id, req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getWrapped(req, res, next) {
+  try {
+    const data = await insightsService.getWrapped(req.user.id);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -23,14 +58,8 @@ export async function achievements(req, res, next) {
 
 export async function reviewRequest(req, res, next) {
   try {
-    const data =
-      await gamificationService.addPoints(
-        req.user.id,
-        0,
-        "REVIEW_REQUEST"
-      );
-
-    res.json(data);
+    const data = await gamificationService.addPoints(req.user.id, 0, "REVIEW_REQUEST");
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }

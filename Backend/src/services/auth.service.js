@@ -2,9 +2,17 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../config/prisma.js";
+import redis from "../config/redis.js";
+import { sendPasswordResetEmail } from "./communication.service.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+
+function sanitizeUser(user) {
+  const { passwordHash, passwordResetToken, passwordResetExpires, ...safe } = user;
+  return safe;
+}
 
 export async function register(data) {
   const { email, password, firstName, lastName, role } = data;
@@ -13,9 +21,11 @@ export async function register(data) {
   if (exists) throw new Error("Email already in use");
 
   const passwordHash = await bcrypt.hash(password, 10);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: { email, passwordHash, firstName, lastName, role: role ?? "USER" },
   });
+
+  return sanitizeUser(user);
 }
 
 export async function login(data) {
@@ -39,14 +49,17 @@ export async function login(data) {
     { expiresIn: "7d" }
   );
 
-  return { user, accessToken, refreshToken };
+  return { user: sanitizeUser(user), accessToken, refreshToken };
 }
 
 export async function me(userId) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { settings: true, trainerProfile: true },
   });
+
+  if (!user) return null;
+  return sanitizeUser(user);
 }
 
 export async function refreshToken(data) {
@@ -69,7 +82,10 @@ export async function refreshToken(data) {
   return { accessToken };
 }
 
-export async function logout() {
+export async function logout(token) {
+  if (redis && token) {
+    await redis.set(`blacklist:${token}`, 1, { ex: ACCESS_TOKEN_TTL_SECONDS });
+  }
   return { success: true };
 }
 
@@ -80,23 +96,37 @@ export async function forgotPassword(data) {
   if (!user) return { success: true };
 
   const resetToken = crypto.randomBytes(32).toString("hex");
-  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const resetTokenHash = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
+    data: {
+      passwordResetToken: resetTokenHash,
+      passwordResetExpires: expiresAt,
+    },
   });
+
+  await sendPasswordResetEmail(user, resetToken);
 
   return { success: true };
 }
 
 export async function resetPassword(data) {
   const { token, password } = data;
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 
   const user = await prisma.user.findFirst({
-    where: { passwordResetToken: tokenHash, passwordResetExpires: { gt: new Date() } },
+    where: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { gt: new Date() },
+    },
   });
 
   if (!user) throw new Error("Invalid or expired reset token");
@@ -104,7 +134,11 @@ export async function resetPassword(data) {
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, passwordResetToken: null, passwordResetExpires: null },
+    data: {
+      passwordHash,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
   });
 
   return { success: true };

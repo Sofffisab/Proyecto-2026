@@ -69,4 +69,6 @@ export async function getGymAnalytics() {
 export {
   getUserAnalytics,
   getGymAnalytics,
+  generateWrapped,
+  getWrapped,
 } from "./insights.service.js";

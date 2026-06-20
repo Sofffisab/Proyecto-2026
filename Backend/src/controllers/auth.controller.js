@@ -38,7 +38,8 @@ export async function refreshToken(req, res, next) {
 
 export async function logout(req, res, next) {
   try {
-    const result = await authService.logout();
+    const token = req.headers.authorization?.split(" ")[1] ?? null;
+    const result = await authService.logout(token);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
