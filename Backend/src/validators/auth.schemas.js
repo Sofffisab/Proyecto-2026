@@ -5,7 +5,8 @@ export const registerSchema = z.object({
   password: z.string().min(8).max(100),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  role: z.enum(["USER", "TRAINER", "ADMIN"]).optional().default("USER"),
+  // Role is intentionally excluded — public registration always creates USER.
+  // Admins assign TRAINER/ADMIN roles via PATCH /users/:id/role.
 });
 
 export const loginSchema = z.object({

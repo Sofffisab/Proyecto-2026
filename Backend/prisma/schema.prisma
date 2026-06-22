@@ -369,7 +369,9 @@ model RewardRedemption {
   userId      String
   rewardId    String
   status      RewardRedemptionStatus @default(PENDING)
-  approvedBy  String?
+  approvedBy  String?   // ID of the admin who approved (null on rejections)
+  reviewedBy  String?   // ID of the admin who rejected (null on approvals)
+  reviewedAt  DateTime? // Timestamp of the rejection action
   approvedAt  DateTime?
   shippedAt   DateTime?
   deliveredAt DateTime?
@@ -422,6 +424,7 @@ model Complaint {
   status         ComplaintStatus @default(PENDING)
   reviewedBy     String?
   reviewedAt     DateTime?
+  resolution     String?         // Auto-close message or admin note on resolution
   createdAt      DateTime        @default(now())
 
   reporter       User  @relation("ComplaintReporter", fields: [reporterId],     references: [id], onDelete: Cascade)

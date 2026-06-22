@@ -7,7 +7,19 @@ export async function generateAnnualWrapped(year) {
     select: { id: true },
   });
 
+  let processed = 0;
+  let failed = 0;
+
   for (const user of users) {
-    await generateWrapped(user.id, year);
+    try {
+      await generateWrapped(user.id, year);
+      processed++;
+    } catch (err) {
+      // A single user failure must not abort the rest of the batch
+      console.error(`[wrapped.job] Failed for user ${user.id}:`, err.message);
+      failed++;
+    }
   }
+
+  console.log(`[wrapped.job] Done — ${processed} processed, ${failed} failed`);
 }

@@ -5,9 +5,8 @@ const AUTO_CLOSE_AFTER_DAYS = 30;
 /**
  * Processes pending complaints:
  * - Auto-closes complaints that have been pending for more than AUTO_CLOSE_AFTER_DAYS
- *   without any admin action (marks them as REJECTED with an automated note).
- *
- * Future: add scoring / AI rules for automatic resolution.
+ *   without any admin action (marks them as REJECTED with an automated note stored
+ *   in the `resolution` field, which must exist in schema.prisma).
  */
 export async function processComplaints() {
   const cutoff = new Date();

@@ -65,16 +65,18 @@ router.use(requireActiveAccount);
 // Auth
 router.post("/auth/logout", authController.logout);
 
-// Users
+// ── Users — STATIC segments (/users/me/...) MUST come before dynamic (/users/:id/...)
 router.get("/users/me",    cacheResponse(60),                                                                                     userController.getMe);
 router.patch("/users/me",  validateSchema(userSchemas.updateProfileSchema),                                                       userController.updateMe);
 router.post("/users/me/change-password", validateSchema(userSchemas.changePasswordSchema),                                        userController.changePassword);
+// notification-preferences is a static sub-route of /me — must be registered BEFORE /users/:id routes
+router.patch("/users/me/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema),                     userController.updateNotificationPreferences);
+
+// ── Users — dynamic (:id) routes
 router.get("/users",       authorize(["ADMIN"]),                                                                                  userController.getUsers);
 router.get("/users/:id",   authorize(["ADMIN", "TRAINER"]),                                                                       userController.getUserById);
 router.patch("/users/:id/role",       authorize(["ADMIN"]), validateSchema(userSchemas.updateRoleSchema),                         userController.changeRole);
 router.patch("/users/:id/deactivate", authorize(["ADMIN"]),                                                                       userController.deactivate);
-// Uses req.user.id internally — the :id param is ignored in the controller
-router.patch("/users/me/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema),                     userController.updateNotificationPreferences);
 router.get("/users/:id/notes",        authorize(["TRAINER", "ADMIN"]),                                                            noteController.getNotes);
 router.post("/users/:id/notes",       authorize(["TRAINER"]),                                                                     noteController.createNote);
 router.patch("/users/:id/notes/:noteId",  authorize(["TRAINER"]),                                                                 noteController.updateNote);
@@ -95,92 +97,88 @@ router.get("/gym/present-users",          authorize(["TRAINER", "ADMIN"]),      
 // Progress
 router.post("/progress",               apiRateLimiter, validateSchema(progressSchemas.createProgressSchema), progressController.createProgress);
 router.get("/progress",                                                                                       progressController.getProgress);
-router.get("/progress/stats/summary",                                                                         progressController.getProgressStats);
+router.get("/progress/stats",                                                                                 progressController.getStats);
 router.get("/progress/:id",                                                                                   progressController.getProgressById);
-router.patch("/progress/:id",           validateSchema(progressSchemas.updateProgressSchema),                 progressController.updateProgress);
+router.patch("/progress/:id",          validateSchema(progressSchemas.updateProgressSchema),                  progressController.updateProgress);
 router.delete("/progress/:id",                                                                                progressController.deleteProgress);
 
+// Goals
+router.post("/goals",     validateSchema(progressSchemas.goalSchema),   progressController.createGoal);
+router.get("/goals",                                                     progressController.getGoals);
+router.get("/goals/:id",                                                 progressController.getGoalById);
+router.patch("/goals/:id",                                               progressController.updateGoal);
+router.delete("/goals/:id",                                              progressController.deleteGoal);
+
 // Routines
-router.get("/routines/suggestion",           routineController.getSuggestion);
-router.post("/routine-requests",             routineController.requestPersonalized);
-router.post("/routines",                     validateSchema(progressSchemas.createRoutineSchema),  routineController.createRoutine);
-router.get("/routines",                                                                            routineController.getUserRoutines);
-router.get("/routines/:id",                                                                        routineController.getRoutineById);
-router.patch("/routines/:id",                validateSchema(progressSchemas.updateRoutineSchema),  routineController.updateRoutine);
-router.delete("/routines/:id",                                                                     routineController.deleteRoutine);
-router.post("/routines/:id/complete-day",    apiRateLimiter,                                       routineController.completeDay);
+router.post("/routines",     validateSchema(progressSchemas.createRoutineSchema), routineController.create);
+router.get("/routines",                                                            routineController.getAll);
+router.get("/routines/:id",                                                        routineController.getById);
+router.patch("/routines/:id", validateSchema(progressSchemas.updateRoutineSchema), routineController.update);
+router.delete("/routines/:id",                                                     routineController.remove);
+
+// Routine requests
+router.post("/routine-requests",                                                   routineController.requestRoutine);
+router.get("/routine-requests",                                                    routineController.getRequests);
+router.patch("/routine-requests/:id/accept",  authorize(["TRAINER", "ADMIN"]),    routineController.acceptRequest);
+router.patch("/routine-requests/:id/reject",  authorize(["TRAINER", "ADMIN"]),    routineController.rejectRequest);
+router.patch("/routine-requests/:id/complete",authorize(["TRAINER", "ADMIN"]),    routineController.completeRequest);
 
 // Rewards
-router.get("/rewards",                       rewardController.getAvailableRewards);
-router.get("/rewards/user/redemptions",      rewardController.getUserRedemptions);
-router.post("/rewards",                      authorize(["ADMIN", "TRAINER"]), validateSchema(progressSchemas.createRewardSchema),     rewardController.createReward);
-router.get("/rewards/:id",                   rewardController.getRewardById);
-router.post("/rewards/:id/redeem",           apiRateLimiter,                                                                          rewardController.redeemReward);
-router.patch("/rewards/:id",                 authorize(["ADMIN", "TRAINER"]), validateSchema(progressSchemas.updateRewardSchema),      rewardController.updateReward);
-router.post("/rewards/:id/approve",          authorize(["ADMIN"]),            validateSchema(progressSchemas.approveRedemptionSchema), rewardController.approveRedemption);
-router.post("/rewards/:id/reject",           authorize(["ADMIN"]),            validateSchema(progressSchemas.rejectRedemptionSchema),  rewardController.rejectRedemption);
-router.patch("/rewards/redemptions/:id/ship",    authorize(["ADMIN"]),                                                                rewardController.ship);
-router.patch("/rewards/redemptions/:id/deliver", authorize(["ADMIN"]),                                                                rewardController.deliver);
+router.get("/rewards",                                                                                        rewardController.getAvailableRewards);
+router.get("/rewards/my-redemptions",                                                                         rewardController.getUserRedemptions);
+router.get("/rewards/:id",                                                                                     rewardController.getRewardById);
+router.post("/rewards",             authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
+router.patch("/rewards/:id",        authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
+router.post("/rewards/:id/redeem",                                                                            rewardController.redeemReward);
+router.patch("/redemptions/:id/approve", authorize(["ADMIN"]),                                                rewardController.approveRedemption);
+router.patch("/redemptions/:id/reject",  authorize(["ADMIN"]),                                                rewardController.rejectRedemption);
+router.patch("/redemptions/:id/ship",    authorize(["ADMIN"]),                                                rewardController.ship);
+router.patch("/redemptions/:id/deliver", authorize(["ADMIN"]),                                                rewardController.deliver);
 
 // Gamification
-router.get("/gamification/points",             cacheResponse(30), gamificationController.getPoints);
-router.get("/gamification/badges",                                gamificationController.getBadges);
-router.get("/gamification/badges/all",                            gamificationController.getAllBadges);
-router.post("/gamification/badges/:id/claim",  apiRateLimiter,   gamificationController.claimBadge);
-router.get("/gamification/achievements",                          gamificationController.getAchievements);
-router.get("/gamification/wrapped",                               gamificationController.getWrapped);
+router.get("/gamification/points",       gamificationController.getPoints);
+router.get("/gamification/achievements", gamificationController.getAchievements);
 
-// Challenges & Social
-router.post("/challenges",              authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.createChallengeSchema),  challengeController.createChallenge);
-router.get("/challenges/active",                                                                                                  challengeController.getActiveChallenges);
-router.get("/challenges",                                                                                                         challengeController.getAllChallenges);
-router.get("/challenges/:id",                                                                                                     challengeController.getChallengeById);
-router.post("/challenges/:id/join",     apiRateLimiter,                                                                           challengeController.joinChallenge);
-router.post("/challenges/:id/complete", apiRateLimiter, validateSchema(progressSchemas.completeChallengeSchema),                  challengeController.completeChallenge);
-router.post("/challenges/:id/cancel",   authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.cancelChallengeSchema),   challengeController.cancelChallenge);
-router.get("/challenges/:id/leaderboard",                                                                                         challengeController.getChallengeLeaderboard);
-router.get("/social/challenge/active",                                                                                            challengeController.getActive);
-router.get("/social/history",                                                                                                     challengeController.getHistory);
+// Challenges
+router.post("/challenges",              validateSchema(progressSchemas.createChallengeSchema), challengeController.create);
+router.get("/challenges",                                                                       challengeController.getAll);
+router.get("/challenges/:id",                                                                   challengeController.getById);
+router.patch("/challenges/:id/complete", validateSchema(progressSchemas.completeChallengeSchema), challengeController.complete);
+router.patch("/challenges/:id/cancel",                                                          challengeController.cancel);
 
 // Assistance
-router.post("/assistance/request",      apiRateLimiter, validateSchema(progressSchemas.requestAssistanceSchema), assistanceController.requestAssistance);
-router.get("/assistance/requests",      authorize(["TRAINER", "ADMIN"]),                                         assistanceController.getAssistanceRequests);
-router.get("/assistance/my-requests",                                                                             assistanceController.getUserAssistanceRequests);
-// trainerId is forced to req.user.id in the controller — a trainer can only assign themselves
-router.post("/assistance/:id/assign",   authorize(["TRAINER"]), validateSchema(progressSchemas.assignAssistanceSchema),   assistanceController.assignAssistance);
-// Only TRAINER or ADMIN can mark an assistance as complete
-router.post("/assistance/:id/complete", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.completeAssistanceSchema), assistanceController.completeAssistance);
-router.post("/assistance/:id/cancel",                                                                                      assistanceController.cancelAssistance);
+router.post("/assistance",                                                                               assistanceController.request);
+router.get("/assistance",              authorize(["TRAINER", "ADMIN"]),                                  assistanceController.getPending);
+router.get("/assistance/my-history",                                                                     assistanceController.getHistory);
+router.patch("/assistance/:id/assign", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.assignAssistanceSchema), assistanceController.assign);
+router.patch("/assistance/:id/complete", authorize(["TRAINER", "ADMIN"]),                                assistanceController.complete);
+router.patch("/assistance/:id/cancel",                                                                   assistanceController.cancel);
 
 // Complaints
-router.post("/complaints",         apiRateLimiter, validateSchema(progressSchemas.createComplaintSchema),          complaintController.createComplaint);
-router.get("/complaints/user",                                                                                      complaintController.getUserComplaints);
-router.get("/complaints",          authorize(["ADMIN"]),                                                           complaintController.getAllComplaints);
-router.get("/complaints/:id",                                                                                       complaintController.getComplaintById);
-router.post("/complaints/:id/resolve", authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
-router.post("/complaints/:id/reject",  authorize(["ADMIN"]), validateSchema(progressSchemas.rejectComplaintSchema),  complaintController.rejectComplaint);
+router.post("/complaints",              validateSchema(progressSchemas.createComplaintSchema), complaintController.create);
+router.get("/complaints",               authorize(["ADMIN"]),                                  complaintController.getAll);
+router.get("/complaints/mine",                                                                 complaintController.getMine);
+router.get("/complaints/:id",           authorize(["ADMIN"]),                                  complaintController.getById);
+router.patch("/complaints/:id/resolve", authorize(["ADMIN"]),                                  complaintController.resolveComplaint);
+router.patch("/complaints/:id/reject",  authorize(["ADMIN"]),                                  complaintController.rejectComplaint);
 
 // QR
-router.post("/qr/generate",    authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.generateQRSchema), qrController.generateQR);
-router.post("/qr/validate",    apiRateLimiter,                  validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
-router.get("/qr/gym/:gymId",   authorize(["TRAINER", "ADMIN"]),                                                   qrController.getGymQRCodes);
-router.post("/qr/machines",    authorize(["ADMIN", "TRAINER"]),                                                    qrController.createMachine);
-
-// Sync
-router.post("/sync", syncController.syncOfflineActions);
+router.get("/qr/my",              qrController.getMyQR);
+router.post("/qr/validate",       validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 
 // Notifications
-router.get("/notifications",              notificationController.getNotifications);
-router.patch("/notifications/read-all",   notificationController.markAllAsRead);
-router.get("/notifications/unread/count", notificationController.getUnreadCount);
-router.patch("/notifications/:id/read",   notificationController.markAsRead);
-router.delete("/notifications/:id",       notificationController.deleteNotification);
+router.get("/notifications",            notificationController.getNotifications);
+router.get("/notifications/unread-count", notificationController.getUnreadCount);
+router.patch("/notifications/:id/read", notificationController.markAsRead);
+router.patch("/notifications/read-all", notificationController.markAllAsRead);
+router.delete("/notifications/:id",     notificationController.deleteNotification);
 
 // Analytics
-router.get("/analytics/me",          cacheResponse(120),             analyticsController.getUserAnalytics);
-router.get("/analytics/gym",         authorize(["ADMIN", "TRAINER"]), analyticsController.getGymAnalytics);
-router.get("/analytics/leaderboard",                                  analyticsController.getGlobalLeaderboard);
-router.get("/analytics/rank",                                         analyticsController.getUserRank);
-router.get("/analytics/engagement",  authorize(["ADMIN"]),            analyticsController.getEngagementMetrics);
+router.get("/analytics/me",     analyticsController.getMyAnalytics);
+router.get("/analytics/gym",    authorize(["ADMIN"]), analyticsController.getGymAnalytics);
+router.get("/analytics/wrapped",analyticsController.getWrapped);
+
+// Sync
+router.post("/sync", syncController.sync);
 
 export default router;

@@ -48,9 +48,12 @@ export async function analyzeUserPatterns(userId) {
 }
 
 /**
- * Corre el análisis de patrones para todos los usuarios activos,
- * persiste los resultados en la tabla UserPatternSnapshot (si existe)
+ * Corre el análisis de patrones para todos los usuarios activos
  * y envía una notificación in-app con el resumen al usuario.
+ *
+ * NOTE: Persistence of snapshots (UserPatternSnapshot) is intentionally
+ * omitted — the model does not exist in schema.prisma. If snapshot persistence
+ * is needed in the future, add the model to the schema and re-enable the upsert.
  */
 export async function runPatternAnalysisForAll() {
   const users = await prisma.user.findMany({
@@ -63,20 +66,6 @@ export async function runPatternAnalysisForAll() {
       const patterns = await analyzeUserPatterns(user.id);
 
       if (patterns.sessionCount === 0) continue;
-
-      // Persist snapshot — tries to upsert into UserPatternSnapshot if the table exists.
-      await prisma.userPatternSnapshot
-        .upsert({
-          where: { userId: user.id },
-          update: { payload: patterns, updatedAt: new Date() },
-          create: { userId: user.id, payload: patterns },
-        })
-        .catch(() => {
-          // Table may not exist yet in all environments; log but don't abort.
-          console.log(
-            `[patternAnalysis] Snapshot not persisted for ${user.id} (table absent)`
-          );
-        });
 
       // Notify the user with their top training day and machine
       const topDay = patterns.frequentDays[0];

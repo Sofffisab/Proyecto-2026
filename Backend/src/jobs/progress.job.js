@@ -1,28 +1,17 @@
 // src/jobs/progress.job.js
-import prisma from "../config/prisma.js";
 import { runSuggestionEngineForAll } from "../services/suggestionEngine.service.js";
 
+/**
+ * Triggers the suggestion engine for all active users.
+ *
+ * Note: the previous loop that checked for inactive progress entries was
+ * removed because it collected results but never acted on them (no notification,
+ * no alert, no input to the suggestion engine). The suggestion engine already
+ * processes all active users independently via runSuggestionEngineForAll().
+ * If per-user inactivity notifications are needed in the future, implement them
+ * inside the suggestion engine service where the logic can be properly used.
+ */
 export async function checkInactiveProgress() {
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    select: { id: true },
-  });
-
-  for (const user of users) {
-    try {
-      const lastProgress = await prisma.progressEntry.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!lastProgress) {
-        console.log(`[progressJob] User ${user.id} has no progress entries.`);
-      }
-    } catch (err) {
-      console.error(`[progressJob] Failed for user ${user.id}:`, err.message);
-    }
-  }
-
   await runSuggestionEngineForAll();
   console.log("[progressJob] Suggestion engine run complete.");
 }

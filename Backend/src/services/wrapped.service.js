@@ -44,10 +44,28 @@ export async function generateWrapped(userId, year) {
     if (a.trainerId) acc[a.trainerId] = (acc[a.trainerId] || 0) + 1;
     return acc;
   }, {});
-  const topTrainers = Object.entries(trainerCounts)
+
+  const topTrainerIds = Object.entries(trainerCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([trainerId, count]) => ({ trainerId, count }));
+    .map(([trainerId]) => trainerId);
+
+  // Resolve trainer names — lookup in a single query
+  const trainerProfiles = await prisma.user.findMany({
+    where: { id: { in: topTrainerIds } },
+    select: { id: true, firstName: true, lastName: true },
+  });
+
+  const trainerNameMap = trainerProfiles.reduce((acc, t) => {
+    acc[t.id] = `${t.firstName} ${t.lastName}`;
+    return acc;
+  }, {});
+
+  const topTrainers = topTrainerIds.map((trainerId) => ({
+    trainerId,
+    name: trainerNameMap[trainerId] ?? "Unknown",
+    count: trainerCounts[trainerId],
+  }));
 
   const payload = {
     totalSessions: sessions.length,

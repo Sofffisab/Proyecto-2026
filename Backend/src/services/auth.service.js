@@ -7,7 +7,9 @@ import { sendPasswordResetEmail, sendWelcomeEmail } from "./communication.servic
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+// Single source of truth for the access token TTL.
+// Used both in jwt.sign (expiresIn) and in the Redis blacklist TTL.
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // 15 minutes
 
 function sanitizeUser(user) {
   const { passwordHash, passwordResetToken, passwordResetExpires, ...safe } = user;
@@ -45,10 +47,12 @@ export async function login(data) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new Error("Invalid credentials");
 
+  // expiresIn uses the numeric constant so the JWT TTL and the Redis blacklist
+  // TTL are always in sync — changing ACCESS_TOKEN_TTL_SECONDS is enough.
   const accessToken = jwt.sign(
     { userId: user.id, role: user.role },
     ACCESS_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
   );
 
   const refreshToken = jwt.sign(
@@ -84,7 +88,7 @@ export async function refreshToken(data) {
   const accessToken = jwt.sign(
     { userId: user.id, role: user.role },
     ACCESS_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
   );
 
   return { accessToken };

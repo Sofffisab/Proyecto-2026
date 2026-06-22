@@ -2,11 +2,15 @@ import prisma from "../config/prisma.js";
 
 /**
  * Recalculates total points for every user from their PointTransaction records
- * and caches the result in the UserPoints table (if present) or logs a summary.
+ * and logs a summary.
  *
- * This job exists as a consistency check / repair tool in case individual
- * addPoints calls fail silently. It is NOT the primary source of points —
- * PointTransaction records are.
+ * This job is a consistency check / repair tool in case individual addPoints
+ * calls fail silently. It is NOT the primary source of points — PointTransaction
+ * records are the source of truth.
+ *
+ * NOTE: The UserPoints cache table does not exist in schema.prisma.
+ * If a denormalised cache is needed for performance, add the model to the schema
+ * and re-enable the upsert below. Until then the job only logs the totals.
  */
 export async function recalculatePoints() {
   let users;
@@ -30,16 +34,9 @@ export async function recalculatePoints() {
 
       const total = agg._sum.points ?? 0;
 
-      // Upsert into UserPoints cache table if it exists in the schema.
-      // If the model doesn't exist yet this will throw and be caught below.
-      await prisma.userPoints.upsert({
-        where: { userId: user.id },
-        update: { totalPoints: total, updatedAt: new Date() },
-        create: { userId: user.id, totalPoints: total },
-      }).catch(() => {
-        // UserPoints table may not exist yet — log instead of crashing the job
-        console.log(`[points.job] User ${user.id} total: ${total} pts (cache not persisted)`);
-      });
+      // Log the result. To persist this to a cache table, add the UserPoints
+      // model to prisma/schema.prisma and replace this log with an upsert.
+      console.log(`[points.job] User ${user.id} total: ${total} pts`);
 
       processed++;
     } catch (err) {

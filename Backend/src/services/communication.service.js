@@ -22,7 +22,20 @@ export async function getNotifications(userId, { limit = 20, offset = 0 } = {}) 
   });
 }
 
-export async function markAsRead(notificationId) {
+/**
+ * Marks a notification as read only if it belongs to the requesting user.
+ * @param {string} notificationId
+ * @param {string} userId - The authenticated user's ID (ownership check)
+ */
+export async function markAsRead(notificationId, userId) {
+  const notification = await prisma.notification.findFirst({
+    where: { id: notificationId, userId },
+  });
+
+  if (!notification) {
+    throw new Error("Notification not found or does not belong to this user");
+  }
+
   return prisma.notification.update({
     where: { id: notificationId },
     data: { read: true },
@@ -36,7 +49,20 @@ export async function markAllAsRead(userId) {
   });
 }
 
-export async function deleteNotification(id) {
+/**
+ * Deletes a notification only if it belongs to the requesting user.
+ * @param {string} id - Notification ID
+ * @param {string} userId - The authenticated user's ID (ownership check)
+ */
+export async function deleteNotification(id, userId) {
+  const notification = await prisma.notification.findFirst({
+    where: { id, userId },
+  });
+
+  if (!notification) {
+    throw new Error("Notification not found or does not belong to this user");
+  }
+
   return prisma.notification.delete({ where: { id } });
 }
 

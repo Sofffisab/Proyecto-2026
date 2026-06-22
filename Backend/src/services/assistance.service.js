@@ -46,17 +46,36 @@ export async function assignAssistance(assistanceId, trainerId) {
   });
 }
 
-export async function completeAssistance(assistanceId) {
-  const assistance = await prisma.assistance.update({
+/**
+ * Completes an assistance request.
+ * @param {string} assistanceId
+ * @param {string} callerId - The authenticated user's ID (must be the assigned trainer or an admin)
+ * @param {string} callerRole - The authenticated user's role
+ */
+export async function completeAssistance(assistanceId, callerId, callerRole) {
+  const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
+
+  if (!assistance) throw new Error("Assistance request not found");
+  if (assistance.status !== "ASSIGNED") {
+    throw new Error(`Cannot complete a request with status: ${assistance.status}`);
+  }
+
+  // A trainer can only complete assistances assigned to themselves.
+  // Admins can complete any assistance.
+  if (callerRole === "TRAINER" && assistance.trainerId !== callerId) {
+    throw new Error("Forbidden: this assistance is not assigned to you");
+  }
+
+  const updated = await prisma.assistance.update({
     where: { id: assistanceId },
     data: { status: "COMPLETED", completedAt: new Date() },
   });
 
-  if (assistance.trainerId) {
-    await updateTrainerMetrics(assistance.trainerId);
+  if (updated.trainerId) {
+    await updateTrainerMetrics(updated.trainerId);
   }
 
-  return assistance;
+  return updated;
 }
 
 export async function cancelAssistance(assistanceId, userId) {

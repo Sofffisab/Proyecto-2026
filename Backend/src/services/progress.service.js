@@ -65,8 +65,20 @@ export async function updateProgressEntry(id, userId, data) {
 }
 
 export async function deleteProgressEntry(id, userId) {
-  const entry = await prisma.progressEntry.findFirst({ where: { id, userId } });
+  const entry = await prisma.progressEntry.findFirst({
+    where: { id, userId },
+    include: { goal: true },
+  });
   if (!entry) throw new Error("Progress entry not found");
+
+  // Recalculate goal.currentValue by subtracting this entry's value
+  // so the goal stays consistent after deletion.
+  const newCurrentValue = Math.max(0, (entry.goal?.currentValue ?? 0) - entry.value);
+  await prisma.goal.update({
+    where: { id: entry.goalId },
+    data: { currentValue: newCurrentValue },
+  });
+
   return prisma.progressEntry.delete({ where: { id } });
 }
 

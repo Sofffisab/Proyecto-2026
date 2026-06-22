@@ -1,4 +1,3 @@
-// src/index.js
 import "dotenv/config";
 
 import app from "./server.js";
@@ -10,6 +9,7 @@ const REQUIRED_ENV_VARS = [
   "FRONTEND_URL",
   "ABLY_API_KEY",
   "RESEND_API_KEY",
+  "RESEND_FROM_EMAIL",
 ];
 
 const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);

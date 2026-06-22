@@ -8,8 +8,9 @@ export const goalSchema = z.object({
     "WEIGHT", "MUSCLE", "FAT", "PHYSICAL_HEALTH", "MENTAL_HEALTH",
     "STRENGTH", "ENDURANCE", "COMMITMENT", "MOBILITY", "OTHER",
   ]),
-  title: z.string().trim().min(1).max(200),
-  description: z.string().max(1000).optional(),
+  // title and description removed — they don't exist in the Goal model in schema.prisma.
+  // If the business decides to add them, add `title String?` and `description String?`
+  // to the Goal model first, run a migration, then re-add them here.
   targetValue: z.number(),
   currentValue: z.number().optional(),
   unit: z.string().max(50).optional(),

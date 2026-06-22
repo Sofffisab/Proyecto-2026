@@ -3,7 +3,8 @@ import * as gymService from "../services/gym.service.js";
 export async function checkIn(req, res, next) {
   try {
     const session = await gymService.checkIn(req.user.id);
-    res.json(session);
+    // Consistent API contract: always wrap in { success, data }
+    res.json({ success: true, data: session });
   } catch (err) {
     next(err);
   }
@@ -12,7 +13,8 @@ export async function checkIn(req, res, next) {
 export async function checkOut(req, res, next) {
   try {
     const session = await gymService.checkOut(req.user.id);
-    res.json(session);
+    // Consistent API contract: always wrap in { success, data }
+    res.json({ success: true, data: session });
   } catch (err) {
     next(err);
   }
@@ -21,7 +23,7 @@ export async function checkOut(req, res, next) {
 export async function getSessionHistory(req, res, next) {
   try {
     const data = await gymService.getSessionHistory(req.user.id);
-    res.json(data);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -31,7 +33,7 @@ export async function getSessionById(req, res, next) {
   try {
     const data = await gymService.getSessionById(req.params.id, req.user.id);
     if (!data) return res.status(404).json({ success: false, message: "Session not found" });
-    res.json(data);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -40,7 +42,7 @@ export async function getSessionById(req, res, next) {
 export async function presentUsers(req, res, next) {
   try {
     const users = await gymService.getPresentUsers();
-    res.json(users);
+    res.json({ success: true, data: users });
   } catch (err) {
     next(err);
   }

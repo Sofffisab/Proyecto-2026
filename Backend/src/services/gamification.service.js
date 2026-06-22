@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { createNotification, sendEmail } from "./communication.service.js";
+import { POINTS } from "../constants/points.js";
 
 export async function addPoints(userId, points, reason) {
   const transaction = await prisma.pointTransaction.create({
@@ -12,9 +13,19 @@ export async function addPoints(userId, points, reason) {
 }
 
 export async function getPoints(userId) {
-  const transactions = await prisma.pointTransaction.findMany({ where: { userId } });
-  const total = transactions.reduce((acc, t) => acc + t.points, 0);
-  return { totalPoints: total, transactions };
+  // Use aggregate for the total — avoids loading every transaction into memory
+  const agg = await prisma.pointTransaction.aggregate({
+    where: { userId },
+    _sum: { points: true },
+  });
+
+  const transactions = await prisma.pointTransaction.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 50, // paginate — don't load the entire history into memory
+  });
+
+  return { totalPoints: agg._sum.points ?? 0, transactions };
 }
 
 export async function checkAndUnlockAchievements(userId) {
@@ -49,10 +60,11 @@ export async function checkAndUnlockAchievements(userId) {
         data: { userId, achievementId: achievement.id },
       });
 
+      // Use the constant — not a hardcoded literal
       await tx.pointTransaction.create({
         data: {
           userId,
-          points: 50,
+          points: POINTS.ACHIEVEMENT_UNLOCKED,
           reason: `Achievement unlocked: ${achievement.name}`,
         },
       });
@@ -95,10 +107,11 @@ export async function unlockAchievement(userId, achievementId) {
       data: { userId, achievementId },
     });
 
+    // Use the constant — not a hardcoded literal
     await tx.pointTransaction.create({
       data: {
         userId,
-        points: 50,
+        points: POINTS.ACHIEVEMENT_UNLOCKED,
         reason: `Achievement unlocked: ${achievement.name}`,
       },
     });

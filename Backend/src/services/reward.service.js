@@ -1,5 +1,4 @@
 import prisma from "../config/prisma.js";
-import { addPoints } from "./gamification.service.js";
 
 export async function getAvailableRewards() {
   return prisma.reward.findMany({
@@ -43,11 +42,11 @@ export async function generateReward(userId, rewardId) {
   if (!reward) throw new Error("Reward not found");
   if (!reward.active) throw new Error("Reward is not available");
 
-  const transactions = await prisma.pointTransaction.findMany({
+  const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
-    select: { points: true },
+    _sum: { points: true },
   });
-  const totalPoints = transactions.reduce((acc, t) => acc + t.points, 0);
+  const totalPoints = agg._sum.points ?? 0;
 
   if (totalPoints < reward.pointsCost) {
     throw new Error(
@@ -71,6 +70,12 @@ export async function generateReward(userId, rewardId) {
 }
 
 export async function approveReward(redemptionId, adminId) {
+  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+  if (!redemption) throw new Error("Redemption not found");
+  if (redemption.status !== "PENDING") {
+    throw new Error(`Cannot approve a redemption with status: ${redemption.status}`);
+  }
+
   return prisma.rewardRedemption.update({
     where: { id: redemptionId },
     data: { status: "APPROVED", approvedBy: adminId, approvedAt: new Date() },
@@ -78,13 +83,27 @@ export async function approveReward(redemptionId, adminId) {
 }
 
 export async function rejectReward(redemptionId, adminId) {
+  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+  if (!redemption) throw new Error("Redemption not found");
+  if (redemption.status !== "PENDING") {
+    throw new Error(`Cannot reject a redemption with status: ${redemption.status}`);
+  }
+
   return prisma.rewardRedemption.update({
     where: { id: redemptionId },
-    data: { status: "REJECTED", approvedBy: adminId, approvedAt: new Date() },
+    // reviewedBy tracks who took the action (approve OR reject).
+    // approvedBy is intentionally left null on rejections to keep semantics clear.
+    data: { status: "REJECTED", reviewedBy: adminId, reviewedAt: new Date() },
   });
 }
 
 export async function shipReward(redemptionId) {
+  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+  if (!redemption) throw new Error("Redemption not found");
+  if (redemption.status !== "APPROVED") {
+    throw new Error(`Cannot ship a redemption with status: ${redemption.status}`);
+  }
+
   return prisma.rewardRedemption.update({
     where: { id: redemptionId },
     data: { status: "SHIPPED", shippedAt: new Date() },
@@ -92,6 +111,12 @@ export async function shipReward(redemptionId) {
 }
 
 export async function deliverReward(redemptionId) {
+  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+  if (!redemption) throw new Error("Redemption not found");
+  if (redemption.status !== "SHIPPED") {
+    throw new Error(`Cannot deliver a redemption with status: ${redemption.status}`);
+  }
+
   return prisma.rewardRedemption.update({
     where: { id: redemptionId },
     data: { status: "DELIVERED", deliveredAt: new Date() },

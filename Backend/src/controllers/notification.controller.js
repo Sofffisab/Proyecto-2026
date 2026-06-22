@@ -13,7 +13,8 @@ export async function getNotifications(req, res, next) {
 
 export async function markAsRead(req, res, next) {
   try {
-    const data = await communicationService.markAsRead(req.params.id);
+    // Pass userId so the service can verify ownership before updating
+    const data = await communicationService.markAsRead(req.params.id, req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -31,7 +32,8 @@ export async function markAllAsRead(req, res, next) {
 
 export async function deleteNotification(req, res, next) {
   try {
-    await communicationService.deleteNotification(req.params.id);
+    // Pass userId so the service can verify ownership before deleting
+    await communicationService.deleteNotification(req.params.id, req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

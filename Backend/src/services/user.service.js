@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import prisma from "../config/prisma.js";
 
 const SAFE_USER_SELECT = {
@@ -103,14 +104,14 @@ export async function deactivateUser(id) {
 }
 
 export async function changePassword(id, { currentPassword, newPassword }) {
-  const bcrypt = await import("bcrypt");
+  // bcrypt imported at top-level — not inside the function on every call
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new Error("User not found");
 
-  const valid = await bcrypt.default.compare(currentPassword, user.passwordHash);
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) throw new Error("Current password is incorrect");
 
-  const passwordHash = await bcrypt.default.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
   return prisma.user.update({ where: { id }, data: { passwordHash } });
 }
 
