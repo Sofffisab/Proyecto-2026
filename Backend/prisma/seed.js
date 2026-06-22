@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -30,9 +31,7 @@ async function main() {
       role: "TRAINER",
       isActive: true,
       trainerProfile: {
-        create: {
-          specialties: ["STRENGTH", "REHABILITATION"],
-        },
+        create: { specialties: ["STRENGTH", "REHABILITATION"] },
       },
     },
   });
@@ -50,24 +49,32 @@ async function main() {
     },
   });
 
-  const machine = await prisma.machine.create({
-    data: {
+  // Use upsert so re-running the seed doesn't fail on the unique qrToken constraint
+  const machine = await prisma.machine.upsert({
+    where: { qrToken: "bench-press-qr-seed-001" },
+    update: {},
+    create: {
       name: "Bench Press",
-      qrToken: "bench-press-qr-001",
+      // Use a stable but non-trivially-guessable token for the seed machine
+      qrToken: "bench-press-qr-seed-001",
       active: true,
     },
   });
 
-  await prisma.goal.create({
-    data: {
-      userId: normalUser.id,
-      type: "WEIGHT",
-      action: "LOSE",
-      targetValue: 80,
-      currentValue: 90,
-      difficulty: "MEDIUM",
-    },
-  });
+  // Only create the goal if the user has none yet
+  const existingGoal = await prisma.goal.findFirst({ where: { userId: normalUser.id } });
+  if (!existingGoal) {
+    await prisma.goal.create({
+      data: {
+        userId: normalUser.id,
+        type: "WEIGHT",
+        action: "LOSE",
+        targetValue: 80,
+        currentValue: 90,
+        difficulty: "MEDIUM",
+      },
+    });
+  }
 
   console.log("Seed completed:", {
     admin: admin.email,

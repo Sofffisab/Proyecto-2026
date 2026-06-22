@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
+import { createNotification } from "./communication.service.js";
 
 export async function createComplaint(data) {
   if (data.reporterId === data.reportedUserId) {
@@ -26,6 +27,17 @@ export async function createComplaint(data) {
   });
 }
 
+export async function getUserComplaints(userId) {
+  return prisma.complaint.findMany({
+    where: { reporterId: userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getComplaintById(id) {
+  return prisma.complaint.findUnique({ where: { id } });
+}
+
 export async function getComplaints() {
   return prisma.complaint.findMany({
     orderBy: { createdAt: "desc" },
@@ -42,10 +54,18 @@ export async function approveComplaint(id, reviewerId) {
     },
   });
 
+  // Deduct points from the reported user
   await addPoints(
     complaint.reportedUserId,
     POINTS.APPROVED_COMPLAINT_PENALTY,
     "Complaint approved against user"
+  );
+
+  // Notify the reported user that points were deducted
+  await createNotification(
+    complaint.reportedUserId,
+    "Penalty applied",
+    `A complaint against you was approved. ${Math.abs(POINTS.APPROVED_COMPLAINT_PENALTY)} points have been deducted from your account.`
   );
 
   return complaint;

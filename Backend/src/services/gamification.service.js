@@ -1,54 +1,35 @@
 import prisma from "../config/prisma.js";
+import { createNotification, sendEmail } from "./communication.service.js";
 
-/**
- * Registra una transacción de puntos y verifica automáticamente si
- * el usuario cruzó algún umbral de logro (milestone).
- * @param {string} userId
- * @param {number} points
- * @param {string} reason
- */
 export async function addPoints(userId, points, reason) {
   const transaction = await prisma.pointTransaction.create({
     data: { userId, points, reason },
   });
 
-  // Verificar logros automáticamente después de cada suma de puntos
   await checkAndUnlockAchievements(userId);
 
   return transaction;
 }
 
 export async function getPoints(userId) {
-  const transactions = await prisma.pointTransaction.findMany({
-    where: { userId },
-  });
-
+  const transactions = await prisma.pointTransaction.findMany({ where: { userId } });
   const total = transactions.reduce((acc, t) => acc + t.points, 0);
-
   return { totalPoints: total, transactions };
 }
 
-/**
- * Verifica si el usuario cruzó algún umbral de Achievement y lo desbloquea
- * automáticamente si aún no lo tiene. Se llama tras cada addPoints.
- * @param {string} userId
- */
 export async function checkAndUnlockAchievements(userId) {
-  // Total de puntos actuales
-  const transactions = await prisma.pointTransaction.findMany({
+  const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
-    select: { points: true },
+    _sum: { points: true },
   });
-  const totalPoints = transactions.reduce((acc, t) => acc + t.points, 0);
+  const totalPoints = agg._sum.points ?? 0;
 
-  // Logros que el usuario todavía no tiene
   const unlockedIds = await prisma.userAchievement.findMany({
     where: { userId },
     select: { achievementId: true },
   });
   const unlockedSet = new Set(unlockedIds.map((u) => u.achievementId));
 
-  // Achievements cuyo umbral ya se cruzó
   const eligible = await prisma.achievement.findMany({
     where: { pointsRequired: { lte: totalPoints } },
   });
@@ -56,13 +37,18 @@ export async function checkAndUnlockAchievements(userId) {
   for (const achievement of eligible) {
     if (unlockedSet.has(achievement.id)) continue;
 
-    // Desbloquear en transacción atómica
+    // Atomic: both the unlock record and the bonus points are created together
     await prisma.$transaction(async (tx) => {
+      // Double-check inside transaction to prevent race conditions
+      const alreadyUnlocked = await tx.userAchievement.findFirst({
+        where: { userId, achievementId: achievement.id },
+      });
+      if (alreadyUnlocked) return;
+
       await tx.userAchievement.create({
         data: { userId, achievementId: achievement.id },
       });
 
-      // Bonus de puntos por desbloquear el logro
       await tx.pointTransaction.create({
         data: {
           userId,
@@ -71,26 +57,38 @@ export async function checkAndUnlockAchievements(userId) {
         },
       });
     });
+
+    // Notify user — non-blocking, outside the transaction
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
+
+    if (user) {
+      createNotification(
+        userId,
+        "Achievement unlocked! 🏆",
+        `Congratulations! You've unlocked the achievement: ${achievement.name}`
+      ).catch(() => {});
+
+      sendEmail(
+        user.email,
+        `Achievement unlocked: ${achievement.name}`,
+        `<h2>Congratulations, ${user.firstName}!</h2>
+         <p>You've unlocked the achievement <strong>${achievement.name}</strong>. Keep it up!</p>`
+      ).catch(() => {});
+    }
   }
 }
 
-/**
- * Desbloquea un achievement específico manualmente (admin/system use).
- * Wrapped in a transaction: both the achievement record and the
- * points reward are created atomically.
- */
 export async function unlockAchievement(userId, achievementId) {
   return prisma.$transaction(async (tx) => {
-    const achievement = await tx.achievement.findUnique({
-      where: { id: achievementId },
-    });
-
+    const achievement = await tx.achievement.findUnique({ where: { id: achievementId } });
     if (!achievement) throw new Error("Achievement not found");
 
     const existing = await tx.userAchievement.findFirst({
       where: { userId, achievementId },
     });
-
     if (existing) throw new Error("Achievement already unlocked");
 
     const userAchievement = await tx.userAchievement.create({

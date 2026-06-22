@@ -1,4 +1,6 @@
 import prisma from "../config/prisma.js";
+import { addPoints } from "./gamification.service.js";
+import { POINTS } from "../constants/points.js";
 
 export async function createRoutine(userId, data) {
   return prisma.routine.create({
@@ -12,9 +14,11 @@ export async function createRoutine(userId, data) {
 }
 
 export async function getRoutines(userId) {
-  return prisma.routine.findMany({
-    where: { userId },
-  });
+  return prisma.routine.findMany({ where: { userId } });
+}
+
+export async function getRoutineById(id, userId) {
+  return prisma.routine.findFirst({ where: { id, userId } });
 }
 
 export async function updateRoutine(id, userId, data) {
@@ -22,10 +26,8 @@ export async function updateRoutine(id, userId, data) {
   if (!routine) throw new Error("Routine not found");
   if (routine.userId !== userId) throw new Error("Forbidden");
 
-  return prisma.routine.update({
-    where: { id },
-    data,
-  });
+  const { name, content } = data;
+  return prisma.routine.update({ where: { id }, data: { name, content } });
 }
 
 export async function deleteRoutine(id, userId) {
@@ -33,9 +35,7 @@ export async function deleteRoutine(id, userId) {
   if (!routine) throw new Error("Routine not found");
   if (routine.userId !== userId) throw new Error("Forbidden");
 
-  return prisma.routine.delete({
-    where: { id },
-  });
+  return prisma.routine.delete({ where: { id } });
 }
 
 export async function getSuggestion(userId) {
@@ -44,13 +44,35 @@ export async function getSuggestion(userId) {
     orderBy: { createdAt: "desc" },
   });
 
-  if (latest) return latest;
+  return latest ?? null;
+}
 
-  // Return a default routine if the user has none
-  return prisma.routine.findFirst({
-    where: { isCustom: false },
-    orderBy: { createdAt: "asc" },
+/**
+ * @param {string} routineId
+ * @param {string} userId
+ * @param {number} dayIndex
+ */
+export async function completeDay(routineId, userId, dayIndex) {
+  const routine = await prisma.routine.findFirst({ where: { id: routineId, userId } });
+  if (!routine) throw new Error("Routine not found");
+
+  const content = routine.content ?? {};
+  const days = Array.isArray(content.days) ? content.days : [];
+
+  if (dayIndex === undefined || dayIndex < 0 || dayIndex >= days.length) {
+    throw new Error("Invalid dayIndex");
+  }
+
+  days[dayIndex] = { ...days[dayIndex], completed: true, completedAt: new Date().toISOString() };
+
+  const updatedRoutine = await prisma.routine.update({
+    where: { id: routineId },
+    data: { content: { ...content, days } },
   });
+
+  await addPoints(userId, POINTS.PROGRESS_UPDATE, `Routine day ${dayIndex + 1} completed`);
+
+  return updatedRoutine;
 }
 
 export async function createRoutineRequest(userId, trainerId) {
@@ -68,10 +90,6 @@ export async function createRoutineRequest(userId, trainerId) {
   }
 
   return prisma.routineRequest.create({
-    data: {
-      userId,
-      trainerId: trainerId || null,
-      status: "PENDING",
-    },
+    data: { userId, trainerId: trainerId || null, status: "PENDING" },
   });
 }

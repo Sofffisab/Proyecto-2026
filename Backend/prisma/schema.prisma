@@ -349,6 +349,7 @@ model UserAchievement {
   user          User        @relation(fields: [userId],        references: [id], onDelete: Cascade)
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, achievementId])
   @@index([userId])
 }
 

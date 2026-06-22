@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
-import { apiRateLimiter } from "../middlewares/rateLimiter.js";
+import { authRateLimiter, apiRateLimiter } from "../middlewares/rateLimiter.js";
 import { cacheResponse } from "../middlewares/cache.middleware.js";
 import { requireActiveAccount } from "../middlewares/deactivation.middleware.js";
 import { runJobs } from "../jobs/index.js";
@@ -32,11 +32,29 @@ const router = express.Router();
 // ============================================
 // PUBLIC ROUTES — no authentication required
 // ============================================
-router.post("/auth/register",        apiRateLimiter, validateSchema(authSchemas.registerSchema),       authController.register);
-router.post("/auth/login",           apiRateLimiter, validateSchema(authSchemas.loginSchema),          authController.login);
-router.post("/auth/refresh",         apiRateLimiter, validateSchema(authSchemas.refreshTokenSchema),   authController.refreshToken);
-router.post("/auth/forgot-password", apiRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
-router.post("/auth/reset-password",  apiRateLimiter, validateSchema(authSchemas.resetPasswordSchema),  authController.resetPassword);
+router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema),       authController.register);
+router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema),          authController.login);
+router.post("/auth/refresh",         authRateLimiter, validateSchema(authSchemas.refreshTokenSchema),   authController.refreshToken);
+router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
+router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas.resetPasswordSchema),  authController.resetPassword);
+
+// ============================================
+// CRON — protected by CRON_SECRET only (no JWT)
+// Must be defined BEFORE router.use(authenticate)
+// so that Vercel Cron can call it without a user token.
+// ============================================
+router.get("/cron/jobs", async (req, res, next) => {
+  try {
+    const secret = req.headers.authorization?.replace("Bearer ", "");
+    if (!secret || secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    await runJobs();
+    res.json({ success: true, message: "Jobs executed" });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ============================================
 // PROTECTED ROUTES — authentication required
@@ -48,18 +66,19 @@ router.use(requireActiveAccount);
 router.post("/auth/logout", authController.logout);
 
 // Users
-router.get("/users/me",    cacheResponse(60),                                                                             userController.getMe);
-router.patch("/users/me",  validateSchema(userSchemas.updateProfileSchema),                                               userController.updateMe);
-router.post("/users/me/change-password", validateSchema(userSchemas.changePasswordSchema),                                userController.changePassword);
-router.get("/users",       authorize(["ADMIN"]),                                                                          userController.getUsers);
-router.get("/users/:id",   authorize(["ADMIN", "TRAINER"]),                                                               userController.getUserById);
-router.patch("/users/:id/role",       authorize(["ADMIN"]), validateSchema(userSchemas.updateRoleSchema),                 userController.changeRole);
-router.patch("/users/:id/deactivate", authorize(["ADMIN"]),                                                               userController.deactivate);
-router.patch("/users/:id/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema),            userController.updateNotificationPreferences);
-router.get("/users/:id/notes",        authorize(["TRAINER", "ADMIN"]),                                                    noteController.getNotes);
-router.post("/users/:id/notes",       authorize(["TRAINER"]),                                                             noteController.createNote);
-router.patch("/users/:id/notes/:noteId",  authorize(["TRAINER"]),                                                         noteController.updateNote);
-router.delete("/users/:id/notes/:noteId", authorize(["TRAINER"]),                                                         noteController.deleteNote);
+router.get("/users/me",    cacheResponse(60),                                                                                     userController.getMe);
+router.patch("/users/me",  validateSchema(userSchemas.updateProfileSchema),                                                       userController.updateMe);
+router.post("/users/me/change-password", validateSchema(userSchemas.changePasswordSchema),                                        userController.changePassword);
+router.get("/users",       authorize(["ADMIN"]),                                                                                  userController.getUsers);
+router.get("/users/:id",   authorize(["ADMIN", "TRAINER"]),                                                                       userController.getUserById);
+router.patch("/users/:id/role",       authorize(["ADMIN"]), validateSchema(userSchemas.updateRoleSchema),                         userController.changeRole);
+router.patch("/users/:id/deactivate", authorize(["ADMIN"]),                                                                       userController.deactivate);
+// Uses req.user.id internally — the :id param is ignored in the controller
+router.patch("/users/me/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema),                     userController.updateNotificationPreferences);
+router.get("/users/:id/notes",        authorize(["TRAINER", "ADMIN"]),                                                            noteController.getNotes);
+router.post("/users/:id/notes",       authorize(["TRAINER"]),                                                                     noteController.createNote);
+router.patch("/users/:id/notes/:noteId",  authorize(["TRAINER"]),                                                                 noteController.updateNote);
+router.delete("/users/:id/notes/:noteId", authorize(["TRAINER"]),                                                                 noteController.deleteNote);
 
 // Trainers
 router.get("/trainers",     userController.getTrainers);
@@ -127,8 +146,10 @@ router.get("/social/history",                                                   
 router.post("/assistance/request",      apiRateLimiter, validateSchema(progressSchemas.requestAssistanceSchema), assistanceController.requestAssistance);
 router.get("/assistance/requests",      authorize(["TRAINER", "ADMIN"]),                                         assistanceController.getAssistanceRequests);
 router.get("/assistance/my-requests",                                                                             assistanceController.getUserAssistanceRequests);
+// trainerId is forced to req.user.id in the controller — a trainer can only assign themselves
 router.post("/assistance/:id/assign",   authorize(["TRAINER"]), validateSchema(progressSchemas.assignAssistanceSchema),   assistanceController.assignAssistance);
-router.post("/assistance/:id/complete", validateSchema(progressSchemas.completeAssistanceSchema),                         assistanceController.completeAssistance);
+// Only TRAINER or ADMIN can mark an assistance as complete
+router.post("/assistance/:id/complete", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.completeAssistanceSchema), assistanceController.completeAssistance);
 router.post("/assistance/:id/cancel",                                                                                      assistanceController.cancelAssistance);
 
 // Complaints
@@ -161,19 +182,5 @@ router.get("/analytics/gym",         authorize(["ADMIN", "TRAINER"]), analyticsC
 router.get("/analytics/leaderboard",                                  analyticsController.getGlobalLeaderboard);
 router.get("/analytics/rank",                                         analyticsController.getUserRank);
 router.get("/analytics/engagement",  authorize(["ADMIN"]),            analyticsController.getEngagementMetrics);
-
-// Cron (protected by CRON_SECRET, not by user JWT)
-router.get("/cron/jobs", async (req, res, next) => {
-  try {
-    const secret = req.headers.authorization?.replace("Bearer ", "");
-    if (secret !== process.env.CRON_SECRET) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-    await runJobs();
-    res.json({ success: true, message: "Jobs executed" });
-  } catch (err) {
-    next(err);
-  }
-});
 
 export default router;

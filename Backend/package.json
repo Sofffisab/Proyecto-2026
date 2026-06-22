@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
@@ -41,6 +41,7 @@
   "devDependencies": {
     "eslint": "^9.0.0",
     "jest": "^30.0.0",
+    "nodemon": "^3.0.0",
     "prettier": "^3.0.0",
     "prisma": "^6.0.0",
     "supertest": "^7.0.0"

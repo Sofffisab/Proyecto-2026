@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
-import { sendPasswordResetEmail } from "./communication.service.js";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "./communication.service.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -15,15 +15,23 @@ function sanitizeUser(user) {
 }
 
 export async function register(data) {
-  const { email, password, firstName, lastName, role } = data;
+  const { email, password, firstName, lastName } = data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) throw new Error("Email already in use");
 
   const passwordHash = await bcrypt.hash(password, 10);
+
+  // Role is always USER for public registration — ADMIN/TRAINER roles must be
+  // assigned by an admin via PATCH /users/:id/role after account creation.
   const user = await prisma.user.create({
-    data: { email, passwordHash, firstName, lastName, role: role ?? "USER" },
+    data: { email, passwordHash, firstName, lastName, role: "USER" },
   });
+
+  // Send welcome email (non-blocking — don't fail registration if email fails)
+  sendWelcomeEmail(user).catch((err) =>
+    console.error("[auth] Failed to send welcome email:", err.message)
+  );
 
   return sanitizeUser(user);
 }
@@ -93,21 +101,16 @@ export async function forgotPassword(data) {
   const { email } = data;
   const user = await prisma.user.findUnique({ where: { email } });
 
+  // Always return success to prevent email enumeration
   if (!user) return { success: true };
 
   const resetToken = crypto.randomBytes(32).toString("hex");
-  const resetTokenHash = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
 
   await prisma.user.update({
     where: { id: user.id },
-    data: {
-      passwordResetToken: resetTokenHash,
-      passwordResetExpires: expiresAt,
-    },
+    data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
   });
 
   await sendPasswordResetEmail(user, resetToken);
@@ -117,10 +120,7 @@ export async function forgotPassword(data) {
 
 export async function resetPassword(data) {
   const { token, password } = data;
-  const tokenHash = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await prisma.user.findFirst({
     where: {
@@ -134,11 +134,7 @@ export async function resetPassword(data) {
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({
     where: { id: user.id },
-    data: {
-      passwordHash,
-      passwordResetToken: null,
-      passwordResetExpires: null,
-    },
+    data: { passwordHash, passwordResetToken: null, passwordResetExpires: null },
   });
 
   return { success: true };

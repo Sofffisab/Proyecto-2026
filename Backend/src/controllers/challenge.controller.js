@@ -33,10 +33,14 @@ export async function getAllChallenges(req, res, next) {
 
 export async function getChallengeById(req, res, next) {
   try {
-    const all = await challengeService.getChallengeHistory(req.user.id);
-    const found = all.find((c) => c.id === req.params.id);
-    if (!found) return res.status(404).json({ success: false, message: "Challenge not found" });
-    res.json({ success: true, data: found });
+    const challenge = await challengeService.getChallengeById(
+      req.params.id,
+      req.user.id
+    );
+    if (!challenge) {
+      return res.status(404).json({ success: false, message: "Challenge not found" });
+    }
+    res.json({ success: true, data: challenge });
   } catch (err) {
     next(err);
   }
@@ -75,13 +79,13 @@ export async function cancelChallenge(req, res, next) {
 
 export async function getChallengeLeaderboard(req, res, next) {
   try {
-    res.json({ success: true, data: [] });
+    const data = await challengeService.getChallengeLeaderboard(req.params.id);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
 }
 
-// Error 14
 export async function getActive(req, res, next) {
   try {
     const data = await challengeService.getActiveSocialChallenges(req.user.id);

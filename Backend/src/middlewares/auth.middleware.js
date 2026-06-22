@@ -11,7 +11,7 @@ export const authenticate = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    // Verificar blacklist de Redis si está disponible
+    // Check token blacklist in Redis (logout invalidation)
     if (redis) {
       const isBlacklisted = await redis.get(`blacklist:${token}`);
       if (isBlacklisted) {
@@ -37,3 +37,12 @@ export const authenticate = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
+
+/**
+ * requireActiveAccount is intentionally a pass-through here.
+ * The isActive check is already performed inside `authenticate` above.
+ * This export exists solely so that routes/index.js can import it
+ * without changes; the real guard lives in deactivation.middleware.js
+ * which is also applied via router.use().
+ */
+export const requireActiveAccount = (req, res, next) => next();

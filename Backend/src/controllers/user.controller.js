@@ -3,7 +3,7 @@ import * as userService from "../services/user.service.js";
 export async function getMe(req, res, next) {
   try {
     const user = await userService.getById(req.user.id, req.user.role);
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }
@@ -12,7 +12,7 @@ export async function getMe(req, res, next) {
 export async function updateMe(req, res, next) {
   try {
     const user = await userService.update(req.user.id, req.body);
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }
@@ -33,7 +33,7 @@ export async function getUserById(req, res, next) {
   try {
     const user = await userService.getById(req.params.id, req.user.role);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }
@@ -61,7 +61,7 @@ export async function getTrainerById(req, res, next) {
 export async function changeRole(req, res, next) {
   try {
     const user = await userService.updateRole(req.params.id, req.body.role);
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }
@@ -70,7 +70,7 @@ export async function changeRole(req, res, next) {
 export async function deactivate(req, res, next) {
   try {
     const user = await userService.deactivateUser(req.params.id);
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }
@@ -87,8 +87,9 @@ export async function changePassword(req, res, next) {
 
 export async function updateNotificationPreferences(req, res, next) {
   try {
-    const settings = await userService.updateNotificationPreferences(req.params.id, req.body);
-    res.json(settings);
+    // Always use req.user.id — never trust req.params.id for this endpoint
+    const settings = await userService.updateNotificationPreferences(req.user.id, req.body);
+    res.json({ success: true, data: settings });
   } catch (err) {
     next(err);
   }

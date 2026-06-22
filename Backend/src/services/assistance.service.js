@@ -1,21 +1,26 @@
 import prisma from "../config/prisma.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
+import { emitAssistanceEvent } from "../realtime/ably.js";
 
 export async function requestAssistance(userId) {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-  });
+  const settings = await prisma.userSettings.findUnique({ where: { userId } });
 
   if (settings?.disableAssistance) {
     throw new Error("Assistance requests are disabled for this user");
   }
 
-  return prisma.assistance.create({
-    data: {
-      userId,
-      status: "PENDING",
-    },
+  const assistance = await prisma.assistance.create({
+    data: { userId, status: "PENDING" },
   });
+
+  // Notify all connected trainers in real-time
+  emitAssistanceEvent("ASSISTANCE_REQUESTED", {
+    assistanceId: assistance.id,
+    userId,
+    requestedAt: assistance.requestedAt,
+  });
+
+  return assistance;
 }
 
 export async function assignAssistance(assistanceId, trainerId) {
@@ -28,9 +33,7 @@ export async function assignAssistance(assistanceId, trainerId) {
   if (trainer.role !== "TRAINER") throw new Error("User is not a trainer");
   if (!trainer.isActive) throw new Error("Trainer account is disabled");
 
-  const assistance = await prisma.assistance.findUnique({
-    where: { id: assistanceId },
-  });
+  const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
 
   if (!assistance) throw new Error("Assistance request not found");
   if (assistance.status !== "PENDING") {
@@ -39,21 +42,14 @@ export async function assignAssistance(assistanceId, trainerId) {
 
   return prisma.assistance.update({
     where: { id: assistanceId },
-    data: {
-      trainerId,
-      status: "ASSIGNED",
-      assignedAt: new Date(),
-    },
+    data: { trainerId, status: "ASSIGNED", assignedAt: new Date() },
   });
 }
 
 export async function completeAssistance(assistanceId) {
   const assistance = await prisma.assistance.update({
     where: { id: assistanceId },
-    data: {
-      status: "COMPLETED",
-      completedAt: new Date(),
-    },
+    data: { status: "COMPLETED", completedAt: new Date() },
   });
 
   if (assistance.trainerId) {
@@ -61,6 +57,25 @@ export async function completeAssistance(assistanceId) {
   }
 
   return assistance;
+}
+
+export async function cancelAssistance(assistanceId, userId) {
+  const assistance = await prisma.assistance.findFirst({
+    where: { id: assistanceId, userId },
+  });
+
+  if (!assistance) {
+    throw new Error("Assistance request not found");
+  }
+
+  if (assistance.status !== "PENDING") {
+    throw new Error(`Cannot cancel a request with status: ${assistance.status}`);
+  }
+
+  return prisma.assistance.update({
+    where: { id: assistanceId },
+    data: { status: "EXPIRED" },
+  });
 }
 
 export async function getPendingAssistance() {

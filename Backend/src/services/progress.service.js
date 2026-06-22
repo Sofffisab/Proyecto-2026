@@ -4,8 +4,15 @@ export async function addProgress(userId, goalId, value) {
   const goal = await prisma.goal.findUnique({ where: { id: goalId } });
   if (!goal) throw new Error("Goal not found");
 
+  // Security: ensure the goal belongs to the requesting user
+  if (goal.userId !== userId) {
+    throw new Error("Forbidden: goal does not belong to this user");
+  }
+
   const newValue = goal.currentValue + value;
-  const progressPercent = (newValue / goal.targetValue) * 100;
+  const progressPercent = goal.targetValue > 0
+    ? (newValue / goal.targetValue) * 100
+    : 0;
 
   await prisma.goal.update({
     where: { id: goalId },
@@ -22,6 +29,33 @@ export async function getProgressHistory(userId) {
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function getProgressEntryById(id, userId) {
+  return prisma.progressEntry.findFirst({
+    where: { id, userId },
+  });
+}
+
+export async function updateProgressEntry(id, userId, data) {
+  const entry = await prisma.progressEntry.findFirst({ where: { id, userId } });
+  if (!entry) throw new Error("Progress entry not found");
+
+  // Only allow whitelisted fields
+  const safeData = {};
+  if (data.value !== undefined) safeData.value = data.value;
+  if (data.note !== undefined) safeData.note = data.note;
+
+  return prisma.progressEntry.update({
+    where: { id },
+    data: safeData,
+  });
+}
+
+export async function deleteProgressEntry(id, userId) {
+  const entry = await prisma.progressEntry.findFirst({ where: { id, userId } });
+  if (!entry) throw new Error("Progress entry not found");
+  return prisma.progressEntry.delete({ where: { id } });
 }
 
 export async function getProgressStats(userId) {
@@ -62,22 +96,16 @@ export async function getProgressStats(userId) {
   }
 
   const uniqueDays = [
-    ...new Set(
-      entries.map((e) => new Date(e.createdAt).toISOString().slice(0, 10))
-    ),
+    ...new Set(entries.map((e) => new Date(e.createdAt).toISOString().slice(0, 10))),
   ].sort();
 
-  let currentStreak = 0;
-  let longestStreak = 0;
   let streak = 1;
-
-  const today = new Date().toISOString().slice(0, 10);
+  let longestStreak = 1;
 
   for (let i = 1; i < uniqueDays.length; i++) {
     const prev = new Date(uniqueDays[i - 1]);
     const curr = new Date(uniqueDays[i]);
     const diff = (curr - prev) / (1000 * 60 * 60 * 24);
-
     if (diff === 1) {
       streak++;
     } else {
@@ -87,18 +115,19 @@ export async function getProgressStats(userId) {
   }
   longestStreak = Math.max(longestStreak, streak);
 
-  const lastDay = uniqueDays[uniqueDays.length - 1];
+  const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  currentStreak = lastDay === today || lastDay === yesterdayStr ? streak : 0;
+  const lastDay = uniqueDays[uniqueDays.length - 1];
+  const currentStreak = lastDay === today || lastDay === yesterdayStr ? streak : 0;
 
   return {
     totalProgress: total,
     entriesCount: entries.length,
-    avgDaysBetweenUpdates:
-      avgDaysBetweenUpdates !== null ? parseFloat(avgDaysBetweenUpdates.toFixed(2)) : null,
+    avgDaysBetweenUpdates: avgDaysBetweenUpdates !== null
+      ? parseFloat(avgDaysBetweenUpdates.toFixed(2))
+      : null,
     stdDevDays: stdDevDays !== null ? parseFloat(stdDevDays.toFixed(2)) : null,
     currentStreak,
     longestStreak,

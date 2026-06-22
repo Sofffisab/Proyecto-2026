@@ -1,12 +1,8 @@
 import * as rewardService from "../services/reward.service.js";
-import prisma from "../config/prisma.js";
 
 export async function getAvailableRewards(req, res, next) {
   try {
-    const data = await prisma.reward.findMany({
-      where: { active: true },
-      orderBy: { pointsCost: "asc" },
-    });
+    const data = await rewardService.getAvailableRewards();
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -15,11 +11,7 @@ export async function getAvailableRewards(req, res, next) {
 
 export async function getUserRedemptions(req, res, next) {
   try {
-    const data = await prisma.rewardRedemption.findMany({
-      where: { userId: req.user.id },
-      include: { reward: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const data = await rewardService.getUserRedemptions(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -28,13 +20,9 @@ export async function getUserRedemptions(req, res, next) {
 
 export async function getRewardById(req, res, next) {
   try {
-    const reward = await prisma.reward.findUnique({
-      where: { id: req.params.id },
-    });
+    const reward = await rewardService.getRewardById(req.params.id);
     if (!reward) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Reward not found" });
+      return res.status(404).json({ success: false, message: "Reward not found" });
     }
     res.json({ success: true, data: reward });
   } catch (err) {
@@ -44,10 +32,7 @@ export async function getRewardById(req, res, next) {
 
 export async function redeemReward(req, res, next) {
   try {
-    const data = await rewardService.generateReward(
-      req.user.id,
-      req.params.id
-    );
+    const data = await rewardService.generateReward(req.user.id, req.params.id);
     res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -56,7 +41,7 @@ export async function redeemReward(req, res, next) {
 
 export async function createReward(req, res, next) {
   try {
-    const data = await prisma.reward.create({ data: req.body });
+    const data = await rewardService.createReward(req.body);
     res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -65,18 +50,7 @@ export async function createReward(req, res, next) {
 
 export async function updateReward(req, res, next) {
   try {
-    const reward = await prisma.reward.findUnique({
-      where: { id: req.params.id },
-    });
-    if (!reward) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Reward not found" });
-    }
-    const data = await prisma.reward.update({
-      where: { id: req.params.id },
-      data: req.body,
-    });
+    const data = await rewardService.updateReward(req.params.id, req.body);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -94,10 +68,7 @@ export async function approveRedemption(req, res, next) {
 
 export async function rejectRedemption(req, res, next) {
   try {
-    const data = await prisma.rewardRedemption.update({
-      where: { id: req.params.id },
-      data: { status: "REJECTED" },
-    });
+    const data = await rewardService.rejectReward(req.params.id, req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
