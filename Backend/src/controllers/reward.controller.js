@@ -41,7 +41,7 @@ export async function redeemReward(req, res, next) {
 
 export async function createReward(req, res, next) {
   try {
-    const data = await rewardService.createReward(req.body);
+    const data = await rewardService.createReward(req.validatedData);
     res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -50,7 +50,7 @@ export async function createReward(req, res, next) {
 
 export async function updateReward(req, res, next) {
   try {
-    const data = await rewardService.updateReward(req.params.id, req.body);
+    const data = await rewardService.updateReward(req.params.id, req.validatedData);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

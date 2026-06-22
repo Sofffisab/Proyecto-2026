@@ -2,7 +2,7 @@ import * as authService from "../services/auth.service.js";
 
 export async function register(req, res, next) {
   try {
-    const user = await authService.register(req.body);
+    const user = await authService.register(req.validatedData);
     res.status(201).json({ success: true, data: user });
   } catch (err) {
     next(err);
@@ -11,7 +11,7 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    const result = await authService.login(req.body);
+    const result = await authService.login(req.validatedData);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -29,7 +29,7 @@ export async function me(req, res, next) {
 
 export async function refreshToken(req, res, next) {
   try {
-    const result = await authService.refreshToken(req.body);
+    const result = await authService.refreshToken(req.validatedData);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -48,7 +48,7 @@ export async function logout(req, res, next) {
 
 export async function forgotPassword(req, res, next) {
   try {
-    const result = await authService.forgotPassword(req.body);
+    const result = await authService.forgotPassword(req.validatedData);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -57,7 +57,7 @@ export async function forgotPassword(req, res, next) {
 
 export async function resetPassword(req, res, next) {
   try {
-    const result = await authService.resetPassword(req.body);
+    const result = await authService.resetPassword(req.validatedData);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

@@ -115,3 +115,50 @@ export const generateQRSchema = z.object({}).optional();
 export const validateQRSchema = z.object({
   payload: z.string().min(1),
 });
+
+// ── Sync (offline action queue) ───────────────────────────────────────────────
+// FIX #2: validates the offline action batch sent to POST /sync.
+// Each action must have a known type, an ISO timestamp, and a type-specific payload.
+
+const syncCheckinActionSchema = z.object({
+  type: z.literal("checkin"),
+  timestamp: z.string().datetime({ message: "timestamp must be a valid ISO 8601 date-time" }),
+  payload: z.object({}).optional(),
+});
+
+const syncCheckoutActionSchema = z.object({
+  type: z.literal("checkout"),
+  timestamp: z.string().datetime(),
+  payload: z.object({}).optional(),
+});
+
+const syncMachineStartActionSchema = z.object({
+  type: z.literal("machineStart"),
+  timestamp: z.string().datetime(),
+  payload: z.object({
+    machineId:    z.string().uuid(),
+    gymSessionId: z.string().uuid().optional(),
+  }),
+});
+
+const syncMachineEndActionSchema = z.object({
+  type: z.literal("machineEnd"),
+  timestamp: z.string().datetime(),
+  payload: z.object({
+    machineId: z.string().uuid(),
+  }),
+});
+
+const syncActionSchema = z.discriminatedUnion("type", [
+  syncCheckinActionSchema,
+  syncCheckoutActionSchema,
+  syncMachineStartActionSchema,
+  syncMachineEndActionSchema,
+]);
+
+export const syncActionsSchema = z.object({
+  actions: z
+    .array(syncActionSchema)
+    .min(1, "actions must be a non-empty array")
+    .max(100, "cannot submit more than 100 actions per batch"),
+});

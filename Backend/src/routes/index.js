@@ -68,9 +68,11 @@ router.post("/auth/logout", authController.logout);
 // ── Users — STATIC segments (/users/me/...) MUST come before dynamic (/users/:id/...)
 router.get("/users/me",    cacheResponse(60),                                                                                     userController.getMe);
 router.patch("/users/me",  validateSchema(userSchemas.updateProfileSchema),                                                       userController.updateMe);
-router.post("/users/me/change-password", validateSchema(userSchemas.changePasswordSchema),                                        userController.changePassword);
-// notification-preferences is a static sub-route of /me — must be registered BEFORE /users/:id routes
-router.patch("/users/me/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema),                     userController.updateNotificationPreferences);
+router.post("/users/me/change-password",        validateSchema(userSchemas.changePasswordSchema),           userController.changePassword);
+router.patch("/users/me/notification-preferences", validateSchema(userSchemas.notificationPreferencesSchema), userController.updateNotificationPreferences);
+// FIX #33 — self-service account management (any authenticated user can deactivate or delete their own account)
+router.patch("/users/me/deactivate",                                                                          userController.deactivateSelf);
+router.delete("/users/me",                                                                                    userController.deleteSelf);
 
 // ── Users — dynamic (:id) routes
 router.get("/users",       authorize(["ADMIN"]),                                                                                  userController.getUsers);
@@ -125,6 +127,7 @@ router.patch("/routine-requests/:id/complete",authorize(["TRAINER", "ADMIN"]),  
 
 // Rewards
 router.get("/rewards",                                                                                        rewardController.getAvailableRewards);
+// FIX: /rewards/my-redemptions must be registered BEFORE /rewards/:id to avoid :id matching "my-redemptions"
 router.get("/rewards/my-redemptions",                                                                         rewardController.getUserRedemptions);
 router.get("/rewards/:id",                                                                                     rewardController.getRewardById);
 router.post("/rewards",             authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
@@ -138,17 +141,27 @@ router.patch("/redemptions/:id/deliver", authorize(["ADMIN"]),                  
 // Gamification
 router.get("/gamification/points",       gamificationController.getPoints);
 router.get("/gamification/achievements", gamificationController.getAchievements);
+// FIX #18 — previously unrouted gamification functions
+router.get("/gamification/badges",              gamificationController.getBadges);
+router.get("/gamification/badges/all",          gamificationController.getAllBadges);
+router.post("/gamification/badges/:id/claim",   gamificationController.claimBadge);
+router.post("/gamification/review-request",     gamificationController.reviewRequest);
 
 // Challenges
-router.post("/challenges",              validateSchema(progressSchemas.createChallengeSchema), challengeController.create);
-router.get("/challenges",                                                                       challengeController.getAll);
-router.get("/challenges/:id",                                                                   challengeController.getById);
-router.patch("/challenges/:id/complete", validateSchema(progressSchemas.completeChallengeSchema), challengeController.complete);
-router.patch("/challenges/:id/cancel",                                                          challengeController.cancel);
+// FIX #20 — static sub-routes (/challenges/active, /challenges/history) BEFORE dynamic (:id)
+router.get("/challenges/active",                                                                        challengeController.getActiveChallenges);
+router.get("/challenges/history",                                                                       challengeController.getAllChallenges);
+router.post("/challenges",              validateSchema(progressSchemas.createChallengeSchema),          challengeController.create);
+router.get("/challenges",                                                                               challengeController.getAll);
+router.get("/challenges/:id",                                                                           challengeController.getById);
+router.patch("/challenges/:id/join",                                                                    challengeController.joinChallenge);
+router.patch("/challenges/:id/complete", validateSchema(progressSchemas.completeChallengeSchema),       challengeController.complete);
+router.patch("/challenges/:id/cancel",                                                                  challengeController.cancel);
 
 // Assistance
 router.post("/assistance",                                                                               assistanceController.request);
 router.get("/assistance",              authorize(["TRAINER", "ADMIN"]),                                  assistanceController.getPending);
+// FIX: /assistance/my-history is static — must be BEFORE /assistance/:id routes
 router.get("/assistance/my-history",                                                                     assistanceController.getHistory);
 router.patch("/assistance/:id/assign", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.assignAssistanceSchema), assistanceController.assign);
 router.patch("/assistance/:id/complete", authorize(["TRAINER", "ADMIN"]),                                assistanceController.complete);
@@ -157,28 +170,46 @@ router.patch("/assistance/:id/cancel",                                          
 // Complaints
 router.post("/complaints",              validateSchema(progressSchemas.createComplaintSchema), complaintController.create);
 router.get("/complaints",               authorize(["ADMIN"]),                                  complaintController.getAll);
+// FIX: /complaints/mine is static — must be BEFORE /complaints/:id
 router.get("/complaints/mine",                                                                 complaintController.getMine);
 router.get("/complaints/:id",           authorize(["ADMIN"]),                                  complaintController.getById);
 router.patch("/complaints/:id/resolve", authorize(["ADMIN"]),                                  complaintController.resolveComplaint);
 router.patch("/complaints/:id/reject",  authorize(["ADMIN"]),                                  complaintController.rejectComplaint);
 
-// QR
-router.get("/qr/my",              qrController.getMyQR);
+// QR — user & machine
+// FIX #9: was qrController.getMyQR (doesn't exist) → corrected to qrController.generateQR
+router.get("/qr/my",              qrController.generateQR);
 router.post("/qr/validate",       validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
+// FIX #19 — machine management routes (ADMIN only)
+router.get("/qr/machines",        authorize(["ADMIN"]),                             qrController.getGymQRCodes);
+router.post("/qr/machines",       authorize(["ADMIN"]),                             qrController.createMachine);
 
 // Notifications
-router.get("/notifications",            notificationController.getNotifications);
+// FIX #1: static route /notifications/read-all MUST come before dynamic /notifications/:id/read
+// otherwise Express matches id="read-all" and never reaches markAllAsRead
+router.get("/notifications",              notificationController.getNotifications);
 router.get("/notifications/unread-count", notificationController.getUnreadCount);
-router.patch("/notifications/:id/read", notificationController.markAsRead);
-router.patch("/notifications/read-all", notificationController.markAllAsRead);
-router.delete("/notifications/:id",     notificationController.deleteNotification);
+router.patch("/notifications/read-all",   notificationController.markAllAsRead);      // ← static first
+router.patch("/notifications/:id/read",   notificationController.markAsRead);         // ← dynamic after
+router.delete("/notifications/:id",       notificationController.deleteNotification);
 
 // Analytics
-router.get("/analytics/me",     analyticsController.getMyAnalytics);
-router.get("/analytics/gym",    authorize(["ADMIN"]), analyticsController.getGymAnalytics);
-router.get("/analytics/wrapped",analyticsController.getWrapped);
+router.get("/analytics/me",         analyticsController.getMyAnalytics);
+router.get("/analytics/gym",        authorize(["ADMIN"]), analyticsController.getGymAnalytics);
+router.get("/analytics/wrapped",    analyticsController.getWrapped);
+// FIX #21 — previously unrouted analytics functions
+router.get("/analytics/leaderboard",                     analyticsController.getGlobalLeaderboard);
+router.get("/analytics/me/rank",                         analyticsController.getUserRank);
+router.get("/analytics/engagement", authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
 
-// Sync
-router.post("/sync", syncController.sync);
+// Admin — Point Review Requests
+// FIX #39 — no route existed for admins to list or resolve PointReviewRequests
+router.get("/admin/review-requests",          authorize(["ADMIN"]), gamificationController.getReviewRequests);
+router.patch("/admin/review-requests/:id/resolve", authorize(["ADMIN"]), gamificationController.resolveReviewRequest);
+
+// Sync (offline action queue)
+// FIX #10: was syncController.sync (doesn't exist) → corrected to syncController.syncOfflineActions
+// FIX #2: added validateSchema to reject malformed offline action payloads
+router.post("/sync", validateSchema(progressSchemas.syncActionsSchema), syncController.syncOfflineActions);
 
 export default router;

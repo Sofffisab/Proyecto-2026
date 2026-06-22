@@ -11,10 +11,9 @@ export async function request(req, res, next) {
 
 export async function assign(req, res, next) {
   try {
-    const data = await assistanceService.assignAssistance(
-      req.params.id,
-      req.body.trainerId
-    );
+    // req.validatedData from assignAssistanceSchema guarantees trainerId is a valid UUID.
+    const { trainerId } = req.validatedData;
+    const data = await assistanceService.assignAssistance(req.params.id, trainerId);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -23,7 +22,7 @@ export async function assign(req, res, next) {
 
 export async function complete(req, res, next) {
   try {
-    // Pass callerId and callerRole so the service can enforce trainer ownership
+    // Pass callerId and callerRole so the service can enforce trainer ownership.
     const data = await assistanceService.completeAssistance(
       req.params.id,
       req.user.id,

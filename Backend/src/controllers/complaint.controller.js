@@ -1,10 +1,18 @@
 import * as complaintService from "../services/complaint.service.js";
 
-export async function createComplaint(req, res, next) {
+export async function create(req, res, next) {
   try {
+    // SECURITY: reporterId is always taken from the authenticated session —
+    // never from req.body. Previously `...req.body` spread allowed a caller
+    // to supply their own reporterId and impersonate another user.
+    // req.validatedData comes from createComplaintSchema which only exposes
+    // { reportedUserId, reason, message }, so no extra fields can leak through.
+    const { reportedUserId, reason, message } = req.validatedData;
     const data = await complaintService.createComplaint({
-      ...req.body,
       reporterId: req.user.id,
+      reportedUserId,
+      reason,
+      message,
     });
     res.status(201).json({ success: true, data });
   } catch (err) {
@@ -12,7 +20,7 @@ export async function createComplaint(req, res, next) {
   }
 }
 
-export async function getUserComplaints(req, res, next) {
+export async function getMine(req, res, next) {
   try {
     const data = await complaintService.getUserComplaints(req.user.id);
     res.json({ success: true, data });
@@ -21,7 +29,7 @@ export async function getUserComplaints(req, res, next) {
   }
 }
 
-export async function getAllComplaints(req, res, next) {
+export async function getAll(req, res, next) {
   try {
     const data = await complaintService.getComplaints();
     res.json({ success: true, data });
@@ -30,7 +38,7 @@ export async function getAllComplaints(req, res, next) {
   }
 }
 
-export async function getComplaintById(req, res, next) {
+export async function getById(req, res, next) {
   try {
     const complaint = await complaintService.getComplaintById(req.params.id);
     if (!complaint) {

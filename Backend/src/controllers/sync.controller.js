@@ -1,24 +1,20 @@
 import prisma from "../config/prisma.js";
 
 /**
- * Recibe un batch de acciones encoladas offline y las procesa en orden.
- * Acciones soportadas: "checkin", "checkout", "machineStart", "machineEnd".
- * Cada acción que falla se incluye en la respuesta como error sin abortar el resto.
+ * Receives a batch of offline-queued actions and processes them in order.
+ * Supported actions: "checkin", "checkout", "machineStart", "machineEnd".
+ * Each action that fails is included in the response as an error without
+ * aborting the rest of the batch.
  *
- * Body esperado:
- * { actions: [{ type: string, payload: object, timestamp: string }] }
+ * Input is validated by syncActionsSchema before reaching this controller,
+ * so `actions` is guaranteed to be a non-empty array of well-typed objects
+ * with valid ISO timestamps and UUID payloads where required.
  */
 export async function syncOfflineActions(req, res, next) {
   try {
-    const { actions } = req.body;
-
-    if (!Array.isArray(actions) || actions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "actions must be a non-empty array",
-      });
-    }
-
+    // req.validatedData is guaranteed by syncActionsSchema — no manual
+    // array/length check needed here.
+    const { actions } = req.validatedData;
     const results = [];
 
     for (const action of actions) {
@@ -54,7 +50,7 @@ export async function syncOfflineActions(req, res, next) {
             data: {
               userId: req.user.id,
               machineId: action.payload.machineId,
-              gymSessionId: action.payload.gymSessionId,
+              gymSessionId: action.payload.gymSessionId ?? null,
               startedAt: new Date(action.timestamp),
             },
           });
@@ -79,8 +75,6 @@ export async function syncOfflineActions(req, res, next) {
               data: { endedAt, durationMinutes },
             });
           }
-        } else {
-          result = { skipped: true, reason: `Unknown action type: ${action.type}` };
         }
 
         results.push({ type: action.type, success: true, data: result });

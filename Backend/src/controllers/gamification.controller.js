@@ -57,16 +57,11 @@ export async function getWrapped(req, res, next) {
   }
 }
 
-/**
- * Creates a PointReviewRequest so the user can dispute a points decision.
- * Previously this mistakenly called addPoints(userId, 0, ...) which did nothing.
- */
 export async function reviewRequest(req, res, next) {
   try {
-    const { reason } = req.body;
-    if (!reason) {
-      return res.status(400).json({ success: false, message: "reason is required" });
-    }
+    // req.validatedData from pointReviewRequestSchema guarantees { reason } is present
+    // and non-empty — no manual check needed here.
+    const { reason } = req.validatedData;
 
     const request = await prisma.pointReviewRequest.create({
       data: {
