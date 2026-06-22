@@ -1,5 +1,5 @@
-// src/services/patternAnalysis.service.js
 import prisma from "../config/prisma.js";
+import { createNotification } from "./communication.service.js";
 
 /**
  * Analiza los patrones de entrenamiento de un usuario:
@@ -15,6 +15,7 @@ export async function analyzeUserPatterns(userId) {
   });
 
   // Frecuencia por día de la semana (0 = domingo, 6 = sábado)
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayCount = {};
   for (const session of sessions) {
     const day = new Date(session.checkInAt).getDay();
@@ -22,7 +23,7 @@ export async function analyzeUserPatterns(userId) {
   }
 
   const frequentDays = Object.entries(dayCount)
-    .map(([day, count]) => ({ day: Number(day), count }))
+    .map(([day, count]) => ({ day: Number(day), name: dayNames[Number(day)], count }))
     .sort((a, b) => b.count - a.count);
 
   // Máquinas más usadas
@@ -47,8 +48,9 @@ export async function analyzeUserPatterns(userId) {
 }
 
 /**
- * Corre el análisis de patrones para todos los usuarios activos.
- * Usado por el job semanal.
+ * Corre el análisis de patrones para todos los usuarios activos,
+ * persiste los resultados en la tabla UserPatternSnapshot (si existe)
+ * y envía una notificación in-app con el resumen al usuario.
  */
 export async function runPatternAnalysisForAll() {
   const users = await prisma.user.findMany({
@@ -59,8 +61,38 @@ export async function runPatternAnalysisForAll() {
   for (const user of users) {
     try {
       const patterns = await analyzeUserPatterns(user.id);
-      console.log(`[patternAnalysis] User ${user.id}:`, patterns);
-      // futuro: guardar en tabla analytics_snapshot o notificar al usuario
+
+      if (patterns.sessionCount === 0) continue;
+
+      // Persist snapshot — tries to upsert into UserPatternSnapshot if the table exists.
+      await prisma.userPatternSnapshot
+        .upsert({
+          where: { userId: user.id },
+          update: { payload: patterns, updatedAt: new Date() },
+          create: { userId: user.id, payload: patterns },
+        })
+        .catch(() => {
+          // Table may not exist yet in all environments; log but don't abort.
+          console.log(
+            `[patternAnalysis] Snapshot not persisted for ${user.id} (table absent)`
+          );
+        });
+
+      // Notify the user with their top training day and machine
+      const topDay = patterns.frequentDays[0];
+      const topMachine = patterns.topMachines[0];
+
+      if (topDay || topMachine) {
+        const parts = [];
+        if (topDay) parts.push(`Your favourite training day is ${topDay.name}`);
+        if (topMachine) parts.push(`your most-used machine is ${topMachine.name}`);
+
+        await createNotification(
+          user.id,
+          "Your training patterns this week",
+          parts.join(" and ") + "."
+        );
+      }
     } catch (err) {
       console.error(`[patternAnalysis] Failed for user ${user.id}:`, err.message);
     }

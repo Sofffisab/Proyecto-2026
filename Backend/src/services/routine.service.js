@@ -38,6 +38,13 @@ export async function deleteRoutine(id, userId) {
   return prisma.routine.delete({ where: { id } });
 }
 
+/**
+ * Returns the most recently created routine that belongs to the user.
+ * Returns null if the user has no routines.
+ *
+ * Previous version fell back to routines of OTHER users (isCustom: false)
+ * when the user had none — a privacy/data-leak bug that is now fixed.
+ */
 export async function getSuggestion(userId) {
   const latest = await prisma.routine.findFirst({
     where: { userId },

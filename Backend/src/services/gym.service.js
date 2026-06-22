@@ -1,13 +1,31 @@
 import prisma from "../config/prisma.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
+import { addPoints } from "./gamification.service.js";
+import { POINTS } from "../constants/points.js";
 
 export async function checkIn(userId) {
-  return prisma.gymSession.create({
+  // Prevent duplicate open sessions
+  const existing = await prisma.gymSession.findFirst({
+    where: { userId, checkOutAt: null },
+  });
+
+  if (existing) {
+    throw new Error("User already has an active session. Check out first.");
+  }
+
+  const session = await prisma.gymSession.create({
     data: {
       userId,
       checkInAt: new Date(),
     },
   });
+
+  // Award check-in points (non-blocking)
+  addPoints(userId, POINTS.CHECK_IN, "Gym check-in").catch((err) =>
+    console.error("[gym] Failed to award check-in points:", err.message)
+  );
+
+  return session;
 }
 
 export async function checkOut(userId) {
@@ -21,10 +39,17 @@ export async function checkOut(userId) {
   const checkOutAt = new Date();
   const durationMinutes = Math.round((checkOutAt - session.checkInAt) / 60000);
 
-  return prisma.gymSession.update({
+  const updated = await prisma.gymSession.update({
     where: { id: session.id },
     data: { checkOutAt, durationMinutes },
   });
+
+  // Award check-out points (non-blocking)
+  addPoints(userId, POINTS.CHECK_OUT, "Gym check-out").catch((err) =>
+    console.error("[gym] Failed to award check-out points:", err.message)
+  );
+
+  return updated;
 }
 
 export async function getCurrentSession(userId) {
@@ -48,7 +73,8 @@ export async function getSessionById(sessionId, userId) {
 }
 
 export async function getPresentUsers() {
-  // Fetch all users currently checked in
+  // Fetch all users currently checked in, including their last assistance
+  // in a single query to avoid N+1.
   const activeSessions = await prisma.gymSession.findMany({
     where: { checkOutAt: null },
     include: {
@@ -65,28 +91,34 @@ export async function getPresentUsers() {
     },
   });
 
-  // For each user, find when they last received assistance
-  const enriched = await Promise.all(
-    activeSessions.map(async (session) => {
-      const lastAssistance = await prisma.assistance.findFirst({
-        where: { userId: session.userId, status: "COMPLETED" },
-        orderBy: { completedAt: "desc" },
-        select: { completedAt: true },
-      });
+  if (activeSessions.length === 0) return [];
 
-      return {
-        ...session,
-        lastAssistanceAt: lastAssistance?.completedAt ?? null,
-      };
-    })
-  );
+  const userIds = activeSessions.map((s) => s.userId);
 
-  // Sort: longest since last assistance first, then by trainerPreference, then by seniority
+  // One query: latest completed assistance per user
+  const lastAssistances = await prisma.assistance.findMany({
+    where: { userId: { in: userIds }, status: "COMPLETED" },
+    orderBy: { completedAt: "desc" },
+    select: { userId: true, completedAt: true },
+    distinct: ["userId"],
+  });
+
+  const lastAssistanceMap = lastAssistances.reduce((acc, a) => {
+    acc[a.userId] = a.completedAt;
+    return acc;
+  }, {});
+
+  const enriched = activeSessions.map((session) => ({
+    ...session,
+    lastAssistanceAt: lastAssistanceMap[session.userId] ?? null,
+  }));
+
+  // Sort: longest since last assistance first (most urgent)
   enriched.sort((a, b) => {
     const aTime = a.lastAssistanceAt ? new Date(a.lastAssistanceAt).getTime() : 0;
     const bTime = b.lastAssistanceAt ? new Date(b.lastAssistanceAt).getTime() : 0;
 
-    if (aTime !== bTime) return aTime - bTime; // oldest assistance first (most urgent)
+    if (aTime !== bTime) return aTime - bTime;
 
     const aPref = a.user.settings?.trainerPreference ? 0 : 1;
     const bPref = b.user.settings?.trainerPreference ? 0 : 1;
