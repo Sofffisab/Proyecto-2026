@@ -2,6 +2,10 @@ import prisma from "../config/prisma.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
+import { emitUserNeedsAttention } from "../realtime/ably.js";
+
+// Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
+const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
 
 export async function checkIn(userId) {
   // Prevent duplicate open sessions
@@ -112,6 +116,18 @@ export async function getPresentUsers() {
     ...session,
     lastAssistanceAt: lastAssistanceMap[session.userId] ?? null,
   }));
+
+  // Bug 16: emit USER_NEEDS_ATTENTION for users who have been waiting too long
+  const now = Date.now();
+  for (const session of enriched) {
+    const lastAt = session.lastAssistanceAt
+      ? new Date(session.lastAssistanceAt).getTime()
+      : new Date(session.checkInAt).getTime();
+    const minutesWaiting = Math.floor((now - lastAt) / 60000);
+    if (minutesWaiting >= ATTENTION_THRESHOLD_MINUTES) {
+      emitUserNeedsAttention(session.userId, session.lastAssistanceAt, minutesWaiting);
+    }
+  }
 
   // Sort: longest since last assistance first (most urgent)
   enriched.sort((a, b) => {

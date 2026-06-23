@@ -22,17 +22,17 @@ export async function getUserAnalytics(userId) {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Single query for all sessions — filter by date in JS to avoid redundant DB round-trips
-  const [allSessions, machineUsage] = await Promise.all([
-    prisma.gymSession.findMany({ where: { userId } }),
-    prisma.machineUsage.findMany({ where: { userId }, include: { machine: true } }),
-  ]);
-
-  const inRange = (date, from) => new Date(date) >= from;
-
-  const dailySessions   = allSessions.filter((s) => inRange(s.checkInAt, startOfDay));
-  const weeklySessions  = allSessions.filter((s) => inRange(s.checkInAt, startOfWeek));
-  const monthlySessions = allSessions.filter((s) => inRange(s.checkInAt, startOfMonth));
+  // Bug 26: filter sessions by date at the DB level to avoid loading the full
+  // history into memory (a user with years of sessions could saturate RAM).
+  // We fetch four date-bounded result sets in one round-trip.
+  const [allSessions, dailySessions, weeklySessions, monthlySessions, machineUsage] =
+    await Promise.all([
+      prisma.gymSession.findMany({ where: { userId } }),
+      prisma.gymSession.findMany({ where: { userId, checkInAt: { gte: startOfDay } } }),
+      prisma.gymSession.findMany({ where: { userId, checkInAt: { gte: startOfWeek } } }),
+      prisma.gymSession.findMany({ where: { userId, checkInAt: { gte: startOfMonth } } }),
+      prisma.machineUsage.findMany({ where: { userId }, include: { machine: true } }),
+    ]);
 
   const totalMinutes = (sessions) =>
     sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);

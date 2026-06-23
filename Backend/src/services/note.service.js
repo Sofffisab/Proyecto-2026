@@ -18,6 +18,8 @@ export async function getNotes(targetUserId, callerId, callerRole) {
 }
 
 export async function createNote(trainerId, targetUserId, note) {
+  // Bug 32: verify the target user exists before creating a note.
+  // Prevents notes from being created for arbitrary/non-existent UUIDs.
   const target = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!target) throw new Error("User not found");
 

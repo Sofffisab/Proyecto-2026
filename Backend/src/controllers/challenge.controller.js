@@ -3,8 +3,17 @@ import * as challengeService from "../services/challenge.service.js";
 export async function create(req, res, next) {
   try {
     // Use req.validatedData — validated and sanitized by createChallengeSchema.
-    // Previously read from req.body directly, bypassing Zod's output entirely.
     const { userIdA, userIdB, station } = req.validatedData;
+
+    // Bug 17: the caller must be one of the two participants.
+    // This prevents any authenticated user from creating challenges between strangers.
+    if (req.user.id !== userIdA && req.user.id !== userIdB) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only create a challenge in which you are a participant.",
+      });
+    }
+
     const data = await challengeService.assignChallenge(userIdA, userIdB, station);
     res.status(201).json({ success: true, data });
   } catch (err) {

@@ -50,13 +50,31 @@ export async function getProgressEntryById(id, userId) {
 }
 
 export async function updateProgressEntry(id, userId, data) {
-  const entry = await prisma.progressEntry.findFirst({ where: { id, userId } });
+  const entry = await prisma.progressEntry.findFirst({
+    where: { id, userId },
+    include: { goal: true },
+  });
   if (!entry) throw new Error("Progress entry not found");
 
   // Only allow whitelisted fields
   const safeData = {};
-  if (data.value !== undefined) safeData.value = data.value;
   if (data.note !== undefined) safeData.note = data.note;
+
+  if (data.value !== undefined) {
+    const valueDiff = data.value - entry.value;
+    safeData.value = data.value;
+
+    // Bug 13: recalculate progressPercent on the entry itself
+    const newGoalValue = (entry.goal?.currentValue ?? 0) + valueDiff;
+    const targetValue = entry.goal?.targetValue ?? 0;
+    safeData.progressPercent = targetValue > 0 ? (newGoalValue / targetValue) * 100 : 0;
+
+    // Bug 12: propagate the value diff to the parent goal
+    await prisma.goal.update({
+      where: { id: entry.goalId },
+      data: { currentValue: Math.max(0, newGoalValue) },
+    });
+  }
 
   return prisma.progressEntry.update({
     where: { id },

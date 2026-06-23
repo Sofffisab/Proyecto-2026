@@ -4,7 +4,7 @@ export async function generateWrapped(userId, year) {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
 
-  const [sessions, machines, points, assistances, socialInteractions] =
+  const [sessions, machines, pointsAgg, assistances, socialInteractions] =
     await Promise.all([
       prisma.gymSession.findMany({
         where: { userId, checkInAt: { gte: yearStart, lt: yearEnd } },
@@ -13,8 +13,11 @@ export async function generateWrapped(userId, year) {
         where: { userId, startedAt: { gte: yearStart, lt: yearEnd } },
         include: { machine: true },
       }),
-      prisma.pointTransaction.findMany({
+      // Bug 37: use aggregate instead of findMany so individual transaction rows
+      // are not loaded into memory — only the scalar sum is transferred.
+      prisma.pointTransaction.aggregate({
         where: { userId, createdAt: { gte: yearStart, lt: yearEnd } },
+        _sum: { points: true },
       }),
       prisma.assistance.findMany({
         where: {
@@ -70,7 +73,7 @@ export async function generateWrapped(userId, year) {
   const payload = {
     totalSessions: sessions.length,
     totalMinutes: sessions.reduce((a, s) => a + (s.durationMinutes || 0), 0),
-    totalPoints: points.reduce((a, p) => a + p.points, 0),
+    totalPoints: pointsAgg._sum.points ?? 0,
     machines: Object.entries(machineCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)

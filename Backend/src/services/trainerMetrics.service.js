@@ -8,21 +8,21 @@ import prisma from "../config/prisma.js";
  * @param {string} trainerId
  */
 export async function updateTrainerMetrics(trainerId) {
-  const [completedAssistances, ratings] = await Promise.all([
+  // Bug 27: use aggregate instead of findMany so only summary values are
+  // transferred from the DB — avoids loading every TrainerRating row into memory.
+  const [completedAssistances, ratingsAgg] = await Promise.all([
     prisma.assistance.count({
       where: { trainerId, status: "COMPLETED" },
     }),
-    prisma.trainerRating.findMany({
+    prisma.trainerRating.aggregate({
       where: { trainerId },
-      select: { rating: true },
+      _avg: { rating: true },
+      _count: { rating: true },
     }),
   ]);
 
-  const totalRatings = ratings.length;
-  const averageRating =
-    totalRatings > 0
-      ? ratings.reduce((acc, r) => acc + r.rating, 0) / totalRatings
-      : 0;
+  const totalRatings = ratingsAgg._count.rating;
+  const averageRating = ratingsAgg._avg.rating ?? 0;
 
   await prisma.trainerProfile.update({
     where: { userId: trainerId },

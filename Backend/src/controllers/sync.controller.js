@@ -17,8 +17,29 @@ export async function syncOfflineActions(req, res, next) {
     const { actions } = req.validatedData;
     const results = [];
 
+    // Bug 31: reject timestamps that are obviously wrong — more than 7 days in
+    // the past or any amount in the future. Online check-ins always use server
+    // time; offline sync must still be within a reasonable window.
+    const MAX_PAST_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const now          = Date.now();
+
     for (const action of actions) {
       try {
+        // Bug 31: validate timestamp range before processing
+        const actionTime = new Date(action.timestamp).getTime();
+        if (isNaN(actionTime)) {
+          results.push({ type: action.type, success: false, error: "Invalid timestamp" });
+          continue;
+        }
+        if (actionTime > now) {
+          results.push({ type: action.type, success: false, error: "Timestamp is in the future" });
+          continue;
+        }
+        if (now - actionTime > MAX_PAST_MS) {
+          results.push({ type: action.type, success: false, error: "Timestamp is too old (> 7 days)" });
+          continue;
+        }
+
         let result = null;
 
         if (action.type === "checkin") {

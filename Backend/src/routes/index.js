@@ -35,6 +35,10 @@ const router = express.Router();
 router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema),       authController.register);
 router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema),          authController.login);
 router.post("/auth/refresh",         authRateLimiter, validateSchema(authSchemas.refreshTokenSchema),   authController.refreshToken);
+// Bug 35 — CRITICAL: authRateLimiter MUST stay on this route.
+// forgotPassword always returns success (to prevent email enumeration), so
+// without rate limiting an attacker can probe all emails at full speed.
+// If you ever move or rename this route, ensure authRateLimiter travels with it.
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
 router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas.resetPasswordSchema),  authController.resetPassword);
 

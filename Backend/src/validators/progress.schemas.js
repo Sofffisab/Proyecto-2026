@@ -4,9 +4,11 @@ import { z } from "zod";
 
 export const goalSchema = z.object({
   objectiveAction: z.enum(["GAIN", "LOSE", "MAINTAIN"]),
+  // Bug 36: keep this enum in sync with the GoalType enum in prisma/schema.prisma.
+  // "OTHER" was removed (not in Prisma schema) and "NONE" was added to match.
   objectiveType: z.enum([
     "WEIGHT", "MUSCLE", "FAT", "PHYSICAL_HEALTH", "MENTAL_HEALTH",
-    "STRENGTH", "ENDURANCE", "COMMITMENT", "MOBILITY", "OTHER",
+    "STRENGTH", "ENDURANCE", "COMMITMENT", "MOBILITY", "NONE",
   ]),
   // title and description removed — they don't exist in the Goal model in schema.prisma.
   // If the business decides to add them, add `title String?` and `description String?`

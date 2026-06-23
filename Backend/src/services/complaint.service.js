@@ -54,10 +54,13 @@ export async function approveComplaint(id, reviewerId) {
     },
   });
 
-  // Deduct points from the reported user
+  // Deduct points from the reported user.
+  // Force the value to be negative regardless of how the constant is configured,
+  // so a misconfigured positive value can never accidentally award points.
+  const penalty = -Math.abs(POINTS.APPROVED_COMPLAINT_PENALTY);
   await addPoints(
     complaint.reportedUserId,
-    POINTS.APPROVED_COMPLAINT_PENALTY,
+    penalty,
     "Complaint approved against user"
   );
 
@@ -65,7 +68,7 @@ export async function approveComplaint(id, reviewerId) {
   await createNotification(
     complaint.reportedUserId,
     "Penalty applied",
-    `A complaint against you was approved. ${Math.abs(POINTS.APPROVED_COMPLAINT_PENALTY)} points have been deducted from your account.`
+    `A complaint against you was approved. ${Math.abs(penalty)} points have been deducted from your account.`
   );
 
   return complaint;

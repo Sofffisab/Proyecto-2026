@@ -5,9 +5,30 @@ import { completeChallengeByQR } from "./challenge.service.js";
 import { POINTS } from "../constants/points.js";
 import { addPoints } from "./gamification.service.js";
 
+// QR tokens expire after this many milliseconds (default: 5 minutes)
+const QR_TTL_MS = parseInt(process.env.USER_QR_TTL_MS ?? "300000", 10);
+
+/**
+ * Signs a payload object with HMAC-SHA256 using the server secret.
+ * Returns the hex signature.
+ */
+function signQRPayload(payloadStr) {
+  const secret = process.env.QR_HMAC_SECRET ?? process.env.JWT_ACCESS_SECRET;
+  if (!secret) throw new Error("QR_HMAC_SECRET is not configured");
+  return crypto.createHmac("sha256", secret).update(payloadStr).digest("hex");
+}
+
+/**
+ * Bug 14: generates a user QR with an HMAC signature so the payload
+ * cannot be forged by anyone who only knows a user UUID.
+ * Bug 15: includes a timestamp that is verified on scan to enforce TTL.
+ */
 export async function getUserQR(userId) {
-  const payload = JSON.stringify({ userId, type: "USER", ts: Date.now() });
-  const qrDataUrl = await QRCode.toDataURL(payload);
+  const ts = Date.now();
+  const payloadStr = JSON.stringify({ userId, type: "USER", ts });
+  const sig = signQRPayload(payloadStr);
+  const signed = JSON.stringify({ userId, type: "USER", ts, sig });
+  const qrDataUrl = await QRCode.toDataURL(signed);
   return { userId, qrDataUrl };
 }
 
@@ -28,6 +49,23 @@ export function validateQRPayload(rawPayload) {
   try {
     const parsed = JSON.parse(rawPayload);
     if (!parsed.type) return { valid: false };
+
+    // Validate HMAC signature and TTL only for USER QR codes (Bug 14 & 15)
+    if (parsed.type === "USER") {
+      const { sig, ...rest } = parsed;
+
+      // Verify signature
+      const expectedSig = signQRPayload(JSON.stringify(rest));
+      if (!sig || sig !== expectedSig) {
+        return { valid: false, reason: "Invalid QR signature" };
+      }
+
+      // Verify TTL
+      if (!rest.ts || Date.now() - rest.ts > QR_TTL_MS) {
+        return { valid: false, reason: "QR code has expired" };
+      }
+    }
+
     return { valid: true, type: parsed.type, data: parsed };
   } catch {
     return { valid: false };

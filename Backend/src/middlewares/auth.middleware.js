@@ -39,10 +39,19 @@ export const authenticate = async (req, res, next) => {
 };
 
 /**
- * requireActiveAccount is intentionally a pass-through here.
- * The isActive check is already performed inside `authenticate` above.
- * This export exists solely so that routes/index.js can import it
- * without changes; the real guard lives in deactivation.middleware.js
- * which is also applied via router.use().
+ * @deprecated — DO NOT USE in new routes.
+ *
+ * requireActiveAccount is a no-op pass-through.
+ *
+ * Account activation is already enforced in two places:
+ *   1. `authenticate` above: rejects any request with isActive === false.
+ *   2. `deactivation.middleware.js`: applied globally via router.use() in
+ *      routes/index.js for an extra layer.
+ *
+ * This export exists only for backward compatibility so existing imports
+ * don't break. It must never be the sole guard on a route — it does nothing.
+ *
+ * Bug 25 fix: the duplication is intentional; this stub is kept to avoid
+ * a breaking refactor, but is clearly documented as non-functional.
  */
-export const requireActiveAccount = (req, res, next) => next();
+export const requireActiveAccount = (_req, _res, next) => next();
