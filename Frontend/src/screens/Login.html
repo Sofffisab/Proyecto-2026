@@ -60,7 +60,7 @@
       <div class="menu">
         
         <div class="input-container">
-  <input type="text" placeholder="Escribí algo 1...">
+          <input class="correo" type="text" placeholder="Escribí algo 1...">
  <p class="error-email">Información incorrecta</p>
   <img class="icono-vacio"
        src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
@@ -114,6 +114,11 @@
       <div class="menu">
         <div class="input-container">
   <input type="text" placeholder="Escribí algo 1...">
+  <div class="Eboton">
+    <button>Masculino</button>
+    <button>Femenino</button>
+    <button>Otro</button>
+  </div>
 
   <img class="icono-vacio"
        src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
@@ -126,11 +131,11 @@
       </div>
     </div>
   </div>
-
+<br>
   <div class="Edropdown">
     <div class="dropdown">
       <button class="btn">
-        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/ph_gender-male-light.png" alt="">
+        <img class="img" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_heart-plus-outline.png" alt="">
         Salud
         <img class="img6" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-right-outline.png" alt="">
       </button>
@@ -352,7 +357,7 @@ document.querySelectorAll(".input-container").forEach(container => {
   });
 });
 
-const inputCorreo = document.querySelectorAll(".dropdown")[1].querySelector("input");
+const inputCorreo = document.querySelector(".correo");
 const errorCorreo = document.querySelector(".error-email");
 
 inputCorreo.addEventListener("input", () => {
