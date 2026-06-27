@@ -1,21 +1,13 @@
 export default {
   testEnvironment: "node",
-
   roots: ["<rootDir>/tests"],
-
-  moduleFileExtensions: [
-    "js",
-    "json"
-  ],
-
+  moduleFileExtensions: ["js", "json"],
   transform: {},
-
-  collectCoverageFrom: [
-    "src/**/*.js",
-    "!src/index.js"
-  ],
-
+  extensionsToTreatAsEsm: [".js"],
+  experimental: {
+    vmModules: true,
+  },
+  collectCoverageFrom: ["src/**/*.js", "!src/index.js"],
   coverageDirectory: "coverage",
-
   verbose: true,
 };

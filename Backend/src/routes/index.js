@@ -119,8 +119,8 @@ router.get("/gamification/badges/all",   gamificationController.getAllBadges);
 router.post("/gamification/badges/:id/claim", gamificationController.claimBadge);
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.reviewRequest);
 
-router.get("/challenges/active",                                                                       challengeController.getActiveChallenges);
-router.get("/challenges/history",                                                                      challengeController.getAllChallenges);
+router.get("/challenges/active",  challengeController.getActive);
+router.get("/challenges/history", challengeController.getHistory);
 router.post("/challenges",   validateSchema(progressSchemas.createChallengeSchema),                    challengeController.create);
 router.get("/challenges",                                                                              challengeController.getAll);
 router.get("/challenges/:id",                                                                          challengeController.getById);

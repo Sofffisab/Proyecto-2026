@@ -4,6 +4,7 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import router from "./routes/index.js";
+import { notFoundHandler, errorHandler } from "/middlewares/error.middleware.js";
 
 const app = express();
 
@@ -35,23 +36,7 @@ if (process.env.NODE_ENV !== "test") {
 
 app.use("/api/v1", router);
 
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
-});
-
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode ?? err.status ?? 500;
-  const message    = err.message ?? "Internal server error";
-
-  if (process.env.NODE_ENV !== "production") {
-    console.error(err);
-  }
-
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
-  });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;

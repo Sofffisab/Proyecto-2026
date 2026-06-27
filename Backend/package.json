@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "test": "jest --runInBand",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand",
+    "test:e2e": "node --experimental-vm-modules node_modules/.bin/jest tests/e2e.test.js --runInBand",
     "test:watch": "jest --watch",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -39,11 +40,12 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "eslint": "^9.0.0",
-    "jest": "^30.0.0",
+    "jest": "^30.4.2",
     "nodemon": "^3.0.0",
     "prettier": "^3.0.0",
     "prisma": "^6.0.0",
-    "supertest": "^7.0.0"
+    "supertest": "^7.2.2"
   }
 }

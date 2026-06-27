@@ -100,3 +100,51 @@ export async function createRoutineRequest(userId, trainerId) {
     data: { userId, trainerId: trainerId || null, status: "PENDING" },
   });
 }
+
+
+export async function getRoutineRequests(userId, role) {
+  if (role === "TRAINER" || role === "ADMIN") {
+    return prisma.routineRequest.findMany({
+      where: { status: "PENDING" },
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+  return prisma.routineRequest.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function acceptRoutineRequest(requestId, trainerId) {
+  const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw new Error("Routine request not found");
+  if (req.status !== "PENDING") throw new Error("Request is not pending");
+
+  return prisma.routineRequest.update({
+    where: { id: requestId },
+    data: { status: "ACCEPTED", trainerId },
+  });
+}
+
+export async function rejectRoutineRequest(requestId, trainerId) {
+  const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw new Error("Routine request not found");
+  if (req.status !== "PENDING") throw new Error("Request is not pending");
+
+  return prisma.routineRequest.update({
+    where: { id: requestId },
+    data: { status: "REJECTED", trainerId },
+  });
+}
+
+export async function completeRoutineRequest(requestId, callerId) {
+  const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw new Error("Routine request not found");
+  if (req.status !== "ACCEPTED") throw new Error("Request must be ACCEPTED before completing");
+
+  return prisma.routineRequest.update({
+    where: { id: requestId },
+    data: { status: "COMPLETED" },
+  });
+}

@@ -38,7 +38,8 @@ export function AuthProvider({ children }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+      const response = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -54,21 +55,14 @@ export function AuthProvider({ children }) {
         setError(errorMsg);
         throw new Error(errorMsg);
       }
+        
+      const { user, accessToken, refreshToken } = data.data;
+      setUser(user);
+      setTokens({ accessToken, refreshToken });
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      await AsyncStorage.setItem('tokens', JSON.stringify({ accessToken, refreshToken }));
+      return user;
 
-      setUser(data.user);
-      setTokens({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-      });
-
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
-      await AsyncStorage.setItem('tokens', JSON.stringify({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-      }));
-
-      setError(null);
-      return data.user;
     } catch (err) {
       if (err.name === 'AbortError') {
         setError('Request timeout - server not responding');
