@@ -2,30 +2,56 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import routes from "./routes/index.js";
-import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
+import morgan from "morgan";
+import router from "./routes/index.js";
 
 const app = express();
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-  })
-);
+app.use(helmet({
+  contentSecurityPolicy: false, // mobile clients don't use CSP
+}));
 
-app.use(helmet());
-app.use(compression());
-app.use(express.json());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["*"];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["X-Total-Count"],    // useful for pagination on mobile
+  credentials: true,
+  maxAge: 86400,                        // cache preflight 24 h → fewer OPTIONS requests on mobile
+}));
+
+app.use(express.json({ limit: "2mb" }));          // enough for base64 profile photos
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/health", (req, res) => {
-  return res.status(200).json({ success: true, message: "Server is running" });
+app.use(compression());
+
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("combined"));
+}
+
+app.use("/api/v1", router);
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
 });
 
-app.use("/api/v1", routes);
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode ?? err.status ?? 500;
+  const message    = err.message ?? "Internal server error";
 
-app.use(notFoundHandler);
-app.use(errorHandler);
+  if (process.env.NODE_ENV !== "production") {
+    console.error(err);
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
+  });
+});
 
 export default app;

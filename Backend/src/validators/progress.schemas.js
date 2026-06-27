@@ -164,3 +164,19 @@ export const syncActionsSchema = z.object({
     .min(1, "actions must be a non-empty array")
     .max(100, "cannot submit more than 100 actions per batch"),
 });
+
+
+export const pointReviewRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});
+
+
+export const rateTrainerSchema = z.object({
+  trainerId: z.string().uuid(),
+  rating: z.number().int().min(1).max(5),
+});
+
+
+export const createMachineSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+});

@@ -128,3 +128,7 @@ export async function updateNotificationPreferences(id, data) {
     create: { userId: id, ...safeData },
   });
 }
+
+export async function deleteUser(id) {
+  return prisma.user.delete({ where: { id } });
+}

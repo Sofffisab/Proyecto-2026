@@ -46,3 +46,5 @@ export async function getEngagementMetrics(req, res, next) {
     next(err);
   }
 }
+
+export { getUserAnalytics as getMyAnalytics };

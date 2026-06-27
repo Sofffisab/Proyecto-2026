@@ -23,7 +23,7 @@ export async function getAchievements(req, res, next) {
 
 export async function getBadges(req, res, next) {
   try {
-    const data = await gamificationService.getAchievements(req.user.id);
+    const data = await engagementService.getAllAchievements();
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -72,6 +72,31 @@ export async function reviewRequest(req, res, next) {
     });
 
     res.status(201).json({ success: true, data: request });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getReviewRequests(req, res, next) {
+  try {
+    const data = await prisma.pointReviewRequest.findMany({
+      where: { resolved: false },
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resolveReviewRequest(req, res, next) {
+  try {
+    const data = await prisma.pointReviewRequest.update({
+      where: { id: req.params.id },
+      data: { resolved: true, reviewedBy: req.user.id },
+    });
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }

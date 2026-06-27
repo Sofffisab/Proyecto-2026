@@ -42,15 +42,11 @@ export async function createMachine(req, res, next) {
     // `name` comes from req.body directly here because there is no dedicated
     // createMachineSchema yet. The check below acts as a minimal guard until
     // a proper schema is added to progress.schemas.js.
-    const { name } = req.body;
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return res.status(400).json({ success: false, message: "Machine name is required" });
-    }
-
-    const qrToken = crypto.randomBytes(16).toString("hex");
-    const machine = await prisma.machine.create({
-      data: { name: name.trim(), qrToken },
-    });
+  const { name } = req.validatedData; // validated & trimmed by createMachineSchema
+  const qrToken = crypto.randomBytes(16).toString("hex");
+  const machine = await prisma.machine.create({
+    data: { name, qrToken },
+  });
 
     res.status(201).json({ success: true, data: machine });
   } catch (err) {

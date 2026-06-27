@@ -51,10 +51,9 @@ export async function presentUsers(req, res, next) {
 export async function rateTrainer(req, res, next) {
   try {
     const result = await gymService.rateTrainer(
-      req.params.id,
       req.user.id,
-      req.body.trainerId,
-      req.body.rating
+      req.validatedData.trainerId,
+      req.validatedData.rating
     );
     res.json({ success: true, data: result });
   } catch (err) {
