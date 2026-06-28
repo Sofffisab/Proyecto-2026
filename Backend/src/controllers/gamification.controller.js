@@ -23,7 +23,7 @@ export async function getAchievements(req, res, next) {
 
 export async function getBadges(req, res, next) {
   try {
-    const data = await engagementService.getAllAchievements();
+    const data = await gamificationService.getAchievements(req.user.id); 
     res.json({ success: true, data });
   } catch (err) {
     next(err);
