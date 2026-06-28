@@ -1,12 +1,13 @@
 import prisma from "../config/prisma.js";
 
 const AUTO_CLOSE_AFTER_DAYS = 30;
+const SYSTEM_ID = "00000000-0000-0000-0000-000000000000"; // System UUID for auto-close attribution
 
 /**
  * Processes pending complaints:
  * - Auto-closes complaints that have been pending for more than AUTO_CLOSE_AFTER_DAYS
  *   without any admin action (marks them as REJECTED with an automated note stored
- *   in the `resolution` field, which must exist in schema.prisma).
+ *   in the `resolution` field, reviewedAt timestamp, and reviewedBy as system audit).
  */
 export async function processComplaints() {
   const cutoff = new Date();
@@ -31,6 +32,8 @@ export async function processComplaints() {
     where: { id: { in: ids } },
     data: {
       status: "REJECTED",
+      reviewedBy: SYSTEM_ID,
+      reviewedAt: new Date(),
       resolution: `Auto-closed after ${AUTO_CLOSE_AFTER_DAYS} days with no admin action.`,
     },
   });

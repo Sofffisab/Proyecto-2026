@@ -7,9 +7,19 @@ export const ABLY_CHANNELS = {
   NOTIFICATIONS: "notifications",
 };
 
-// Raw REST client for callers that need it via config/index.js
-export const ably = new Ably.Rest({
-  key: process.env.ABLY_API_KEY,
-});
+// REST client with optional initialization
+let ably = null;
 
+try {
+  if (!process.env.ABLY_API_KEY) {
+    throw new Error("ABLY_API_KEY is not set");
+  }
+
+  ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
+  console.log("[ably] REST client initialized");
+} catch (err) {
+  console.warn("[ably] REST client unavailable:", err.message);
+}
+
+export { ably };
 export default ably;

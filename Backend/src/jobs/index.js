@@ -40,6 +40,13 @@ export async function runJobs() {
   await withRetry('checkInactiveProgress', checkInactiveProgress);
   await withRetry('processComplaints', processComplaints);
 
+  // Run wrapped job on January 1st (only once per year)
+  const today = new Date();
+  if (today.getMonth() === 0 && today.getDate() === 1) {
+    const currentYear = today.getFullYear();
+    await withRetry(`generateAnnualWrapped(${currentYear - 1})`, () => generateAnnualWrapped(currentYear - 1));
+  }
+
   console.log('[jobs] Job run complete.');
 }
 

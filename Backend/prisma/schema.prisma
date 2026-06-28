@@ -51,6 +51,7 @@ enum AssistanceStatus {
   ASSIGNED
   COMPLETED
   EXPIRED
+  CANCELLED
 }
 
 enum RoutineRequestStatus {
@@ -79,6 +80,7 @@ enum RewardRedemptionStatus {
   APPROVED
   SHIPPED
   DELIVERED
+  REJECTED
 }
 
 model User {
@@ -289,6 +291,7 @@ model Goal {
   userId       String
   type         GoalType
   subType      String?
+  unit         String?
   action       GoalAction
   targetValue  Float
   currentValue Float          @default(0)
@@ -309,6 +312,7 @@ model ProgressEntry {
   goalId          String
   value           Float
   progressPercent Float
+  note            String?
   createdAt       DateTime @default(now())
 
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -356,7 +360,7 @@ model UserAchievement {
 model Reward {
   id          String   @id @default(uuid())
   name        String
-  description String
+  description String?
   pointsCost  Int      @default(0)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())

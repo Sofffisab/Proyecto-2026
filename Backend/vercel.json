@@ -4,16 +4,5 @@
       "path": "/api/v1/cron/jobs",
       "schedule": "0 3 * * *"
     }
-  ],
-  "headers": [
-    {
-      "source": "/api/v1/cron/(.*)",
-      "headers": [
-        {
-          "key": "Authorization",
-          "value": "Bearer $CRON_SECRET"
-        }
-      ]
-    }
   ]
 }

@@ -11,7 +11,6 @@ export const updateUserSchema = z.object({
   deliveryAddress: z.string().max(500).optional(),
 });
 
-// Alias usado en routes/index.js
 export const updateProfileSchema = updateUserSchema;
 
 export const updateSettingsSchema = z.object({
@@ -20,7 +19,6 @@ export const updateSettingsSchema = z.object({
   trainerPreference: z.string().nullable().optional(),
 });
 
-// Alias usado en routes/index.js
 export const notificationPreferencesSchema = updateSettingsSchema;
 
 export const updateRoleSchema = z.object({
@@ -41,3 +39,11 @@ export const changePasswordSchema = z.object({
 });
 
 export const gymCheckinSchema = z.object({}).optional();
+
+export const createNoteSchema = z.object({
+  note: z.string().trim().min(1).max(2000),
+});
+
+export const requestRoutineSchema = z.object({
+  trainerId: z.string().uuid().optional(),
+});

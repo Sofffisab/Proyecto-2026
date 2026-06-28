@@ -62,8 +62,8 @@ router.get("/users/:id",           authorize(["ADMIN", "TRAINER"]),             
 router.patch("/users/:id/role",    authorize(["ADMIN"]), validateSchema(userSchemas.updateRoleSchema),                          userController.changeRole);
 router.patch("/users/:id/deactivate", authorize(["ADMIN"]),                                                                     userController.deactivate);
 router.get("/users/:id/notes",     authorize(["TRAINER", "ADMIN"]),                                                             noteController.getNotes);
-router.post("/users/:id/notes",    authorize(["TRAINER"]),                                                                      noteController.createNote);
-router.patch("/users/:id/notes/:noteId",  authorize(["TRAINER"]),                                                               noteController.updateNote);
+router.post("/users/:id/notes",    authorize(["TRAINER"]), validateSchema(userSchemas.createNoteSchema),                      noteController.createNote);
+router.patch("/users/:id/notes/:noteId",  authorize(["TRAINER"]), validateSchema(userSchemas.createNoteSchema),               noteController.updateNote);
 router.delete("/users/:id/notes/:noteId", authorize(["TRAINER"]),                                                               noteController.deleteNote);
 
 router.get("/trainers",     userController.getTrainers);
@@ -95,7 +95,7 @@ router.get("/routines/:id",                                                     
 router.patch("/routines/:id",  validateSchema(progressSchemas.updateRoutineSchema), routineController.update);
 router.delete("/routines/:id",                                                       routineController.remove);
 
-router.post("/routine-requests",                                                    routineController.requestRoutine);
+router.post("/routine-requests",                                validateSchema(userSchemas.requestRoutineSchema), routineController.requestRoutine);
 router.get("/routine-requests",                                                     routineController.getRequests);
 router.patch("/routine-requests/:id/accept",   authorize(["TRAINER", "ADMIN"]),    routineController.acceptRequest);
 router.patch("/routine-requests/:id/reject",   authorize(["TRAINER", "ADMIN"]),    routineController.rejectRequest);

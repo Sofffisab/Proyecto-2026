@@ -1,4 +1,5 @@
 import * as userService from "../services/user.service.js";
+import redis from "../config/redis.js";
 
 export async function getMe(req, res, next) {
   try {
@@ -14,6 +15,12 @@ export async function updateMe(req, res, next) {
     // Use req.validatedData so Zod-sanitized values reach the service,
     // not raw req.body which may contain extra fields.
     const user = await userService.update(req.user.id, req.validatedData);
+
+    // Invalidate user cache in Redis
+    if (redis) {
+      await redis.del(`user:${req.user.id}`);
+    }
+
     res.json({ success: true, data: user });
   } catch (err) {
     next(err);
@@ -144,6 +151,12 @@ export async function updateNotificationPreferences(req, res, next) {
       req.user.id,
       req.validatedData
     );
+
+    // Invalidate user cache in Redis
+    if (redis) {
+      await redis.del(`user:${req.user.id}`);
+    }
+
     res.json({ success: true, data: settings });
   } catch (err) {
     next(err);

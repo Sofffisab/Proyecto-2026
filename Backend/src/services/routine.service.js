@@ -103,15 +103,34 @@ export async function createRoutineRequest(userId, trainerId) {
 
 
 export async function getRoutineRequests(userId, role) {
-  if (role === "TRAINER" || role === "ADMIN") {
+  if (role === "ADMIN") {
+    // Admin sees all routine requests
     return prisma.routineRequest.findMany({
       where: { status: "PENDING" },
+      include: { user: true, trainer: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  if (role === "TRAINER") {
+    // Trainer sees unassigned requests + requests assigned to them
+    return prisma.routineRequest.findMany({
+      where: {
+        status: "PENDING",
+        OR: [
+          { trainerId: null },           // Unassigned
+          { trainerId: userId },         // Assigned to this trainer
+        ],
+      },
       include: { user: true },
       orderBy: { createdAt: "desc" },
     });
   }
+
+  // User sees their own requests
   return prisma.routineRequest.findMany({
     where: { userId },
+    include: { trainer: true },
     orderBy: { createdAt: "desc" },
   });
 }

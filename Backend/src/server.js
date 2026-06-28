@@ -4,8 +4,7 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import router from "./routes/index.js";
-import { notFoundHandler, errorHandler } from "/middlewares/error.middleware.js";
-
+import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 const app = express();
 
 app.use(helmet({

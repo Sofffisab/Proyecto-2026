@@ -4,24 +4,14 @@ import { z } from "zod";
 
 export const goalSchema = z.object({
   objectiveAction: z.enum(["GAIN", "LOSE", "MAINTAIN"]),
-  // Bug 36: keep this enum in sync with the GoalType enum in prisma/schema.prisma.
-  // "OTHER" was removed (not in Prisma schema) and "NONE" was added to match.
   objectiveType: z.enum([
     "WEIGHT", "MUSCLE", "FAT", "PHYSICAL_HEALTH", "MENTAL_HEALTH",
     "STRENGTH", "ENDURANCE", "COMMITMENT", "MOBILITY", "NONE",
   ]),
-  // title and description removed — they don't exist in the Goal model in schema.prisma.
-  // If the business decides to add them, add `title String?` and `description String?`
-  // to the Goal model first, run a migration, then re-add them here.
   targetValue: z.number(),
   currentValue: z.number().optional(),
   unit: z.string().max(50).optional(),
   difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
-});
-
-export const progressEntrySchema = z.object({
-  goalId: z.string().uuid(),
-  value: z.number(),
 });
 
 export const createProgressSchema = z.object({
@@ -117,10 +107,6 @@ export const generateQRSchema = z.object({}).optional();
 export const validateQRSchema = z.object({
   payload: z.string().min(1),
 });
-
-// ── Sync (offline action queue) ───────────────────────────────────────────────
-// FIX #2: validates the offline action batch sent to POST /sync.
-// Each action must have a known type, an ISO timestamp, and a type-specific payload.
 
 const syncCheckinActionSchema = z.object({
   type: z.literal("checkin"),

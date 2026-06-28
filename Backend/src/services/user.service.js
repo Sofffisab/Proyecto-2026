@@ -1,22 +1,6 @@
 import bcrypt from "bcrypt";
 import prisma from "../config/prisma.js";
 
-const SAFE_USER_SELECT = {
-  id: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  birthday: true,
-  gender: true,
-  role: true,
-  trainingLevel: true,
-  isActive: true,
-  createdAt: true,
-  updatedAt: true,
-  trainerProfile: true,
-  settings: true,
-};
-
 export async function getAll({ limit = 20, offset = 0 } = {}) {
   return prisma.user.findMany({
     select: {
@@ -130,5 +114,42 @@ export async function updateNotificationPreferences(id, data) {
 }
 
 export async function deleteUser(id) {
+  // Check for active gym sessions
+  const activeSession = await prisma.gymSession.findFirst({
+    where: { userId: id, checkOutAt: null },
+  });
+
+  if (activeSession) {
+    // Auto-checkout the session before deletion
+    await prisma.gymSession.update({
+      where: { id: activeSession.id },
+      data: { checkOutAt: new Date() },
+    });
+  }
+
+  // Check for pending assistance requests
+  const pendingAssistance = await prisma.assistance.findFirst({
+    where: { userId: id, status: { in: ["PENDING", "ASSIGNED"] } },
+  });
+
+  if (pendingAssistance) {
+    throw new Error("Cannot delete user with pending assistance requests. Resolve them first.");
+  }
+
+  // Check for active challenges
+  const activeChallenges = await prisma.socialChallenge.findFirst({
+    where: {
+      OR: [
+        { userId: id, status: { in: ["ASSIGNED", "ACCEPTED"] } },
+        { partnerUserId: id, status: { in: ["ASSIGNED", "ACCEPTED"] } },
+      ],
+    },
+  });
+
+  if (activeChallenges) {
+    throw new Error("Cannot delete user with active challenges. Complete or cancel them first.");
+  }
+
+  // Safe to delete
   return prisma.user.delete({ where: { id } });
 }

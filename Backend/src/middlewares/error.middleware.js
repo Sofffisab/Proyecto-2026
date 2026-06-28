@@ -6,16 +6,28 @@ export const notFoundHandler = (req, res) => {
 };
 
 export const errorHandler = (error, req, res, next) => {
-  // Siempre registramos el error completo en la consola del servidor
-  console.error(error);
-
   const statusCode = error.statusCode || 500;
+
+  // Log full error details only in development
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[Error]", error);
+  } else {
+    // In production, log minimal info (status and message without stack)
+    console.error("[Error]", { statusCode, message: error.message });
+  }
+
+  // Determine the response message
+  let message = error.message || "Internal server error";
+
+  // For 5xx errors (server errors), return generic message to avoid leaking internals
+  if (statusCode >= 500) {
+    message = "Internal server error";
+  }
 
   return res.status(statusCode).json({
     success: false,
-    message: error.message || "Internal server error",
-    // CORRECCIÓN: Si estamos en desarrollo, exponemos el 'stack' para debuggear fácil.
-    // En producción (cuando NODE_ENV === 'production'), 'stack' será undefined y no se enviará en el JSON.
+    message,
+    // Include stack trace only in development
     ...(process.env.NODE_ENV !== "production" && { stack: error.stack }),
   });
 };

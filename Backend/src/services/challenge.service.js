@@ -199,7 +199,15 @@ export async function getChallengeById(id, callerId) {
   return challenge;
 }
 
+/**
+ * Returns a global leaderboard of all users who have completed challenges.
+ * @deprecated The challengeId parameter is currently ignored — SocialInteraction has no relation to SocialChallenge.
+ * To implement per-challenge leaderboards, add a challengeId field to SocialInteraction in schema.prisma.
+ * TODO: Add challengeId field and filter by it once schema is updated.
+ */
 export async function getChallengeLeaderboard(challengeId) {
+  // NOTE: challengeId is passed but not used due to schema limitations.
+  // This returns a global leaderboard of all challenge completions, not specific to a challenge.
   const interactions = await prisma.socialInteraction.findMany({
     where: { type: "CHALLENGE_COMPLETED" },
     select: { userId: true },

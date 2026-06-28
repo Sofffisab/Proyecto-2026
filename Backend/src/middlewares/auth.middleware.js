@@ -21,7 +21,25 @@ export const authenticate = async (req, res, next) => {
 
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    // Try to get user from Redis cache first (60 second TTL)
+    let user = null;
+    if (redis) {
+      const cacheKey = `user:${payload.userId}`;
+      const cachedUser = await redis.get(cacheKey);
+      if (cachedUser) {
+        user = JSON.parse(cachedUser);
+      }
+    }
+
+    // If not in cache, fetch from database
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { id: payload.userId } });
+
+      if (user && redis) {
+        // Cache for 60 seconds
+        await redis.setex(`user:${payload.userId}`, 60, JSON.stringify(user));
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ success: false, message: "User not found" });

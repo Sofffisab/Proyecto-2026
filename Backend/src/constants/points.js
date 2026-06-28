@@ -32,13 +32,6 @@ export const POINTS = {
   SUSPICIOUS_ACTIVITY_PENALTY: -100,
 };
 
-export const DIFFICULTY_MULTIPLIERS = {
-  EASY: 0.8,
-  MEDIUM: 1.0,
-  HARD: 1.2,
-};
-
 export default {
   POINTS,
-  DIFFICULTY_MULTIPLIERS,
 };

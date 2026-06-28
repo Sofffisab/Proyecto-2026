@@ -1,9 +1,9 @@
-import * as analyticsService from "../services/analytics.service.js";
+import * as insightsService from "../services/insights.service.js";
 import * as engagementService from "../services/engagement.service.js";
 
 export async function getUserAnalytics(req, res, next) {
   try {
-    const data = await analyticsService.getUserAnalytics(req.user.id);
+    const data = await insightsService.getUserAnalytics(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -12,7 +12,7 @@ export async function getUserAnalytics(req, res, next) {
 
 export async function getGymAnalytics(req, res, next) {
   try {
-    const data = await analyticsService.getGymAnalytics();
+    const data = await insightsService.getGymAnalytics();
     res.json({ success: true, data });
   } catch (err) {
     next(err);
