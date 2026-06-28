@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import globals from '../../styles/globals';
-import Header from '../../components/common/Header';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import Footer from '../../components/common/Footer';
+import globals from '@styles/globals';
+import Header from '@components/common/Header';
+import Card from '@components/common/Card';
+import Button from '@components/common/Button';
+import Footer from '@components/common/Footer';
+import apiClient from '@services/apiClient';
 
 // Recibimos las props de navegación enviadas desde app/index.js
 export default function HomeScreen({ onGoToProfile, onGoToEditProfile, onNavigate }) {
