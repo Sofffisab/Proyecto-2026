@@ -4,12 +4,11 @@ import crypto from "crypto";
 import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "./communication.service.js";
+import { AppError } from "../utils/errors.js"; // Importado
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-// Single source of truth for the access token TTL.
-// Used both in jwt.sign (expiresIn) and in the Redis blacklist TTL.
-const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // 15 minutes
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 
 function sanitizeUser(user) {
   const { passwordHash, passwordResetToken, passwordResetExpires, ...safe } = user;
@@ -20,78 +19,52 @@ export async function register(data) {
   const { email, password, firstName, lastName } = data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
-  if (exists) throw new Error("Email already in use");
+  if (exists) throw new AppError("Email already in use", 409); // 409 Conflict
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Role is always USER for public registration — ADMIN/TRAINER roles must be
-  // assigned by an admin via PATCH /users/:id/role after account creation.
   const user = await prisma.user.create({
     data: { email, passwordHash, firstName, lastName, role: "USER" },
   });
 
-  // Send welcome email (non-blocking — don't fail registration if email fails)
   sendWelcomeEmail(user).catch((err) =>
-    console.error("[auth] Failed to send welcome email:", err.message)
+    console.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
   );
 
-  return sanitizeUser(user);
-}
-
-export async function login(data) {
-  const { email, password } = data;
-
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.isActive) throw new Error("Invalid credentials");
-
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new Error("Invalid credentials");
-
-  // expiresIn uses the numeric constant so the JWT TTL and the Redis blacklist
-  // TTL are always in sync — changing ACCESS_TOKEN_TTL_SECONDS is enough.
-  const accessToken = jwt.sign(
-    { userId: user.id, role: user.role },
-    ACCESS_SECRET,
-    { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
-  );
-
-  const refreshToken = jwt.sign(
-    { userId: user.id },
-    REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
+  const accessToken = jwt.sign({ id: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+  const refreshToken = jwt.sign({ id: user.id }, REFRESH_SECRET, { expiresIn: "7d" });
 
   return { user: sanitizeUser(user), accessToken, refreshToken };
 }
 
-export async function me(userId) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { settings: true, trainerProfile: true },
-  });
-
-  if (!user) return null;
-  return sanitizeUser(user);
-}
-
-export async function refreshToken(data) {
-  let payload;
-  try {
-    payload = jwt.verify(data.refreshToken, REFRESH_SECRET);
-  } catch {
-    throw new Error("Invalid or expired refresh token");
+export async function login(email, password) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.isActive) {
+    throw new AppError("Invalid credentials", 401); // 401 Unauthorized
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-  if (!user || !user.isActive) throw new Error("User not found or disabled");
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) throw new AppError("Invalid credentials", 401); // 401 Unauthorized
 
-  const accessToken = jwt.sign(
-    { userId: user.id, role: user.role },
-    ACCESS_SECRET,
-    { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
-  );
+  const accessToken = jwt.sign({ id: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+  const refreshToken = jwt.sign({ id: user.id }, REFRESH_SECRET, { expiresIn: "7d" });
 
-  return { accessToken };
+  return { user: sanitizeUser(user), accessToken, refreshToken };
+}
+
+export async function refreshToken(token) {
+  try {
+    const payload = jwt.verify(token, REFRESH_SECRET);
+    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    
+    if (!user || !user.isActive) throw new AppError("User unavailable", 401);
+
+    const accessToken = jwt.sign({ id: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+    return { accessToken };
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Invalid or expired refresh token", 401);
+  }
 }
 
 export async function logout(token) {
@@ -105,7 +78,6 @@ export async function forgotPassword(data) {
   const { email } = data;
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Always return success to prevent email enumeration
   if (!user) return { success: true };
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -133,12 +105,17 @@ export async function resetPassword(data) {
     },
   });
 
-  if (!user) throw new Error("Invalid or expired reset token");
+  if (!user) throw new AppError("Invalid or expired reset token", 400); // 400 Bad Request
 
   const passwordHash = await bcrypt.hash(password, 10);
+
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, passwordResetToken: null, passwordResetExpires: null },
+    data: {
+      passwordHash,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
   });
 
   return { success: true };

@@ -1,5 +1,3 @@
-import { ZodError } from "zod";
-
 export function validateSchema(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);

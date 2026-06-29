@@ -13,7 +13,6 @@ export async function requestAssistance(userId) {
     data: { userId, status: "PENDING" },
   });
 
-  // Notify all connected trainers in real-time
   emitAssistanceEvent("ASSISTANCE_REQUESTED", {
     assistanceId: assistance.id,
     userId,
@@ -34,34 +33,26 @@ export async function assignAssistance(assistanceId, trainerId) {
   if (!trainer.isActive) throw new Error("Trainer account is disabled");
 
   const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
-
   if (!assistance) throw new Error("Assistance request not found");
+
   if (assistance.status !== "PENDING") {
     throw new Error(`Cannot assign a request with status: ${assistance.status}`);
   }
 
   return prisma.assistance.update({
     where: { id: assistanceId },
-    data: { trainerId, status: "ASSIGNED", assignedAt: new Date() },
+    data: { status: "ASSIGNED", trainerId, assignedAt: new Date() },
   });
 }
 
-/**
- * Completes an assistance request.
- * @param {string} assistanceId
- * @param {string} callerId - The authenticated user's ID (must be the assigned trainer or an admin)
- * @param {string} callerRole - The authenticated user's role
- */
 export async function completeAssistance(assistanceId, callerId, callerRole) {
   const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
-
   if (!assistance) throw new Error("Assistance request not found");
+
   if (assistance.status !== "ASSIGNED") {
     throw new Error(`Cannot complete a request with status: ${assistance.status}`);
   }
 
-  // A trainer can only complete assistances assigned to themselves.
-  // Admins can complete any assistance.
   if (callerRole === "TRAINER" && assistance.trainerId !== callerId) {
     throw new Error("Forbidden: this assistance is not assigned to you");
   }
@@ -87,27 +78,19 @@ export async function cancelAssistance(assistanceId, userId) {
     throw new Error("Assistance request not found");
   }
 
-  if (assistance.status !== "PENDING") {
+  if (!["PENDING", "ASSIGNED"].includes(assistance.status)) {
     throw new Error(`Cannot cancel a request with status: ${assistance.status}`);
   }
 
   return prisma.assistance.update({
     where: { id: assistanceId },
-    data: { status: "EXPIRED" },
+    data: { status: "CANCELLED" },
   });
 }
 
 export async function getPendingAssistance() {
   return prisma.assistance.findMany({
     where: { status: "PENDING" },
-    include: { user: true },
-  });
-}
-
-export async function getAssistanceHistory(userId) {
-  return prisma.assistance.findMany({
-    where: { userId },
-    orderBy: { requestedAt: "desc" },
-    include: { trainer: true },
+    orderBy: { requestedAt: "asc" },
   });
 }

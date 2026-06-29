@@ -6,9 +6,11 @@ export const generateQrToken = () => {
 };
 
 export const generateQrImage = async (payload) => {
-  return QRCode.toDataURL(
-    JSON.stringify(payload)
-  );
+  try {
+    return await QRCode.toDataURL(JSON.stringify(payload));
+  } catch (err) {
+    throw new Error(`[QR Utils] Failed to generate QR Image: ${err.message}`);
+  }
 };
 
 export const encodeQrPayload = (payload) => {

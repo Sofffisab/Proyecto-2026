@@ -50,8 +50,7 @@ export async function remove(req, res, next) {
 
 export async function requestRoutine(req, res, next) {
   try {
-    // trainerId is optional — user may request without specifying a trainer
-    const trainerId = req.body?.trainerId ?? null;
+    const trainerId = req.validatedData?.trainerId ?? null;
     const data = await routineService.createRoutineRequest(req.user.id, trainerId);
     res.status(201).json({ success: true, data });
   } catch (err) {
@@ -61,7 +60,6 @@ export async function requestRoutine(req, res, next) {
 
 export async function getRequests(req, res, next) {
   try {
-    // Trainers/admins see all pending; users see their own.
     const data = await routineService.getRoutineRequests(req.user.id, req.user.role);
     res.json({ success: true, data });
   } catch (err) {
@@ -90,6 +88,26 @@ export async function rejectRequest(req, res, next) {
 export async function completeRequest(req, res, next) {
   try {
     const data = await routineService.completeRoutineRequest(req.params.id, req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function completeDay(req, res, next) {
+  try {
+    const { id } = req.params;
+    const dayIndex = parseInt(req.params.dayIndex, 10);
+    const data = await routineService.completeDay(id, dayIndex, req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getSuggestion(req, res, next) {
+  try {
+    const data = await routineService.getSuggestion(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

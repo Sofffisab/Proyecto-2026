@@ -1,10 +1,11 @@
 import prisma from "../config/prisma.js";
 import { POINTS } from "../constants/points.js";
+import { addPoints } from "./gamification.service.js";
+import { AppError } from "../utils/errors.js";
 
 export async function assignChallenge(userIdA, userIdB, station) {
-  // Prevent self-challenge
   if (userIdA === userIdB) {
-    throw new Error("A user cannot challenge themselves");
+    throw new AppError("A user cannot challenge themselves", 400);
   }
 
   const [settingsA, settingsB] = await Promise.all([
@@ -13,21 +14,16 @@ export async function assignChallenge(userIdA, userIdB, station) {
   ]);
 
   if (settingsA?.disableSocial || settingsB?.disableSocial) {
-    throw new Error("One or both users have social challenges disabled");
+    throw new AppError("One or both users have social challenges disabled", 400);
   }
 
-  // Both users must currently be in the gym
   const [sessionA, sessionB] = await Promise.all([
     prisma.gymSession.findFirst({ where: { userId: userIdA, checkOutAt: null } }),
     prisma.gymSession.findFirst({ where: { userId: userIdB, checkOutAt: null } }),
   ]);
 
-  if (!sessionA) {
-    throw new Error("The first user does not have an active gym session");
-  }
-  if (!sessionB) {
-    throw new Error("The second user does not have an active gym session");
-  }
+  if (!sessionA) throw new AppError("The first user does not have an active gym session", 400);
+  if (!sessionB) throw new AppError("The second user does not have an active gym session", 400);
 
   const existing = await prisma.socialChallenge.findFirst({
     where: {
@@ -40,7 +36,7 @@ export async function assignChallenge(userIdA, userIdB, station) {
   });
 
   if (existing) {
-    throw new Error("An active challenge already exists between these users");
+    throw new AppError("An active challenge already exists between these users", 409);
   }
 
   return prisma.socialChallenge.create({
@@ -49,177 +45,95 @@ export async function assignChallenge(userIdA, userIdB, station) {
       partnerUserId: userIdB,
       station,
       status: "ASSIGNED",
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
     },
   });
 }
 
-export async function acceptChallenge(challengeId, callerId) {
-  return prisma.$transaction(async (tx) => {
-    const challenge = await tx.socialChallenge.findUnique({ where: { id: challengeId } });
+export async function acceptChallenge(challengeId, userId) {
+  const challenge = await prisma.socialChallenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) throw new AppError("Challenge not found", 404);
+  if (challenge.partnerUserId !== userId) throw new AppError("Forbidden: Only the challenged partner can accept", 403);
+  if (challenge.status !== "ASSIGNED") throw new AppError("Challenge cannot be accepted in its current state", 400);
 
-    if (!challenge) throw new Error("Challenge not found");
-
-    if (challenge.userId !== callerId && challenge.partnerUserId !== callerId) {
-      throw new Error("Not a participant of this challenge");
-    }
-
-    if (challenge.status !== "ASSIGNED") {
-      throw new Error(`Cannot accept a challenge with status: ${challenge.status}`);
-    }
-
-    const updated = await tx.socialChallenge.update({
-      where: { id: challengeId },
-      data: { status: "ACCEPTED" },
-    });
-
-    await tx.socialInteraction.create({
-      data: {
-        userId: callerId,
-        targetUserId:
-          callerId === challenge.userId ? challenge.partnerUserId : challenge.userId,
-        type: "CHALLENGE_ACCEPTED",
-      },
-    });
-
-    return updated;
+  return prisma.socialChallenge.update({
+    where: { id: challengeId },
+    data: { status: "ACCEPTED" },
   });
 }
 
 export async function rejectChallenge(challengeId, callerId) {
-  return prisma.$transaction(async (tx) => {
-    const challenge = await tx.socialChallenge.findUnique({ where: { id: challengeId } });
+  const challenge = await prisma.socialChallenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) throw new AppError("Challenge not found", 404);
 
-    if (!challenge) throw new Error("Challenge not found");
-
-    if (challenge.userId !== callerId && challenge.partnerUserId !== callerId) {
-      throw new Error("Not a participant of this challenge");
-    }
-
-    if (!["ASSIGNED", "ACCEPTED"].includes(challenge.status)) {
-      throw new Error(`Cannot reject a challenge with status: ${challenge.status}`);
-    }
-
-    // Award attempted points INSIDE the transaction so they roll back if the update fails
-    if (challenge.status === "ACCEPTED") {
-      const participantWhoAccepted =
-        callerId === challenge.userId ? challenge.partnerUserId : challenge.userId;
-
-      await tx.pointTransaction.create({
-        data: {
-          userId: participantWhoAccepted,
-          points: POINTS.SOCIAL_CHALLENGE_ATTEMPTED,
-          reason: "Social challenge attempted (partner rejected)",
-        },
-      });
-    }
-
-    const updated = await tx.socialChallenge.update({
-      where: { id: challengeId },
-      data: { status: "REJECTED" },
-    });
-
-    await tx.socialInteraction.create({
-      data: {
-        userId: callerId,
-        targetUserId:
-          callerId === challenge.userId ? challenge.partnerUserId : challenge.userId,
-        type: "CHALLENGE_REJECTED",
-      },
-    });
-
-    return updated;
-  });
-}
-
-export async function completeChallengeByQR(challengeId, scannerId, scannedId) {
-  return prisma.$transaction(async (tx) => {
-    const challenge = await tx.socialChallenge.findUnique({ where: { id: challengeId } });
-
-    if (!challenge) throw new Error("Challenge not found");
-
-    const participantIds = [challenge.userId, challenge.partnerUserId];
-    if (!participantIds.includes(scannerId) || !participantIds.includes(scannedId)) {
-      throw new Error("Both users must be participants of this challenge");
-    }
-
-    if (challenge.status !== "ACCEPTED") {
-      throw new Error("Challenge must be in ACCEPTED status to be completed");
-    }
-
-    const updated = await tx.socialChallenge.update({
-      where: { id: challengeId },
-      data: { status: "COMPLETED" },
-    });
-
-    await tx.socialInteraction.create({
-      data: {
-        userId: scannerId,
-        targetUserId: scannedId,
-        type: "CHALLENGE_COMPLETED",
-      },
-    });
-
-    // Award points to both participants inside the transaction
-    await tx.pointTransaction.create({
-      data: {
-        userId: challenge.userId,
-        points: POINTS.SOCIAL_CHALLENGE_COMPLETED,
-        reason: "Social challenge completed",
-      },
-    });
-    await tx.pointTransaction.create({
-      data: {
-        userId: challenge.partnerUserId,
-        points: POINTS.SOCIAL_CHALLENGE_COMPLETED,
-        reason: "Social challenge completed",
-      },
-    });
-
-    return updated;
-  });
-}
-
-export async function getChallengeById(id, callerId) {
-  const challenge = await prisma.socialChallenge.findUnique({
-    where: { id },
-    include: {
-      user: { select: { id: true, firstName: true, lastName: true } },
-      partner: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
-
-  if (!challenge) return null;
-
-  // Ensure the caller is a participant
   if (challenge.userId !== callerId && challenge.partnerUserId !== callerId) {
-    return null;
+    throw new AppError("Forbidden", 403);
   }
 
-  return challenge;
-}
+  const allowed = ["ASSIGNED", "ACCEPTED"];
+  if (!allowed.includes(challenge.status)) {
+    throw new AppError("Challenge cannot be cancelled in its current state", 400);
+  }
 
-/**
- * Returns a global leaderboard of all users who have completed challenges.
- * @deprecated The challengeId parameter is currently ignored — SocialInteraction has no relation to SocialChallenge.
- * To implement per-challenge leaderboards, add a challengeId field to SocialInteraction in schema.prisma.
- * TODO: Add challengeId field and filter by it once schema is updated.
- */
-export async function getChallengeLeaderboard(challengeId) {
-  // NOTE: challengeId is passed but not used due to schema limitations.
-  // This returns a global leaderboard of all challenge completions, not specific to a challenge.
-  const interactions = await prisma.socialInteraction.findMany({
-    where: { type: "CHALLENGE_COMPLETED" },
-    select: { userId: true },
+  const previousStatus = challenge.status;
+
+  const updated = await prisma.socialChallenge.update({
+    where: { id: challengeId },
+    data: { status: "REJECTED" },
   });
 
-  const countMap = interactions.reduce((acc, i) => {
-    acc[i.userId] = (acc[i.userId] || 0) + 1;
-    return acc;
-  }, {});
+  if (previousStatus === "ACCEPTED") {
+    await addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_ATTEMPTED);
+  }
+
+  return updated;
+}
+
+export async function completeChallengeByQR(challengeId, callerId, partnerId) {
+  const challenge = await prisma.socialChallenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) throw new AppError("Challenge not found", 404);
+
+  const isUserA = challenge.userId === callerId && challenge.partnerUserId === partnerId;
+  const isUserB = challenge.partnerUserId === callerId && challenge.userId === partnerId;
+  if (!isUserA && !isUserB) {
+    throw new AppError("Provided partnerId does not match this challenge match-up", 400);
+  }
+
+  if (challenge.status !== "ACCEPTED") {
+    throw new AppError("Challenge must be ACCEPTED by the partner before it can be completed", 400);
+  }
+
+  const updated = await prisma.socialChallenge.update({
+    where: { id: challengeId },
+    data: { status: "COMPLETED", completedAt: new Date() },
+  });
+
+  await Promise.all([
+    addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED),
+    addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_COMPLETED),
+  ]);
+
+  return updated;
+}
+
+export async function getChallengeLeaderboard(challengeId) {
+  const completions = await prisma.socialChallenge.groupBy({
+    by: ["userId", "partnerUserId"],
+    where: {
+      status: "COMPLETED",
+      station: {
+        some: {}
+      }
+    },
+    _count: { id: true },
+  });
+
+  const countMap = {};
+  completions.forEach((c) => {
+    countMap[c.userId] = (countMap[c.userId] || 0) + c._count.id;
+    countMap[c.partnerUserId] = (countMap[c.partnerUserId] || 0) + c._count.id;
+  });
 
   const userIds = Object.keys(countMap);
-  if (userIds.length === 0) return [];
 
   const users = await prisma.user.findMany({
     where: { id: { in: userIds } },
@@ -258,14 +172,4 @@ export async function getChallengeHistory(userId) {
 
 export async function getActiveSocialChallenges(userId) {
   return getActiveChallenges(userId);
-}
-
-export async function getSocialHistory(userId) {
-  return prisma.socialInteraction.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      target: { select: { id: true, firstName: true, lastName: true, role: true } },
-    },
-  });
 }

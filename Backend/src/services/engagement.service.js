@@ -1,15 +1,5 @@
 import prisma from "../config/prisma.js";
-import {
-  addPoints,
-  checkAndUnlockAchievements,
-  getPoints,
-  getAchievements,
-} from "./gamification.service.js";
-import { generateReward, approveReward, shipReward, deliverReward } from "./reward.service.js";
 
-// ── Re-exports ────────────────────────────────────────────────────────────────
-export { addPoints, getPoints, getAchievements, checkAndUnlockAchievements };
-export { generateReward, approveReward, shipReward, deliverReward };
 
 // ── Achievements ──────────────────────────────────────────────────────────────
 

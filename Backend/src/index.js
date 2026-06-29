@@ -10,6 +10,7 @@ const REQUIRED_ENV_VARS = [
   "ABLY_API_KEY",
   "RESEND_API_KEY",
   "RESEND_FROM_EMAIL",
+  "CRON_SECRET", 
 ];
 
 const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);

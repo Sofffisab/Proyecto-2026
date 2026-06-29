@@ -37,14 +37,3 @@ export async function getUserRank(req, res, next) {
     next(err);
   }
 }
-
-export async function getEngagementMetrics(req, res, next) {
-  try {
-    const data = await engagementService.getEngagementMetrics();
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export { getUserAnalytics as getMyAnalytics };

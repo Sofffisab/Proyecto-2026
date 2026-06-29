@@ -5,9 +5,9 @@ import prisma from "../config/prisma.js";
 // ============================================
 
 /**
- * Devuelve resumen de actividad del usuario por período.
- * Hace una sola query para todas las sesiones y filtra en memoria
- * para evitar 4 queries idénticas contra la misma tabla.
+ * Returns user activity summary by period.
+ * Performs a single query for all sessions and filters them in-memory
+ * to prevent executing 4 identical queries against the database.
  * @param {string} userId
  */
 export async function getUserAnalytics(userId) {
@@ -30,7 +30,7 @@ export async function getUserAnalytics(userId) {
     }),
     prisma.machineUsage.findMany({ 
       where: { userId }, 
-      include: { machine: true } 
+      include: { machine: true }
     }),
   ]);
 
@@ -58,7 +58,7 @@ export async function getUserAnalytics(userId) {
 }
 
 /**
- * Devuelve métricas globales del gym.
+ * Returns global gym metrics.
  */
 export async function getGymAnalytics() {
   const [totalSessions, activeUsers] = await Promise.all([
@@ -68,11 +68,3 @@ export async function getGymAnalytics() {
 
   return { totalSessions, activeUsers };
 }
-
-// ============================================
-// WRAPPED (resumen anual)
-// Delega a wrapped.service.js para evitar dos
-// implementaciones desincronizadas.
-// ============================================
-
-export { generateWrapped, getWrapped } from "./wrapped.service.js";

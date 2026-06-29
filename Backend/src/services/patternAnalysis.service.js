@@ -2,8 +2,8 @@ import prisma from "../config/prisma.js";
 import { createNotification } from "./communication.service.js";
 
 /**
- * Analiza los patrones de entrenamiento de un usuario:
- * días más frecuentes, máquinas más usadas y secuencias de sesiones.
+ * Analyzes a user's training patterns:
+ * most frequent days, most-used machines, and session sequences.
  * @param {string} userId
  * @returns {{ frequentDays: object[], topMachines: object[], sessionCount: number }}
  */
@@ -14,7 +14,7 @@ export async function analyzeUserPatterns(userId) {
     orderBy: { checkInAt: "asc" },
   });
 
-  // Frecuencia por día de la semana (0 = domingo, 6 = sábado)
+  // Weekday frequency count (0 = Sunday, 6 = Saturday)
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayCount = {};
   for (const session of sessions) {
@@ -26,10 +26,10 @@ export async function analyzeUserPatterns(userId) {
     .map(([day, count]) => ({ day: Number(day), name: dayNames[Number(day)], count }))
     .sort((a, b) => b.count - a.count);
 
-  // Máquinas más usadas
+  // Most used machines
   const machineCount = {};
   for (const session of sessions) {
-    for (const usage of session.machineUsages) {
+    for (const usage of session.machineUsages ?? []) {
       const name = usage.machine.name;
       machineCount[name] = (machineCount[name] || 0) + 1;
     }
@@ -48,12 +48,8 @@ export async function analyzeUserPatterns(userId) {
 }
 
 /**
- * Corre el análisis de patrones para todos los usuarios activos
- * y envía una notificación in-app con el resumen al usuario.
- *
- * NOTE: Persistence of snapshots (UserPatternSnapshot) is intentionally
- * omitted — the model does not exist in schema.prisma. If snapshot persistence
- * is needed in the future, add the model to the schema and re-enable the upsert.
+ * Runs pattern analysis for all active users
+ * and sends an in-app notification summary to each user.
  */
 export async function runPatternAnalysisForAll() {
   const users = await prisma.user.findMany({
@@ -67,7 +63,6 @@ export async function runPatternAnalysisForAll() {
 
       if (patterns.sessionCount === 0) continue;
 
-      // Notify the user with their top training day and machine
       const topDay = patterns.frequentDays[0];
       const topMachine = patterns.topMachines[0];
 
@@ -78,12 +73,12 @@ export async function runPatternAnalysisForAll() {
 
         await createNotification(
           user.id,
-          "Your training patterns this week",
+          "Your training patterns",
           parts.join(" and ") + "."
         );
       }
     } catch (err) {
-      console.error(`[patternAnalysis] Failed for user ${user.id}:`, err.message);
+      console.error(`[pattern-analysis] Failed for user ${user.id}:`, err.message);
     }
   }
 }

@@ -1,30 +1,12 @@
 import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
-
-export async function createRoutine(userId, data) {
-  return prisma.routine.create({
-    data: {
-      userId,
-      name: data.name || null,
-      isCustom: data.isCustom || false,
-      content: data.content,
-    },
-  });
-}
-
-export async function getRoutines(userId) {
-  return prisma.routine.findMany({ where: { userId } });
-}
-
-export async function getRoutineById(id, userId) {
-  return prisma.routine.findFirst({ where: { id, userId } });
-}
+import { AppError } from "../utils/errors.js";
 
 export async function updateRoutine(id, userId, data) {
   const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw new Error("Routine not found");
-  if (routine.userId !== userId) throw new Error("Forbidden");
+  if (!routine) throw new AppError("Routine not found", 404);
+  if (routine.userId !== userId) throw new AppError("Forbidden", 403);
 
   const { name, content } = data;
   return prisma.routine.update({ where: { id }, data: { name, content } });
@@ -32,102 +14,52 @@ export async function updateRoutine(id, userId, data) {
 
 export async function deleteRoutine(id, userId) {
   const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw new Error("Routine not found");
-  if (routine.userId !== userId) throw new Error("Forbidden");
+  if (!routine) throw new AppError("Routine not found", 404);
+  if (routine.userId !== userId) throw new AppError("Forbidden", 403);
 
   return prisma.routine.delete({ where: { id } });
 }
 
-/**
- * Returns the most recently created routine that belongs to the user.
- * Returns null if the user has no routines.
- *
- * Previous version fell back to routines of OTHER users (isCustom: false)
- * when the user had none — a privacy/data-leak bug that is now fixed.
- */
-export async function getSuggestion(userId) {
-  const latest = await prisma.routine.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+export async function completeDay(routineId, dayIndex, userId) {
+  const routine = await prisma.routine.findUnique({ where: { id: routineId } });
+  if (!routine) throw new AppError("Routine not found", 404);
+  if (routine.userId !== userId) throw new AppError("Forbidden", 403);
 
-  return latest ?? null;
+  await addPoints(userId, POINTS.ROUTINE_DAY_COMPLETED);
+
+  return { success: true, message: `Day ${dayIndex} completed successfully` };
 }
 
-/**
- * @param {string} routineId
- * @param {string} userId
- * @param {number} dayIndex
- */
-export async function completeDay(routineId, userId, dayIndex) {
-  const routine = await prisma.routine.findFirst({ where: { id: routineId, userId } });
-  if (!routine) throw new Error("Routine not found");
-
-  const content = routine.content ?? {};
-  const days = Array.isArray(content.days) ? content.days : [];
-
-  if (dayIndex === undefined || dayIndex < 0 || dayIndex >= days.length) {
-    throw new Error("Invalid dayIndex");
-  }
-
-  days[dayIndex] = { ...days[dayIndex], completed: true, completedAt: new Date().toISOString() };
-
-  const updatedRoutine = await prisma.routine.update({
-    where: { id: routineId },
-    data: { content: { ...content, days } },
+export async function getSuggestion(userId) {
+  const userProfile = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { goals: true },
   });
-
-  await addPoints(userId, POINTS.PROGRESS_UPDATE, `Routine day ${dayIndex + 1} completed`);
-
-  return updatedRoutine;
+  if (!userProfile) throw new AppError("User not found", 404);
+  return { type: "AUTOMATED_SUGGESTION", target: userProfile.goals?.[0]?.type || "GENERAL" };
 }
 
 export async function createRoutineRequest(userId, trainerId) {
   if (trainerId) {
-    const trainer = await prisma.user.findUnique({
-      where: { id: trainerId },
-      select: { role: true, isActive: true },
-    });
+    const trainer = await prisma.user.findUnique({ where: { id: trainerId } });
     if (!trainer || trainer.role !== "TRAINER") {
-      throw new Error("Invalid trainer");
-    }
-    if (!trainer.isActive) {
-      throw new Error("Trainer account is disabled");
+      throw new AppError("Invalid trainer selection", 400);
     }
   }
 
   return prisma.routineRequest.create({
-    data: { userId, trainerId: trainerId || null, status: "PENDING" },
+    data: { userId, trainerId, status: "PENDING" },
   });
 }
 
-
 export async function getRoutineRequests(userId, role) {
-  if (role === "ADMIN") {
-    // Admin sees all routine requests
+  if (role === "TRAINER" || role === "ADMIN") {
     return prisma.routineRequest.findMany({
-      where: { status: "PENDING" },
-      include: { user: true, trainer: true },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  if (role === "TRAINER") {
-    // Trainer sees unassigned requests + requests assigned to them
-    return prisma.routineRequest.findMany({
-      where: {
-        status: "PENDING",
-        OR: [
-          { trainerId: null },           // Unassigned
-          { trainerId: userId },         // Assigned to this trainer
-        ],
-      },
+      where: { OR: [{ trainerId: userId }, { trainerId: null }] },
       include: { user: true },
       orderBy: { createdAt: "desc" },
     });
   }
-
-  // User sees their own requests
   return prisma.routineRequest.findMany({
     where: { userId },
     include: { trainer: true },
@@ -137,8 +69,8 @@ export async function getRoutineRequests(userId, role) {
 
 export async function acceptRoutineRequest(requestId, trainerId) {
   const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new Error("Routine request not found");
-  if (req.status !== "PENDING") throw new Error("Request is not pending");
+  if (!req) throw new AppError("Routine request not found", 404);
+  if (req.status !== "PENDING") throw new AppError("Request is not pending", 400);
 
   return prisma.routineRequest.update({
     where: { id: requestId },
@@ -148,8 +80,8 @@ export async function acceptRoutineRequest(requestId, trainerId) {
 
 export async function rejectRoutineRequest(requestId, trainerId) {
   const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new Error("Routine request not found");
-  if (req.status !== "PENDING") throw new Error("Request is not pending");
+  if (!req) throw new AppError("Routine request not found", 404);
+  if (req.status !== "PENDING") throw new AppError("Request is not pending", 400);
 
   return prisma.routineRequest.update({
     where: { id: requestId },
@@ -159,8 +91,9 @@ export async function rejectRoutineRequest(requestId, trainerId) {
 
 export async function completeRoutineRequest(requestId, callerId) {
   const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new Error("Routine request not found");
-  if (req.status !== "ACCEPTED") throw new Error("Request must be ACCEPTED before completing");
+  if (!req) throw new AppError("Routine request not found", 404);
+  if (req.status !== "ACCEPTED") throw new AppError("Request must be accepted before completion", 400);
+  if (req.trainerId !== callerId) throw new AppError("Forbidden: Only the assigned trainer can complete this", 403);
 
   return prisma.routineRequest.update({
     where: { id: requestId },

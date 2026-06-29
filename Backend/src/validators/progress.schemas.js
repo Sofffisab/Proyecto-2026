@@ -7,6 +7,7 @@ export const goalSchema = z.object({
   objectiveType: z.enum([
     "WEIGHT", "MUSCLE", "FAT", "PHYSICAL_HEALTH", "MENTAL_HEALTH",
     "STRENGTH", "ENDURANCE", "COMMITMENT", "MOBILITY", "NONE",
+    "OTHER", 
   ]),
   targetValue: z.number(),
   currentValue: z.number().optional(),

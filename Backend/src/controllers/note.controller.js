@@ -18,7 +18,7 @@ export async function createNote(req, res, next) {
     const data = await noteService.createNote(
       req.user.id,
       req.params.id,
-      req.body.note
+      req.validatedData.note
     );
     res.status(201).json({ success: true, data });
   } catch (err) {
@@ -31,7 +31,7 @@ export async function updateNote(req, res, next) {
     const data = await noteService.updateNote(
       req.params.noteId,
       req.user.id,
-      req.body.note
+      req.validatedData.note
     );
     res.json({ success: true, data });
   } catch (err) {
