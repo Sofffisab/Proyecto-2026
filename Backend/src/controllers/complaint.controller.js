@@ -1,12 +1,9 @@
 import * as complaintService from "../services/complaint.service.js";
+import { AppError } from "../utils/errors.js";
 
-export async function create(req, res, next) {
+// POST /complaints
+export async function createComplaint(req, res, next) {
   try {
-    // SECURITY: reporterId is always taken from the authenticated session —
-    // never from req.body. Previously `...req.body` spread allowed a caller
-    // to supply their own reporterId and impersonate another user.
-    // req.validatedData comes from createComplaintSchema which only exposes
-    // { reportedUserId, reason, message }, so no extra fields can leak through.
     const { reportedUserId, reason, message } = req.validatedData;
     const data = await complaintService.createComplaint({
       reporterId: req.user.id,
@@ -20,7 +17,8 @@ export async function create(req, res, next) {
   }
 }
 
-export async function getMine(req, res, next) {
+// GET /complaints/me
+export async function getMyComplaints(req, res, next) {
   try {
     const data = await complaintService.getUserComplaints(req.user.id);
     res.json({ success: true, data });
@@ -29,7 +27,8 @@ export async function getMine(req, res, next) {
   }
 }
 
-export async function getAll(req, res, next) {
+// GET /complaints  (ADMIN)
+export async function getAdminComplaints(req, res, next) {
   try {
     const data = await complaintService.getComplaints();
     res.json({ success: true, data });
@@ -41,11 +40,9 @@ export async function getAll(req, res, next) {
 export async function getById(req, res, next) {
   try {
     const complaint = await complaintService.getComplaintById(req.params.id);
-    if (!complaint) {
-      return res.status(404).json({ success: false, message: "Complaint not found" });
-    }
+    if (!complaint) throw new AppError("Complaint not found", 404);
     if (req.user.role !== "ADMIN" && complaint.reporterId !== req.user.id) {
-      return res.status(403).json({ success: false, message: "Forbidden" });
+      throw new AppError("Forbidden", 403);
     }
     res.json({ success: true, data: complaint });
   } catch (err) {

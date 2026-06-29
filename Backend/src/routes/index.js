@@ -19,6 +19,7 @@ import * as qrController           from "../controllers/qr.controller.js";
 import * as notificationController from "../controllers/notification.controller.js";
 import * as analyticsController    from "../controllers/analytics.controller.js";
 import * as syncController         from "../controllers/sync.controller.js";
+import * as noteController         from "../controllers/note.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
@@ -28,8 +29,7 @@ import * as challengeSchemas from "../validators/challenge.schemas.js";
 
 const router = express.Router();
 
-// ── CRON / JOB TRIGGER ROUTE ──────────────────────────────────────────────────
-// Fix #15: validate CRON_SECRET before allowing job execution
+// ── CRON / JOB TRIGGER ROUTE ─────────────────────────────────────────────────
 router.post("/cron/jobs", (req, res, next) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization;
@@ -49,30 +49,34 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 router.use(authenticate);
 router.use(apiRateLimiter);
 
-// Fix #9: add missing logout route
 router.post("/auth/logout", authController.logout);
 
 // ── USERS ROUTES ──────────────────────────────────────────────────────────────
-// Fix #4: align route calls with actual controller export names
 router.get("/users/me",             userController.getMe);
 router.put("/users/me",             validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
+router.patch("/users/me/fcm-token", validateSchema(progressSchemas.fcmTokenSchema), userController.updateFcmToken);
 router.delete("/users/me",          userController.deactivateSelf);
 
 router.get("/users",                authorize(["ADMIN", "TRAINER"]), userController.getUsers);
 router.get("/users/:id",            authorize(["ADMIN", "TRAINER"]), userController.getUserById);
 router.patch("/users/:id/role",     authorize(["ADMIN"]), validateSchema(userSchemas.updateRoleSchema), userController.changeRole);
 router.patch("/users/:id/status",   authorize(["ADMIN"]), validateSchema(userSchemas.deactivateUserSchema), userController.deactivate);
-// Fix #11: upsertTrainerProfile now exists in user.controller.js
 router.post("/users/:id/trainer-profile", authorize(["ADMIN", "TRAINER"]), validateSchema(userSchemas.trainerProfileSchema), userController.upsertTrainerProfile);
 
+// ── TRAINER ROUTES ────────────────────────────────────────────────────────────
+router.get("/trainers",             userController.getTrainers);
+router.get("/trainers/:id",         userController.getTrainerById);
+
 // ── GYM ACCESS ROUTES ─────────────────────────────────────────────────────────
-// Fix #4 & #13: align names and add missing getGymStatus
 router.get("/gym/status",           gymController.getGymStatus);
 router.post("/gym/checkin",         gymController.checkIn);
 router.post("/gym/checkout",        gymController.checkOut);
 router.get("/gym/occupancy/live",   cacheResponse(60), gymController.presentUsers);
+router.get("/gym/sessions",         gymController.getSessionHistory);
+router.get("/gym/sessions/:id",     gymController.getSessionById);
+router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);
 
 // ── PROGRESS & GOALS ROUTES ───────────────────────────────────────────────────
 router.post("/goals",               validateSchema(progressSchemas.goalSchema), progressController.createGoal);
@@ -99,9 +103,7 @@ router.patch("/routines/:id/day/:dayIndex", routineController.completeDay);
 // ── REWARDS ROUTES ────────────────────────────────────────────────────────────
 router.get("/rewards",                      rewardController.getAvailableRewards);
 router.post("/rewards/:id/redeem",          rewardController.redeemReward);
-// Fix #4: align to actual export name
 router.get("/rewards/redemptions/me",       rewardController.getUserRedemptions);
-// Fix #14: add missing admin redemption routes
 router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardController.getAllRedemptions);
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
 
@@ -122,7 +124,6 @@ router.patch("/challenges/:id/cancel",      challengeController.cancel);
 router.get("/challenges/:id/leaderboard",   challengeController.getChallengeLeaderboard);
 
 // ── ASSISTANCE ROUTES ─────────────────────────────────────────────────────────
-// Fix #4: align to actual export names
 router.post("/assistance/request",          assistanceController.request);
 router.get("/assistance/active",            assistanceController.getPending);
 router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
@@ -136,7 +137,6 @@ router.get("/complaints",                   authorize(["ADMIN"]), complaintContr
 router.patch("/complaints/:id/resolve",     authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
 
 // ── QR MANAGEMENT ROUTES ──────────────────────────────────────────────────────
-// Fix #10: add missing QR routes
 router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get("/qr/gym-access", qrController.getGymQRCodes);
@@ -155,8 +155,13 @@ router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.g
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
 router.get("/analytics/leaderboard", analyticsController.getGlobalLeaderboard);
 router.get("/analytics/me/rank",     analyticsController.getUserRank);
-// Fix #12: getEngagementMetrics now exists in analytics.controller.js
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
+
+// ── TRAINER NOTES ROUTES ──────────────────────────────────────────────────────
+router.get("/users/:id/notes",             authorize(["TRAINER", "ADMIN"]), noteController.getNotes);
+router.post("/users/:id/notes",            authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.noteSchema), noteController.createNote);
+router.put("/users/:id/notes/:noteId",     authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.noteSchema), noteController.updateNote);
+router.delete("/users/:id/notes/:noteId",  authorize(["TRAINER", "ADMIN"]), noteController.deleteNote);
 
 // ── ADMINISTRATIVE REVIEW REQUESTS ────────────────────────────────────────────
 router.get("/admin/review-requests",               authorize(["ADMIN"]), gamificationController.getReviewRequests);
