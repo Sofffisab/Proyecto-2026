@@ -78,14 +78,21 @@ export async function acceptRoutineRequest(requestId, trainerId) {
   });
 }
 
-export async function rejectRoutineRequest(requestId, trainerId) {
+export async function rejectRoutineRequest(requestId, callerId) {
   const req = await prisma.routineRequest.findUnique({ where: { id: requestId } });
   if (!req) throw new AppError("Routine request not found", 404);
   if (req.status !== "PENDING") throw new AppError("Request is not pending", 400);
 
+  // Fix #17: if the request is already assigned to a specific trainer, only that
+  // trainer may reject it — prevents any other trainer from hijacking the rejection.
+  if (req.trainerId && req.trainerId !== callerId) {
+    throw new AppError("Forbidden: Only the assigned trainer can reject this request", 403);
+  }
+
   return prisma.routineRequest.update({
     where: { id: requestId },
-    data: { status: "REJECTED", trainerId },
+    // Do NOT overwrite trainerId — preserve whoever was assigned (or null).
+    data: { status: "REJECTED" },
   });
 }
 

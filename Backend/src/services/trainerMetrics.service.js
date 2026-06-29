@@ -22,8 +22,7 @@ export async function updateTrainerMetrics(trainerId) {
   const totalRatings = ratingsAgg._count.rating;
   const averageRating = ratingsAgg._avg.rating ?? 0;
 
-  // Error 27 Fix: Changed .update() to .upsert() to automatically create 
-  // the profile record if it doesn't already exist for the user.
+  // Upsert so the profile record is created automatically if it does not exist yet.
   await prisma.trainerProfile.upsert({
     where: { userId: trainerId },
     update: {
@@ -34,7 +33,7 @@ export async function updateTrainerMetrics(trainerId) {
       userId: trainerId,
       averageRating,
       totalRatings,
-      specialty: "GENERAL", // Default fallback required by DB schemas
+      specialties: ["GENERAL"], // Default fallback required by DB schema (specialties is String[])
     },
   });
 

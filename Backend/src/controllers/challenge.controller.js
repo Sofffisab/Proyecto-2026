@@ -5,7 +5,7 @@ export async function create(req, res, next) {
     // Use req.validatedData — validated and sanitized by createChallengeSchema.
     const { userIdA, userIdB, station } = req.validatedData;
 
-    // Bug 17: the caller must be one of the two participants.
+    // Enforce that the caller is one of the two challenge participants.
     // This prevents any authenticated user from creating challenges between strangers.
     if (req.user.id !== userIdA && req.user.id !== userIdB) {
       return res.status(403).json({

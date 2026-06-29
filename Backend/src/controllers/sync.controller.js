@@ -17,7 +17,7 @@ export async function syncOfflineActions(req, res, next) {
     const { actions } = req.validatedData;
     const results = [];
 
-    // Bug 31: reject timestamps that are obviously wrong — more than 7 days in
+    // Reject timestamps that are obviously wrong — more than 7 days in
     // the past or any amount in the future. Online check-ins always use server
     // time; offline sync must still be within a reasonable window.
     const MAX_PAST_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -25,7 +25,7 @@ export async function syncOfflineActions(req, res, next) {
 
     for (const action of actions) {
       try {
-        // Bug 31: validate timestamp range before processing
+        // Validate timestamp range before processing
         const actionTime = new Date(action.timestamp).getTime();
         if (isNaN(actionTime)) {
           results.push({ type: action.type, success: false, error: "Invalid timestamp" });

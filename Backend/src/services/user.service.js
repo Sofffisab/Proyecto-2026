@@ -153,3 +153,17 @@ export async function deleteUser(id) {
   // Safe to delete
   return prisma.user.delete({ where: { id } });
 }
+// Fix #11: upsert trainer profile with correct `specialties` array field
+export async function upsertTrainerProfile(userId, specialty) {
+  return prisma.trainerProfile.upsert({
+    where: { userId },
+    update: {
+      specialties: specialty ? [specialty] : [],
+    },
+    create: {
+      userId,
+      specialties: specialty ? [specialty] : [],
+    },
+  });
+}
+

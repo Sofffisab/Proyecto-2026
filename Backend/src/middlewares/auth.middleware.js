@@ -21,23 +21,23 @@ export const authenticate = async (req, res, next) => {
 
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-    // Try to get user from Redis cache first (60 second TTL)
+    // Fix #2: read payload.userId (consistent with how the token is signed)
+    const cacheKey = `user:${payload.userId}`;
+
     let user = null;
     if (redis) {
-      const cacheKey = `user:${payload.userId}`;
       const cachedUser = await redis.get(cacheKey);
       if (cachedUser) {
         user = JSON.parse(cachedUser);
       }
     }
 
-    // If not in cache, fetch from database
     if (!user) {
       user = await prisma.user.findUnique({ where: { id: payload.userId } });
 
       if (user && redis) {
-        // Cache for 60 seconds
-        await redis.setex(`user:${payload.userId}`, 60, JSON.stringify(user));
+        // Fix #8: @upstash/redis uses set(key, value, { ex }) — not setex()
+        await redis.set(cacheKey, JSON.stringify(user), { ex: 60 });
       }
     }
 
@@ -55,4 +55,3 @@ export const authenticate = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
-

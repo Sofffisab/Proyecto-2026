@@ -61,3 +61,12 @@ export async function rateTrainer(req, res, next) {
     next(err);
   }
 }
+// Fix #13: return the authenticated user's current session status
+export async function getGymStatus(req, res, next) {
+  try {
+    const session = await gymService.getCurrentSession(req.user.id);
+    res.json({ success: true, data: { isCheckedIn: !!session, session: session ?? null } });
+  } catch (err) {
+    next(err);
+  }
+}

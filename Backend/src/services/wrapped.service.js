@@ -13,7 +13,7 @@ export async function generateWrapped(userId, year) {
         where: { userId, startedAt: { gte: yearStart, lt: yearEnd } },
         include: { machine: true },
       }),
-      // Bug 37: use aggregate instead of findMany so individual transaction rows
+      // Use aggregate instead of findMany so individual transaction rows
       // are not loaded into memory — only the scalar sum is transferred.
       prisma.pointTransaction.aggregate({
         where: { userId, createdAt: { gte: yearStart, lt: yearEnd } },

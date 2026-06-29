@@ -162,3 +162,21 @@ export async function updateNotificationPreferences(req, res, next) {
     next(err);
   }
 }
+// Fix #11: create/update trainer profile for a given user
+export async function upsertTrainerProfile(req, res, next) {
+  try {
+    const targetId = req.params.id;
+    const { specialty } = req.validatedData;
+
+    // Verify the target user exists and is a TRAINER (or will become one)
+    const target = await userService.getById(targetId, req.user.role);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const profile = await userService.upsertTrainerProfile(targetId, specialty);
+    res.json({ success: true, data: profile });
+  } catch (err) {
+    next(err);
+  }
+}

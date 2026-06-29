@@ -37,14 +37,14 @@ export async function addProgress(userId, goalId, value) {
 // --- Goal Management Functions ---
 
 export async function createGoal(userId, data) {
-  const { objectiveType, objectiveAction, name, targetValue, difficulty } = data;
-  
+  const { objectiveType, objectiveAction, targetValue, difficulty, unit } = data;
+
   return prisma.goal.create({
     data: {
       userId,
-      name,
       targetValue,
       currentValue: 0,
+      unit,
       difficulty,
       type: objectiveType,
       action: objectiveAction,

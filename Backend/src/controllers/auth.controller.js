@@ -29,7 +29,7 @@ export async function me(req, res, next) {
 
 export async function refreshToken(req, res, next) {
   try {
-    const result = await authService.refreshToken(req.validatedData);
+    const result = await authService.refreshToken(req.validatedData.refreshToken);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

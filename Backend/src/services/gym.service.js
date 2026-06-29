@@ -117,7 +117,7 @@ export async function getPresentUsers() {
     lastAssistanceAt: lastAssistanceMap[session.userId] ?? null,
   }));
 
-  // Bug 16: emit USER_NEEDS_ATTENTION for users who have been waiting too long
+  // Emit USER_NEEDS_ATTENTION for users who have been waiting too long
   const now = Date.now();
   for (const session of enriched) {
     const lastAt = session.lastAssistanceAt

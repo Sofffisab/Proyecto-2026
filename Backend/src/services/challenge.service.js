@@ -120,9 +120,6 @@ export async function getChallengeLeaderboard(challengeId) {
     by: ["userId", "partnerUserId"],
     where: {
       status: "COMPLETED",
-      station: {
-        some: {}
-      }
     },
     _count: { id: true },
   });

@@ -122,3 +122,15 @@ export async function deliverReward(redemptionId) {
     data: { status: "DELIVERED", deliveredAt: new Date() },
   });
 }
+// Fix #14: fetch all redemptions (admin view)
+export async function getAllRedemptions() {
+  return prisma.rewardRedemption.findMany({
+    include: {
+      reward: true,
+      user: {
+        select: { id: true, firstName: true, lastName: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
