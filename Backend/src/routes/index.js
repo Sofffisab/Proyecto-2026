@@ -56,7 +56,7 @@ router.get("/users/me",             userController.getMe);
 router.put("/users/me",             validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
-router.patch("/users/me/fcm-token", validateSchema(progressSchemas.fcmTokenSchema), userController.updateFcmToken);
+router.patch("/users/me/fcm-token", validateSchema(userSchemas.fcmTokenSchema), userController.updateFcmToken);
 router.delete("/users/me",          userController.deactivateSelf);
 
 router.get("/users",                authorize(["ADMIN", "TRAINER"]), userController.getUsers);
@@ -159,8 +159,8 @@ router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.g
 
 // ── TRAINER NOTES ROUTES ──────────────────────────────────────────────────────
 router.get("/users/:id/notes",             authorize(["TRAINER", "ADMIN"]), noteController.getNotes);
-router.post("/users/:id/notes",            authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.noteSchema), noteController.createNote);
-router.put("/users/:id/notes/:noteId",     authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.noteSchema), noteController.updateNote);
+router.post("/users/:id/notes",            authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.createNoteSchema), noteController.createNote);
+router.put("/users/:id/notes/:noteId",     authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.createNoteSchema), noteController.updateNote);
 router.delete("/users/:id/notes/:noteId",  authorize(["TRAINER", "ADMIN"]), noteController.deleteNote);
 
 // ── ADMINISTRATIVE REVIEW REQUESTS ────────────────────────────────────────────

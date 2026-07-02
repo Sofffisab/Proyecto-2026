@@ -94,3 +94,10 @@ export async function getPendingAssistance() {
     orderBy: { requestedAt: "asc" },
   });
 }
+
+export async function getAssistanceHistory(userId) {
+  return prisma.assistance.findMany({
+    where: { userId },
+    orderBy: { requestedAt: "desc" },
+  });
+}

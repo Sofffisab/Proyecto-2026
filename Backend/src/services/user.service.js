@@ -79,6 +79,10 @@ export async function update(id, data) {
   return prisma.user.update({ where: { id }, data: safeData });
 }
 
+export async function updateFcmToken(id, fcmToken) {
+  return prisma.user.update({ where: { id }, data: { fcmToken } });
+}
+
 export async function updateRole(id, role) {
   return prisma.user.update({ where: { id }, data: { role } });
 }

@@ -82,7 +82,11 @@ export async function rejectChallenge(challengeId, callerId) {
   });
 
   if (previousStatus === "ACCEPTED") {
-    await addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_ATTEMPTED);
+    await addPoints(
+      challenge.partnerUserId,
+      POINTS.SOCIAL_CHALLENGE_ATTEMPTED,
+      "Social challenge attempted"
+    );
   }
 
   return updated;
@@ -108,8 +112,8 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
   });
 
   await Promise.all([
-    addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED),
-    addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_COMPLETED),
+    addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
+    addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
   ]);
 
   return updated;
@@ -169,4 +173,28 @@ export async function getChallengeHistory(userId) {
 
 export async function getActiveSocialChallenges(userId) {
   return getActiveChallenges(userId);
+}
+
+export async function getChallengeById(challengeId, userId) {
+  const challenge = await prisma.socialChallenge.findUnique({
+    where: { id: challengeId },
+    include: {
+      user: { select: { id: true, firstName: true, lastName: true } },
+      partner: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  if (!challenge) return null;
+
+  if (challenge.userId !== userId && challenge.partnerUserId !== userId) {
+    throw new AppError("Forbidden", 403);
+  }
+
+  return challenge;
+}
+
+// Alias kept for controllers that reference the "social" naming — same data
+// as getChallengeHistory (every SocialChallenge involves two participants).
+export async function getSocialHistory(userId) {
+  return getChallengeHistory(userId);
 }

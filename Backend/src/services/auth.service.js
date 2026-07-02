@@ -55,6 +55,12 @@ export async function login({ email, password }) {
   return { user: sanitizeUser(user), accessToken, refreshToken };
 }
 
+export async function me(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError("User not found", 404);
+  return sanitizeUser(user);
+}
+
 export async function refreshToken(token) {
   try {
     // Fix #2: read `userId` from payload (consistent with sign)

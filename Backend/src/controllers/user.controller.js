@@ -27,6 +27,21 @@ export async function updateMe(req, res, next) {
   }
 }
 
+export async function updateFcmToken(req, res, next) {
+  try {
+    const { fcmToken } = req.validatedData;
+    const user = await userService.updateFcmToken(req.user.id, fcmToken);
+
+    if (redis) {
+      await redis.del(`user:${req.user.id}`);
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getUsers(req, res, next) {
   try {
     const limit = parseInt(req.query.limit) || 20;

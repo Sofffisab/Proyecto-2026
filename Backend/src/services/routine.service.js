@@ -3,6 +3,32 @@ import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { AppError } from "../utils/errors.js";
 
+export async function createRoutine(userId, data) {
+  const { name, content, isCustom } = data;
+  return prisma.routine.create({
+    data: {
+      userId,
+      name,
+      content,
+      isCustom: isCustom ?? true,
+    },
+  });
+}
+
+export async function getRoutines(userId) {
+  return prisma.routine.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getRoutineById(id, userId) {
+  const routine = await prisma.routine.findUnique({ where: { id } });
+  if (!routine) throw new AppError("Routine not found", 404);
+  if (routine.userId !== userId) throw new AppError("Forbidden", 403);
+  return routine;
+}
+
 export async function updateRoutine(id, userId, data) {
   const routine = await prisma.routine.findUnique({ where: { id } });
   if (!routine) throw new AppError("Routine not found", 404);
@@ -25,7 +51,7 @@ export async function completeDay(routineId, dayIndex, userId) {
   if (!routine) throw new AppError("Routine not found", 404);
   if (routine.userId !== userId) throw new AppError("Forbidden", 403);
 
-  await addPoints(userId, POINTS.ROUTINE_DAY_COMPLETED);
+  await addPoints(userId, POINTS.ROUTINE_DAY_COMPLETED, `Routine day ${dayIndex} completed`);
 
   return { success: true, message: `Day ${dayIndex} completed successfully` };
 }

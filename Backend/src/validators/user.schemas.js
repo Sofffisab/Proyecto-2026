@@ -47,3 +47,7 @@ export const createNoteSchema = z.object({
 export const requestRoutineSchema = z.object({
   trainerId: z.string().uuid().optional(),
 });
+
+export const fcmTokenSchema = z.object({
+  fcmToken: z.string().trim().min(1).max(500),
+});

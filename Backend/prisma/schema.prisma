@@ -96,6 +96,7 @@ model User {
   medicalConditions    Json?
   objectives           Json?
   deliveryAddress      String?
+  fcmToken             String?
   isActive             Boolean   @default(true)
   passwordResetToken   String?
   passwordResetExpires DateTime?
@@ -395,6 +396,7 @@ model SocialChallenge {
   station       String?
   status        SocialChallengeStatus @default(ASSIGNED)
   expiresAt     DateTime?
+  completedAt   DateTime?
   createdAt     DateTime              @default(now())
 
   user          User @relation("ChallengeOwner",   fields: [userId],        references: [id], onDelete: Cascade)

@@ -34,6 +34,85 @@ export async function addProgress(userId, goalId, value) {
   return entry;
 }
 
+export async function getProgressHistory(userId) {
+  return prisma.progressEntry.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getProgressEntryById(id, userId) {
+  const entry = await prisma.progressEntry.findUnique({ where: { id } });
+  if (!entry) throw new Error("Progress entry not found");
+  if (entry.userId !== userId) throw new Error("Forbidden");
+  return entry;
+}
+
+export async function updateProgressEntry(id, userId, data) {
+  const entry = await prisma.progressEntry.findUnique({ where: { id } });
+  if (!entry) throw new Error("Progress entry not found");
+  if (entry.userId !== userId) throw new Error("Forbidden");
+
+  const { value, note } = data;
+  const updateData = { note };
+
+  if (value !== undefined) {
+    const goal = await prisma.goal.findUnique({ where: { id: entry.goalId } });
+    const newValue = goal.currentValue - entry.value + value;
+    const progressPercent = goal.targetValue > 0 ? (newValue / goal.targetValue) * 100 : 0;
+
+    await prisma.goal.update({
+      where: { id: goal.id },
+      data: { currentValue: newValue },
+    });
+
+    updateData.value = value;
+    updateData.progressPercent = progressPercent;
+  }
+
+  return prisma.progressEntry.update({
+    where: { id },
+    data: updateData,
+  });
+}
+
+export async function deleteProgressEntry(id, userId) {
+  const entry = await prisma.progressEntry.findUnique({ where: { id } });
+  if (!entry) throw new Error("Progress entry not found");
+  if (entry.userId !== userId) throw new Error("Forbidden");
+
+  const goal = await prisma.goal.findUnique({ where: { id: entry.goalId } });
+  if (goal) {
+    const newValue = Math.max(0, goal.currentValue - entry.value);
+    await prisma.goal.update({
+      where: { id: goal.id },
+      data: { currentValue: newValue },
+    });
+  }
+
+  return prisma.progressEntry.delete({ where: { id } });
+}
+
+export async function getProgressStats(userId) {
+  const [entryCount, goalCount, activeGoalCount] = await Promise.all([
+    prisma.progressEntry.count({ where: { userId } }),
+    prisma.goal.count({ where: { userId } }),
+    prisma.goal.count({ where: { userId, active: true } }),
+  ]);
+
+  const lastEntry = await prisma.progressEntry.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return {
+    totalEntries: entryCount,
+    totalGoals: goalCount,
+    activeGoals: activeGoalCount,
+    lastEntryAt: lastEntry?.createdAt ?? null,
+  };
+}
+
 // --- Goal Management Functions ---
 
 export async function createGoal(userId, data) {
