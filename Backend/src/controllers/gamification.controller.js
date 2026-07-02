@@ -4,11 +4,10 @@ import * as wrappedService from "../services/wrapped.service.js";
 import { AppError } from "../utils/errors.js";
 import prisma from "../config/prisma.js";
 
-// GET /gamification/streaks  (routes calls this name)
-export async function getUserStreaks(req, res, next) {
+export async function getUserPoints(req, res, next) {
   try {
     const data = await gamificationService.getPoints(req.user.id);
-    res.json({ success: true, data });
+    res.json({ success: true, data }); // Aquí data serán los puntos
   } catch (err) {
     next(err);
   }

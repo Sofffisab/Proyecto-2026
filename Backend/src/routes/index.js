@@ -108,7 +108,7 @@ router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardControll
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
 
 // ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
-router.get("/gamification/streaks",         gamificationController.getUserStreaks);
+router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
 router.get("/gamification/levels",          gamificationController.getLevelConfig);
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
@@ -135,6 +135,7 @@ router.post("/complaints",                  validateSchema(progressSchemas.creat
 router.get("/complaints/me",                complaintController.getMyComplaints);
 router.get("/complaints",                   authorize(["ADMIN"]), complaintController.getAdminComplaints);
 router.patch("/complaints/:id/resolve",     authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
+router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema(progressSchemas.rejectComplaintSchema), complaintController.rejectComplaint);
 
 // ── QR MANAGEMENT ROUTES ──────────────────────────────────────────────────────
 router.get("/qr/me",      qrController.generateQR);

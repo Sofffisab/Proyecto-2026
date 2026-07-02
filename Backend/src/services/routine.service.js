@@ -57,12 +57,53 @@ export async function completeDay(routineId, dayIndex, userId) {
 }
 
 export async function getSuggestion(userId) {
-  const userProfile = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { goals: true },
+  const userExists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!userExists) throw new AppError("User not found", 404);
+
+  // Real suggestion logic: pick the active goal that most needs attention —
+  // i.e. never logged / stalest progress entry first, then lowest completion %.
+  // This mirrors the "which goal is overdue/underperforming" analysis already
+  // used by suggestionEngine.service.js's evaluateUserProgress.
+  const goals = await prisma.goal.findMany({
+    where: { userId, active: true },
+    include: {
+      progress: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
   });
-  if (!userProfile) throw new AppError("User not found", 404);
-  return { type: "AUTOMATED_SUGGESTION", target: userProfile.goals?.[0]?.type || "GENERAL" };
+
+  if (goals.length === 0) {
+    return { type: "AUTOMATED_SUGGESTION", target: "GENERAL", reason: "No active goals set" };
+  }
+
+  const now = new Date();
+  const scored = goals.map((goal) => {
+    const lastEntry = goal.progress[0];
+    const daysSinceUpdate = lastEntry
+      ? Math.floor((now - new Date(lastEntry.createdAt)) / (1000 * 60 * 60 * 24))
+      : Infinity; // never updated = most urgent
+    const progressPercent = lastEntry ? lastEntry.progressPercent : 0;
+    return { goal, daysSinceUpdate, progressPercent };
+  });
+
+  // Sort by most stale first, then by lowest progress percent.
+  scored.sort((a, b) => {
+    if (b.daysSinceUpdate !== a.daysSinceUpdate) return b.daysSinceUpdate - a.daysSinceUpdate;
+    return a.progressPercent - b.progressPercent;
+  });
+
+  const top = scored[0];
+  return {
+    type: "AUTOMATED_SUGGESTION",
+    target: top.goal.type,
+    goalId: top.goal.id,
+    reason:
+      top.daysSinceUpdate === Infinity
+        ? "This goal has no progress logged yet"
+        : `Last updated ${top.daysSinceUpdate} day(s) ago at ${top.progressPercent.toFixed(0)}% progress`,
+  };
 }
 
 export async function createRoutineRequest(userId, trainerId) {

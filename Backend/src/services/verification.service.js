@@ -108,6 +108,30 @@ export async function processScan(scannerId, rawPayload) {
       throw new Error("Invalid or expired machine QR");
     }
 
+    // Symmetric scan-to-start / scan-again-to-end: check for an existing
+    // open usage of this machine by this user before opening a new one,
+    // mirroring the check-in/check-out pattern used for GymSession and
+    // the offline "machineEnd" sync action.
+    const openUsage = await prisma.machineUsage.findFirst({
+      where: { userId: scannerId, machineId, endedAt: null },
+      orderBy: { startedAt: "desc" },
+    });
+
+    if (openUsage) {
+      const endedAt = new Date();
+      const durationMinutes = Math.floor(
+        (endedAt - new Date(openUsage.startedAt)) / (1000 * 60)
+      );
+
+      await prisma.machineUsage.update({
+        where: { id: openUsage.id },
+        data: { endedAt, durationMinutes },
+      });
+
+      await addPoints(scannerId, POINTS.MACHINE_USAGE, `Machine used: ${machine.name}`);
+      return { success: true, message: `Machine ${machine.name} usage ended`, ended: true };
+    }
+
     // gymSessionId is optional — the user may not have an active session
     const activeSession = await prisma.gymSession.findFirst({
       where: { userId: scannerId, checkOutAt: null },
@@ -124,7 +148,7 @@ export async function processScan(scannerId, rawPayload) {
     });
 
     await addPoints(scannerId, POINTS.MACHINE_USAGE, `Machine used: ${machine.name}`);
-    return { success: true, message: `Machine ${machine.name} scan registered` };
+    return { success: true, message: `Machine ${machine.name} scan registered`, ended: false };
   }
 
   if (type === "ENTRY_EXIT") {

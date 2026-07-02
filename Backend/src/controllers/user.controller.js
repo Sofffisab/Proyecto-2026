@@ -114,6 +114,13 @@ export async function changeRole(req, res, next) {
     }
 
     const user = await userService.updateRole(targetId, role);
+
+    // Invalidate user cache in Redis so the new role/privileges take
+    // effect immediately instead of after the 60s cache TTL.
+    if (redis) {
+      await redis.del(`user:${targetId}`);
+    }
+
     res.json({ success: true, data: user });
   } catch (err) {
     next(err);
@@ -123,6 +130,13 @@ export async function changeRole(req, res, next) {
 export async function deactivate(req, res, next) {
   try {
     const user = await userService.deactivateUser(req.params.id);
+
+    // Invalidate user cache in Redis so the deactivation takes effect
+    // immediately instead of after the 60s cache TTL.
+    if (redis) {
+      await redis.del(`user:${req.params.id}`);
+    }
+
     res.json({ success: true, data: user });
   } catch (err) {
     next(err);
@@ -133,6 +147,11 @@ export async function deactivate(req, res, next) {
 export async function deactivateSelf(req, res, next) {
   try {
     const user = await userService.deactivateUser(req.user.id);
+
+    if (redis) {
+      await redis.del(`user:${req.user.id}`);
+    }
+
     res.json({ success: true, data: user });
   } catch (err) {
     next(err);

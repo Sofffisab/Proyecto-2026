@@ -114,6 +114,22 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
   await Promise.all([
     addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
     addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
+    // Record the social interaction in both directions so wrapped.service.js's
+    // peopleMetCount (filtered by type: "CHALLENGE_COMPLETED") can find it.
+    prisma.socialInteraction.create({
+      data: {
+        userId: challenge.userId,
+        targetUserId: challenge.partnerUserId,
+        type: "CHALLENGE_COMPLETED",
+      },
+    }),
+    prisma.socialInteraction.create({
+      data: {
+        userId: challenge.partnerUserId,
+        targetUserId: challenge.userId,
+        type: "CHALLENGE_COMPLETED",
+      },
+    }),
   ]);
 
   return updated;

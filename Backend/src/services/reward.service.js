@@ -83,17 +83,33 @@ export async function approveReward(redemptionId, adminId) {
 }
 
 export async function rejectReward(redemptionId, adminId) {
-  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+  const redemption = await prisma.rewardRedemption.findUnique({
+    where: { id: redemptionId },
+    include: { reward: true },
+  });
   if (!redemption) throw new Error("Redemption not found");
   if (redemption.status !== "PENDING") {
     throw new Error(`Cannot reject a redemption with status: ${redemption.status}`);
   }
 
-  return prisma.rewardRedemption.update({
-    where: { id: redemptionId },
-    // reviewedBy tracks who took the action (approve OR reject).
-    // approvedBy is intentionally left null on rejections to keep semantics clear.
-    data: { status: "REJECTED", reviewedBy: adminId, reviewedAt: new Date() },
+  // Rejecting a redemption must refund the points that were deducted
+  // up front in generateReward, otherwise the user permanently loses
+  // points for a reward they never received.
+  return prisma.$transaction(async (tx) => {
+    await tx.pointTransaction.create({
+      data: {
+        userId: redemption.userId,
+        points: redemption.reward.pointsCost,
+        reason: `Redemption rejected — points refunded: ${redemption.reward.name}`,
+      },
+    });
+
+    return tx.rewardRedemption.update({
+      where: { id: redemptionId },
+      // reviewedBy tracks who took the action (approve OR reject).
+      // approvedBy is intentionally left null on rejections to keep semantics clear.
+      data: { status: "REJECTED", reviewedBy: adminId, reviewedAt: new Date() },
+    });
   });
 }
 
@@ -122,7 +138,6 @@ export async function deliverReward(redemptionId) {
     data: { status: "DELIVERED", deliveredAt: new Date() },
   });
 }
-// Fix #14: fetch all redemptions (admin view)
 export async function getAllRedemptions() {
   return prisma.rewardRedemption.findMany({
     include: {
