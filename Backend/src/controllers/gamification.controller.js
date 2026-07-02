@@ -23,9 +23,10 @@ export async function getUserBadges(req, res, next) {
   }
 }
 
-// GET /gamification/levels  (routes calls this name)
-export async function getLevelConfig(req, res, next) {
+// GET /gamification/achievements
+export async function getAllAchievements(req, res, next) {
   try {
+    // El servicio ya se llamaba bien internamente
     const data = await engagementService.getAllAchievements();
     res.json({ success: true, data });
   } catch (err) {

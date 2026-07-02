@@ -110,7 +110,7 @@ router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardControll
 // ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
-router.get("/gamification/levels",          gamificationController.getLevelConfig);
+router.get("/gamification/achievements", gamificationController.getAllAchievements);
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
@@ -141,6 +141,7 @@ router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema
 router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get("/qr/gym-access", qrController.getGymQRCodes);
+router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
 router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchemas.createMachineSchema), qrController.createMachine);
 
 // ── NOTIFICATIONS ROUTES ──────────────────────────────────────────────────────
