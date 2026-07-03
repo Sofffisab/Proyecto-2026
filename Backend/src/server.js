@@ -13,15 +13,23 @@ app.use(helmet({
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["*"];
+  : [];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["X-Total-Count"],    // useful for pagination on mobile
+  exposedHeaders: ["X-Total-Count"],
   credentials: true,
-  maxAge: 86400,                        // cache preflight 24 h → fewer OPTIONS requests on mobile
+  maxAge: 86400,
 }));
 
 app.use(express.json({ limit: "2mb" }));          // enough for base64 profile photos
