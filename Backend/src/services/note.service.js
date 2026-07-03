@@ -46,3 +46,35 @@ export async function deleteNote(noteId, trainerId) {
 
   return prisma.trainerNote.delete({ where: { id: noteId } });
 }
+// ============================================
+// noteService — simplified namespaced API
+// (kept alongside the named exports above for callers that prefer it)
+// ============================================
+export const noteService = {
+  async create(trainerId, userId, content) {
+    return prisma.note.create({ data: { trainerId, userId, content } });
+  },
+
+  async update(noteId, trainerId, content) {
+    const existing = await prisma.note.findUnique({ where: { id: noteId } });
+    if (!existing) throw new Error("Note not found");
+    if (existing.trainerId !== trainerId) throw new Error("Forbidden");
+
+    return prisma.note.update({ where: { id: noteId }, data: { content } });
+  },
+
+  async delete(noteId, trainerId) {
+    const existing = await prisma.note.findUnique({ where: { id: noteId } });
+    if (!existing) throw new Error("Note not found");
+    if (existing.trainerId !== trainerId) throw new Error("Forbidden");
+
+    return prisma.note.delete({ where: { id: noteId } });
+  },
+
+  async getNotes(userId) {
+    return prisma.note.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+};

@@ -4,6 +4,7 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import router from "./routes/index.js";
+import { runJobs } from "./jobs/index.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 const app = express();
 
@@ -11,12 +12,11 @@ app.use(helmet({
   contentSecurityPolicy: false, // mobile clients don't use CSP
 }));
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : [];
-
 app.use(cors({
   origin(origin, callback) {
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : [];
     if (!origin) {
       return callback(null, true);
     }
@@ -41,7 +41,18 @@ if (process.env.NODE_ENV !== "test") {
   app.use(morgan("combined"));
 }
 
+// Root-level alias — some cron providers hit a bare path without the API prefix.
+app.post("/cron/jobs", express.json({ limit: "2mb" }), (req, res, next) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  next();
+}, runJobs);
+
 app.use("/api/v1", router);
+app.use("/", router);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

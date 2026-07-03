@@ -34,11 +34,93 @@ export async function addProgress(userId, goalId, value) {
   return entry;
 }
 
-export async function getProgressHistory(userId) {
-  return prisma.progressEntry.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
+export async function getProgressHistory(userId, filters = {}) {
+  const { metric, startDate, endDate, limit = 20, offset = 0 } = filters;
+
+  const where = { userId };
+  if (metric) where.metric = metric;
+  if (startDate || endDate) {
+    where.date = {};
+    if (startDate) where.date.gte = startDate;
+    if (endDate) where.date.lte = endDate;
+  }
+
+  return prisma.progressLog.findMany({
+    where,
+    orderBy: { date: "desc" },
+    take: limit,
+    skip: offset,
   });
+}
+
+// ============================================
+// Progress logs (metric time series) — addProgressLog / streaks
+// ============================================
+
+export async function addProgressLog(userId, { metric, value }, options = {}) {
+  const { force } = options;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!force) {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const existing = await prisma.progressLog.findFirst({
+      where: { userId, metric, date: { gte: today, lt: tomorrow } },
+    });
+
+    if (existing) throw new Error("Already logged today");
+
+    return prisma.progressLog.create({
+      data: { userId, metric, value, date: new Date() },
+    });
+  }
+
+  return prisma.progressLog.upsert({
+    where: { userId_metric_date: { userId, metric, date: today } },
+    update: { value },
+    create: { userId, metric, value, date: today },
+  });
+}
+
+export async function getCurrentStreak(userId, metric) {
+  const logs = await prisma.progressLog.findMany({
+    where: { userId, metric },
+    orderBy: { date: "desc" },
+  });
+
+  if (!logs || !logs.length) return 0;
+
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const dayStart = (d) => {
+    const copy = new Date(d);
+    copy.setHours(0, 0, 0, 0);
+    return copy.getTime();
+  };
+
+  const dates = [...new Set(logs.map((l) => dayStart(l.date)))].sort((a, b) => b - a);
+
+  let streak = 1;
+  let cursor = dates[0];
+
+  for (let i = 1; i < dates.length; i++) {
+    if (dates[i] === cursor - DAY_MS) {
+      streak++;
+      cursor = dates[i];
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+export async function getLongestStreak(userId, metric) {
+  const rows = await prisma.progressMetric.findMany({ where: { userId, metric } });
+  if (!rows || !rows.length) return 0;
+  return Math.max(...rows.map((r) => r.maxStreak ?? 0));
 }
 
 export async function getProgressEntryById(id, userId) {

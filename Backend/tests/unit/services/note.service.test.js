@@ -3,7 +3,6 @@ import { noteService } from '../../../src/services/note.service.js';
 import { prisma } from '../../../src/config/prisma.js';
 import { AppError } from '../../../src/utils/errors.js';
 
-vi.mock('../../../src/config/prisma.js');
 
 describe('NoteService', () => {
   beforeEach(() => {

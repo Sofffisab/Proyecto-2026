@@ -1,13 +1,22 @@
 import prisma from "../config/prisma.js";
+import redis from "../config/redis.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { POINTS } from "../constants/points.js";
 
 export async function addPoints(userId, points, reason) {
+  if (!points || points <= 0) {
+    throw new Error("Points must be positive");
+  }
+
   const transaction = await prisma.pointTransaction.create({
     data: { userId, points, reason },
   });
 
-  await checkAndUnlockAchievements(userId);
+  try {
+    await checkAndUnlockAchievements(userId);
+  } catch (err) {
+    console.error("[gamification] Failed to check achievements:", err.message);
+  }
 
   return transaction;
 }
@@ -33,17 +42,17 @@ export async function checkAndUnlockAchievements(userId) {
     where: { userId },
     _sum: { points: true },
   });
-  const totalPoints = agg._sum.points ?? 0;
+  const totalPoints = agg?._sum?.points ?? 0;
 
-  const unlockedIds = await prisma.userAchievement.findMany({
+  const unlockedIds = (await prisma.userAchievement.findMany({
     where: { userId },
     select: { achievementId: true },
-  });
+  })) || [];
   const unlockedSet = new Set(unlockedIds.map((u) => u.achievementId));
 
-  const eligible = await prisma.achievement.findMany({
+  const eligible = (await prisma.achievement.findMany({
     where: { pointsRequired: { lte: totalPoints } },
-  });
+  })) || [];
 
   for (const achievement of eligible) {
     if (unlockedSet.has(achievement.id)) continue;
@@ -94,30 +103,25 @@ export async function checkAndUnlockAchievements(userId) {
 }
 
 export async function unlockAchievement(userId, achievementId) {
-  return prisma.$transaction(async (tx) => {
-    const achievement = await tx.achievement.findUnique({ where: { id: achievementId } });
-    if (!achievement) throw new Error("Achievement not found");
-
-    const existing = await tx.userAchievement.findFirst({
-      where: { userId, achievementId },
-    });
-    if (existing) throw new Error("Achievement already unlocked");
-
-    const userAchievement = await tx.userAchievement.create({
-      data: { userId, achievementId },
-    });
-
-    // Use the constant — not a hardcoded literal
-    await tx.pointTransaction.create({
-      data: {
-        userId,
-        points: POINTS.ACHIEVEMENT_UNLOCKED,
-        reason: `Achievement unlocked: ${achievement.name}`,
-      },
-    });
-
-    return userAchievement;
+  const existing = await prisma.userAchievement.findUnique({
+    where: { userId_achievementId: { userId, achievementId } },
   });
+
+  if (existing) throw new Error("Achievement already unlocked");
+
+  const userAchievement = await prisma.userAchievement.create({
+    data: { userId, achievementId, unlockedAt: new Date() },
+  });
+
+  await prisma.pointTransaction.create({
+    data: {
+      userId,
+      points: POINTS.ACHIEVEMENT_UNLOCKED,
+      reason: `Achievement unlocked: ${achievementId}`,
+    },
+  });
+
+  return userAchievement;
 }
 
 export async function getAchievements(userId) {
@@ -125,4 +129,26 @@ export async function getAchievements(userId) {
     where: { userId },
     include: { achievement: true },
   });
+}
+
+export async function getLeaderboard({ limit = 10, offset = 0 } = {}) {
+  const cacheKey = `leaderboard:${limit}:${offset}`;
+
+  if (redis) {
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  }
+
+  const users = await prisma.user.findMany({
+    select: { id: true, firstName: true, lastName: true, totalPoints: true },
+    orderBy: { totalPoints: "desc" },
+    take: limit,
+    skip: offset,
+  });
+
+  const ranked = users.map((u, i) => ({ ...u, rank: offset + i + 1 }));
+
+  if (redis) await redis.set(cacheKey, JSON.stringify(ranked));
+
+  return ranked;
 }

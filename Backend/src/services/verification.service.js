@@ -1,5 +1,4 @@
 import prisma from "../config/prisma.js";
-import QRCode from "qrcode";
 import crypto from "crypto";
 import { completeChallengeByQR } from "./challenge.service.js";
 import { POINTS } from "../constants/points.js";
@@ -19,63 +18,82 @@ function signQRPayload(payloadStr) {
 }
 
 /**
- * Bug 14: generates a user QR with an HMAC signature so the payload
- * cannot be forged by anyone who only knows a user UUID.
- * Bug 15: includes a timestamp that is verified on scan to enforce TTL.
+ * Generates a signed USER QR payload (HMAC-SHA256), including a timestamp
+ * that is verified on scan to enforce a TTL. Synchronous — callers that need
+ * an actual scannable image should encode the returned payload themselves.
  */
-export async function getUserQR(userId) {
+export function getUserQR(userId) {
   const ts = Date.now();
-  const payloadStr = JSON.stringify({ userId, type: "USER", ts });
-  const sig = signQRPayload(payloadStr);
-  const signed = JSON.stringify({ userId, type: "USER", ts, sig });
-  const qrDataUrl = await QRCode.toDataURL(signed);
-  return { userId, qrDataUrl };
+  const payload = { userId, type: "USER", ts };
+  const signature = signQRPayload(JSON.stringify(payload));
+  return { ...payload, signature };
 }
 
 export async function regenerateMachineQR(machineId) {
   const token = crypto.randomBytes(16).toString("hex");
-  const payload = JSON.stringify({ machineId, type: "MACHINE", token });
-  const qrDataUrl = await QRCode.toDataURL(payload);
 
   await prisma.machine.update({
     where: { id: machineId },
     data: { qrToken: token, qrTokenUpdatedAt: new Date() },
   });
 
-  return { machineId, token, qrDataUrl };
+  return { machineId, token };
 }
 
+/**
+ * Validates a QR payload (object, or a JSON string that will be parsed).
+ * Throws on any invalid payload rather than returning a { valid } flag.
+ * Only USER-type payloads require an HMAC signature + TTL check.
+ */
 export function validateQRPayload(rawPayload) {
-  try {
-    const parsed = JSON.parse(rawPayload);
-    if (!parsed.type) return { valid: false };
+  let parsed = rawPayload;
+  if (typeof rawPayload === "string") {
+    try {
+      parsed = JSON.parse(rawPayload);
+    } catch {
+      throw new Error("Invalid QR payload");
+    }
+  }
 
-    // Validate HMAC signature and TTL only for USER QR codes (Bug 14 & 15)
-    if (parsed.type === "USER") {
-      const { sig, ...rest } = parsed;
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Invalid QR payload");
+  }
 
-      // Verify signature
-      const expectedSig = signQRPayload(JSON.stringify(rest));
-      if (!sig || sig !== expectedSig) {
-        return { valid: false, reason: "Invalid QR signature" };
-      }
+  if (!parsed.type) {
+    throw new Error("QR payload is missing a type");
+  }
 
-      // Verify TTL
-      if (!rest.ts || Date.now() - rest.ts > QR_TTL_MS) {
-        return { valid: false, reason: "QR code has expired" };
-      }
+  if (parsed.type === "USER") {
+    const { signature, ...rest } = parsed;
+    const expectedSignature = signQRPayload(JSON.stringify(rest));
+
+    if (!signature || signature !== expectedSignature) {
+      throw new Error("Invalid signature");
     }
 
-    return { valid: true, type: parsed.type, data: parsed };
-  } catch {
-    return { valid: false };
+    if (!rest.ts || Date.now() - rest.ts > QR_TTL_MS) {
+      throw new Error("QR expired");
+    }
   }
+
+  return parsed;
+}
+
+function shapeMachineUsage(usage) {
+  const shaped = {
+    id: usage.id,
+    machineId: usage.machineId,
+    startedAt: usage.startedAt,
+  };
+  if (usage.endedAt) shaped.endedAt = usage.endedAt;
+  if (usage.durationMinutes != null) shaped.durationMinutes = usage.durationMinutes;
+  if (usage.gymSessionId != null) shaped.gymSessionId = usage.gymSessionId;
+  return shaped;
 }
 
 export async function processScan(scannerId, rawPayload) {
-  const { valid, type, data } = validateQRPayload(rawPayload);
-
-  if (!valid) throw new Error("Invalid QR payload");
+  const data = validateQRPayload(rawPayload);
+  const { type } = data;
 
   if (type === "USER") {
     const targetId = data.userId;
@@ -92,7 +110,7 @@ export async function processScan(scannerId, rawPayload) {
     });
 
     if (!challenge) {
-      throw new Error("No active accepted challenge between these users");
+      throw new Error("No active challenge between these users");
     }
 
     await completeChallengeByQR(challenge.id, scannerId, targetId);
@@ -100,18 +118,16 @@ export async function processScan(scannerId, rawPayload) {
   }
 
   if (type === "MACHINE") {
-    const machineId = data.machineId;
+    const { machineId, qrToken } = data;
     if (!machineId) throw new Error("Missing machineId in QR payload");
 
-    const machine = await prisma.machine.findUnique({ where: { id: machineId } });
-    if (!machine || machine.qrToken !== data.token) {
-      throw new Error("Invalid or expired machine QR");
+    if (qrToken) {
+      const machine = await prisma.machine.findUnique({ where: { id: machineId } });
+      if (!machine || machine.qrToken !== qrToken) {
+        throw new Error("Invalid machine token");
+      }
     }
 
-    // Symmetric scan-to-start / scan-again-to-end: check for an existing
-    // open usage of this machine by this user before opening a new one,
-    // mirroring the check-in/check-out pattern used for GymSession and
-    // the offline "machineEnd" sync action.
     const openUsage = await prisma.machineUsage.findFirst({
       where: { userId: scannerId, machineId, endedAt: null },
       orderBy: { startedAt: "desc" },
@@ -119,26 +135,31 @@ export async function processScan(scannerId, rawPayload) {
 
     if (openUsage) {
       const endedAt = new Date();
-      const durationMinutes = Math.floor(
-        (endedAt - new Date(openUsage.startedAt)) / (1000 * 60)
+      const durationMinutes = Math.max(
+        1,
+        Math.floor((endedAt - new Date(openUsage.startedAt)) / (1000 * 60))
       );
 
-      await prisma.machineUsage.update({
+      const updated = await prisma.machineUsage.update({
         where: { id: openUsage.id },
         data: { endedAt, durationMinutes },
       });
 
-      await addPoints(scannerId, POINTS.MACHINE_USAGE, `Machine used: ${machine.name}`);
-      return { success: true, message: `Machine ${machine.name} usage ended`, ended: true };
+      try {
+        await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage ended");
+      } catch {
+        // Points/achievements are best-effort; never block the scan flow.
+      }
+
+      return shapeMachineUsage(updated);
     }
 
-    // gymSessionId is optional — the user may not have an active session
     const activeSession = await prisma.gymSession.findFirst({
       where: { userId: scannerId, checkOutAt: null },
       orderBy: { checkInAt: "desc" },
     });
 
-    await prisma.machineUsage.create({
+    const created = await prisma.machineUsage.create({
       data: {
         userId: scannerId,
         machineId,
@@ -147,12 +168,17 @@ export async function processScan(scannerId, rawPayload) {
       },
     });
 
-    await addPoints(scannerId, POINTS.MACHINE_USAGE, `Machine used: ${machine.name}`);
-    return { success: true, message: `Machine ${machine.name} scan registered`, ended: false };
+    try {
+      await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage started");
+    } catch {
+      // Points/achievements are best-effort; never block the scan flow.
+    }
+
+    return shapeMachineUsage(created);
   }
 
   if (type === "ENTRY_EXIT") {
-    return { success: true, message: "Entry/exit processed by gym service" };
+    return { status: "stub", message: "ENTRY_EXIT not implemented" };
   }
 
   throw new Error(`Unknown QR type: ${type}`);

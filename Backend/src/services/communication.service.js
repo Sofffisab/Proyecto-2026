@@ -15,9 +15,9 @@ function getResendClient() {
 // IN-APP NOTIFICATIONS
 // ============================================
 
-export async function createNotification(userId, title, body) {
+export async function createNotification(userId, message) {
   return prisma.notification.create({
-    data: { userId, title, body },
+    data: { userId, message, read: false },
   });
 }
 
@@ -36,11 +36,11 @@ export async function getNotifications(userId, { limit = 20, offset = 0 } = {}) 
  * @param {string} userId - The authenticated user's ID (ownership check)
  */
 export async function markAsRead(notificationId, userId) {
-  const notification = await prisma.notification.findFirst({
-    where: { id: notificationId, userId },
+  const notification = await prisma.notification.findUnique({
+    where: { id: notificationId },
   });
 
-  if (!notification) {
+  if (!notification || notification.userId !== userId) {
     throw new Error("Notification not found or does not belong to this user");
   }
 
@@ -63,11 +63,11 @@ export async function markAllAsRead(userId) {
  * @param {string} userId - The authenticated user's ID (ownership check)
  */
 export async function deleteNotification(id, userId) {
-  const notification = await prisma.notification.findFirst({
-    where: { id, userId },
+  const notification = await prisma.notification.findUnique({
+    where: { id },
   });
 
-  if (!notification) {
+  if (!notification || notification.userId !== userId) {
     throw new Error("Notification not found or does not belong to this user");
   }
 
@@ -83,45 +83,72 @@ export async function getUnreadCount(userId) {
 // ============================================
 
 export async function sendEmail(to, subject, html) {
-  return getResendClient().emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to,
-    subject,
-    html,
-  });
+  try {
+    return await getResendClient().emails.send({
+      from: process.env.RESEND_FROM_EMAIL,
+      to,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error("[communication.service] Failed to send email:", err.message);
+    return { success: false, error: err.message };
+  }
 }
 
-export async function sendWelcomeEmail(user) {
+export async function sendWelcomeEmail(email, name) {
+  await prisma.notification.create({
+    data: { userId: email, message: `Welcome ${name}!`, read: false },
+  });
+
   return sendEmail(
-    user.email,
+    email,
     "Welcome to Gym App",
-    `<h1>Hello ${user.firstName}!</h1><p>Welcome to our platform. Time to train!</p>`
+    `<h1>Hello ${name}!</h1><p>Welcome to our platform. Time to train!</p>`
   );
 }
 
-export async function sendPasswordResetEmail(user, resetToken) {
+export async function sendPasswordResetEmail(email, resetToken) {
+  await prisma.notification.create({
+    data: { userId: email, message: "Password reset requested", read: false },
+  });
+
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   return sendEmail(
-    user.email,
+    email,
     "Reset your password",
     `<p>Click the link below to reset your password (valid for 1 hour):</p>
      <a href="${resetUrl}">${resetUrl}</a>`
   );
 }
 
-export async function sendProgressEmail(user, message) {
-  return sendEmail(
-    user.email,
-    "Progress update",
-    `<p>${message}</p>`
-  );
+export async function sendProgressEmail(email, message) {
+  return sendEmail(email, "Progress update", `<p>${message}</p>`);
 }
 
 // ============================================
 // COMBINED — in-app + email
 // ============================================
 
-export async function notify(user, title, body) {
-  await createNotification(user.id, title, body);
-  await sendEmail(user.email, title, `<p>${body}</p>`);
+export async function notify(userId, title, email) {
+  await createNotification(userId, title);
+  await sendEmail(email, title, `<p>${title}</p>`);
 }
+
+// ============================================
+// Namespaced export for convenience
+// ============================================
+
+export const communicationService = {
+  createNotification,
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  getUnreadCount,
+  sendEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+  sendProgressEmail,
+  notify,
+};

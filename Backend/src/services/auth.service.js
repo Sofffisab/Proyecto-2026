@@ -27,7 +27,7 @@ export async function register(data) {
     data: { email, passwordHash, firstName, lastName, role: "USER" },
   });
 
-  sendWelcomeEmail(user).catch((err) =>
+  Promise.resolve(sendWelcomeEmail(user.email, user.firstName)).catch((err) =>
     console.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
   );
 
@@ -79,16 +79,22 @@ export async function refreshToken(token) {
 
 export async function logout(token) {
   if (redis && token) {
-    await redis.set(`blacklist:${token}`, 1, { ex: ACCESS_TOKEN_TTL_SECONDS });
+    const decoded = jwt.decode(token);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const ttl =
+      decoded && decoded.exp
+        ? Math.max(Math.round(decoded.exp - nowSeconds), 1)
+        : ACCESS_TOKEN_TTL_SECONDS;
+    await redis.setex(`blacklist:${token}`, ttl, "1");
   }
   return { success: true };
 }
 
 export async function forgotPassword(data) {
-  const { email } = data;
+  const email = typeof data === "string" ? data : data.email;
   const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) return { success: true };
+  if (!user) return { message: "If email exists, reset link was sent" };
 
   const resetToken = crypto.randomBytes(32).toString("hex");
   const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
@@ -99,25 +105,25 @@ export async function forgotPassword(data) {
     data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
   });
 
-  await sendPasswordResetEmail(user, resetToken);
+  await sendPasswordResetEmail(user.email, resetToken);
 
-  return { success: true };
+  return { message: "If email exists, reset link was sent" };
 }
 
 export async function resetPassword(data) {
-  const { token, password } = data;
+  const { token, password, newPassword } = data;
+  const newPass = newPassword ?? password;
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  const user = await prisma.user.findFirst({
-    where: {
-      passwordResetToken: tokenHash,
-      passwordResetExpires: { gt: new Date() },
-    },
+  const user = await prisma.user.findUnique({
+    where: { passwordResetToken: tokenHash },
   });
 
-  if (!user) throw new AppError("Invalid or expired reset token", 400);
+  if (!user || (user.passwordResetExpires && user.passwordResetExpires < new Date())) {
+    throw new AppError("Invalid or expired reset token", 400);
+  }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(newPass, 10);
 
   await prisma.user.update({
     where: { id: user.id },
@@ -128,5 +134,5 @@ export async function resetPassword(data) {
     },
   });
 
-  return { success: true };
+  return { message: "Password reset successful" };
 }
