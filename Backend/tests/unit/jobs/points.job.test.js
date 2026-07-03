@@ -36,8 +36,9 @@ describe("recalculatePoints", () => {
       _sum: { points: true },
     });
 
-    expect(consoleSpy).anyLogsContain("[points.job] User user-1 total: 150 pts");
-    expect(consoleSpy).anyLogsContain("[points.job] User user-2 total: 0 pts");
+    const logs = consoleSpy.mock.calls.flat().join(" ");
+    expect(logs).toContain("[points.job] User user-1 total: 150 pts");
+    expect(logs).toContain("[points.job] User user-2 total: 0 pts");
     consoleSpy.mockRestore();
   });
 
@@ -67,15 +68,3 @@ describe("recalculatePoints", () => {
   });
 });
 
-// Helper custom para aserciones de logs limpios
-expect.extend({
-  anyLogsContain(spy, expectedText) {
-    const passed = spy.mock.calls.some((call) =>
-      call.some((arg) => typeof arg === "string" && arg.includes(expectedText))
-    );
-    return {
-      pass: passed,
-      message: () => `Expected logs to contain "${expectedText}"`,
-    };
-  },
-});

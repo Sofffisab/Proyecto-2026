@@ -26,6 +26,40 @@ vi.mock("../src/config/prisma.js", () => ({
   default: {
     user: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    gym: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    reward: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    redemption: {
+      create: vi.fn(),
+      update: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    pointTransaction: {
+      aggregate: vi.fn(),
+      create: vi.fn(),
+    },
+    progress: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    challenge: {
+      findMany: vi.fn(),
+    },
+    routine: {
+      findUnique: vi.fn(),
     },
   },
 }));
@@ -38,6 +72,9 @@ vi.mock("../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),
     set: vi.fn(),
+    setex: vi.fn(),
+    del: vi.fn(),
+    expire: vi.fn(),
   },
 }));
 
