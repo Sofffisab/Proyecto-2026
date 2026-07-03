@@ -12,6 +12,9 @@ describe("Database Constraints Integration", () => {
       const mockDuplicateCreate = { email: "test@example.com" };
 
       prisma.user.findUnique.mockResolvedValue(mockExistingUser);
+      prisma.user.create.mockRejectedValue(
+        new Error("Unique constraint failed on the fields: (`email`)")
+      );
 
       await expect(
         prisma.user.create({

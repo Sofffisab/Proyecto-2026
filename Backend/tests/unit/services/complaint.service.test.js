@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { complaintService } from '../../src/services/complaint.service.js';
-import { prisma } from '../../src/config/prisma.js';
+import { complaintService } from '../../../src/services/complaint.service.js';
+import { prisma } from '../../../src/config/prisma.js';
 
-vi.mock('../../src/config/prisma.js');
+vi.mock('../../../src/config/prisma.js');
 
 describe('ComplaintService', () => {
   beforeEach(() => {

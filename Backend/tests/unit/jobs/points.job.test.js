@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { recalculatePoints } from "../../../jobs/points.job.js";
-import prisma from "../../../config/prisma.js";
+import { recalculatePoints } from "../../../src/jobs/points.job.js";
+import prisma from "../../../src/config/prisma.js";
 
 // Mockear el cliente global de Prisma
-vi.mock("../../../config/prisma.js", () => ({
+vi.mock("../../../src/config/prisma.js", () => ({
   default: {
     user: {
       findMany: vi.fn(),
@@ -56,7 +56,8 @@ describe("recalculatePoints", () => {
 
     expect(prisma.pointTransaction.aggregate).toHaveBeenCalledTimes(2);
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[points.job] Failed to process user user-1:")
+      expect.stringContaining("[points.job] Failed to process user user-1:"),
+      expect.any(String)
     );
     errorSpy.mockRestore();
   });

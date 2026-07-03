@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { processComplaints } from "../../../jobs/complaints.job.js";
-import prisma from "../../../config/prisma.js";
+import { processComplaints } from "../../../src/jobs/complaints.job.js";
+import prisma from "../../../src/config/prisma.js";
 
-vi.mock("../../../config/prisma.js", () => ({
+vi.mock("../../../src/config/prisma.js", () => ({
   default: {
     complaint: {
       findMany: vi.fn(),

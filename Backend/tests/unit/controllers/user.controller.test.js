@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import * as userController from '../../src/controllers/user.controller.js';
-import { userService } from '../../src/services/user.service.js';
+import * as userController from '../../../src/controllers/user.controller.js';
+import { userService } from '../../../src/services/user.service.js';
 
-vi.mock('../../src/services/user.service.js');
+vi.mock('../../../src/services/user.service.js');
 
 describe('UserController', () => {
   let req, res, next;

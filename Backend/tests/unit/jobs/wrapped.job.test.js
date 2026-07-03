@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generateAnnualWrapped } from "../../../jobs/wrapped.job.js";
-import { generateWrapped } from "../../../services/wrapped.service.js";
-import prisma from "../../../config/prisma.js";
+import { generateAnnualWrapped } from "../../../src/jobs/wrapped.job.js";
+import { generateWrapped } from "../../../src/services/wrapped.service.js";
+import prisma from "../../../src/config/prisma.js";
 
-vi.mock("../../../config/prisma.js", () => ({
+vi.mock("../../../src/config/prisma.js", () => ({
   default: {
     user: {
       findMany: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock("../../../config/prisma.js", () => ({
   },
 }));
 
-vi.mock("../../../services/wrapped.service.js", () => ({
+vi.mock("../../../src/services/wrapped.service.js", () => ({
   generateWrapped: vi.fn(),
 }));
 
@@ -46,7 +46,8 @@ describe("generateAnnualWrapped", () => {
 
     expect(generateWrapped).toHaveBeenCalledTimes(2);
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("[wrapped.job] Failed for user user-broken:")
+      expect.stringContaining("[wrapped.job] Failed for user user-broken:"),
+      expect.any(String)
     );
   });
 });

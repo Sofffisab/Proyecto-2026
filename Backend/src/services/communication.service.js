@@ -1,7 +1,15 @@
 import { Resend } from "resend";
 import prisma from "../config/prisma.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy singleton: avoids crashing at import time (e.g. in tests) when
+// RESEND_API_KEY isn't set. Only instantiated the first time an email is sent.
+let _resend = null;
+function getResendClient() {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_for_tests");
+  }
+  return _resend;
+}
 
 // ============================================
 // IN-APP NOTIFICATIONS
@@ -75,7 +83,7 @@ export async function getUnreadCount(userId) {
 // ============================================
 
 export async function sendEmail(to, subject, html) {
-  return resend.emails.send({
+  return getResendClient().emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to,
     subject,

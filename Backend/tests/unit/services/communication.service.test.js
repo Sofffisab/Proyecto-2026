@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { communicationService } from '../../src/services/communication.service.js';
-import { prisma } from '../../src/config/prisma.js';
+import { communicationService } from '../../../src/services/communication.service.js';
+import { prisma } from '../../../src/config/prisma.js';
 
-vi.mock('../../src/config/prisma.js');
+vi.mock('../../../src/config/prisma.js');
 vi.mock('resend', () => ({
   Resend: vi.fn().mockImplementation(() => ({
     emails: {

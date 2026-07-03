@@ -108,6 +108,9 @@ describe("notFoundHandler middleware", () => {
   });
 
   it("incluye el método y path en el mensaje", async () => {
+    req.method = "GET";
+    req.originalUrl = "/nonexistent";
+
     await notFoundHandler(req, res);
 
     const call = res.json.mock.calls[0][0];

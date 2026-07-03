@@ -53,9 +53,14 @@ describe("authenticate middleware", () => {
     });
     req.headers.authorization = `Bearer ${token}`;
 
-    redis.get.mockResolvedValue(
-      JSON.stringify({ id: "user-123", role: "USER", isActive: true })
-    );
+    redis.get.mockImplementation((key) => {
+      if (key === "user:user-123") {
+        return Promise.resolve(
+          JSON.stringify({ id: "user-123", role: "USER", isActive: true })
+        );
+      }
+      return Promise.resolve(null); // no está en blacklist
+    });
 
     await authenticate(req, res, next);
 
@@ -133,9 +138,14 @@ describe("authenticate middleware", () => {
     });
     req.headers.authorization = `Bearer ${token}`;
 
-    redis.get.mockResolvedValue(
-      JSON.stringify({ id: "user-123", role: "ADMIN", isActive: true })
-    );
+    redis.get.mockImplementation((key) => {
+      if (key === "user:user-123") {
+        return Promise.resolve(
+          JSON.stringify({ id: "user-123", role: "ADMIN", isActive: true })
+        );
+      }
+      return Promise.resolve(null); // no está en blacklist
+    });
 
     await authenticate(req, res, next);
 

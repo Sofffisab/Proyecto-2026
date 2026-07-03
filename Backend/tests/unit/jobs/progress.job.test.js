@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkInactiveProgress } from "../../../jobs/progress.job.js";
-import { runSuggestionEngineForAll } from "../../../services/suggestionEngine.service.js";
+import { checkInactiveProgress } from "../../../src/jobs/progress.job.js";
+import { runSuggestionEngineForAll } from "../../../src/services/suggestionEngine.service.js";
 
-vi.mock("../../../services/suggestionEngine.service.js", () => ({
+vi.mock("../../../src/services/suggestionEngine.service.js", () => ({
   runSuggestionEngineForAll: vi.fn(),
 }));
 

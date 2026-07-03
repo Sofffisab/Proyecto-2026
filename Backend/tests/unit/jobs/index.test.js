@@ -1,16 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { runJobs } from "../../../jobs/index.js";
-import { recalculatePoints } from "../../../jobs/points.job.js";
-import { runAnalyticsJob } from "../../../jobs/analytics.job.js";
-import { checkInactiveProgress } from "../../../jobs/progress.job.js";
-import { processComplaints } from "../../../jobs/complaints.job.js";
-import { generateAnnualWrapped } from "../../../jobs/wrapped.job.js";
 
-vi.mock("../../../jobs/points.job.js", () => ({ recalculatePoints: vi.fn() }));
-vi.mock("../../../jobs/analytics.job.js", () => ({ runAnalyticsJob: vi.fn() }));
-vi.mock("../../../jobs/progress.job.js", () => ({ checkInactiveProgress: vi.fn() }));
-vi.mock("../../../jobs/complaints.job.js", () => ({ processComplaints: vi.fn() }));
-vi.mock("../../../jobs/wrapped.job.js", () => ({ generateAnnualWrapped: vi.fn() }));
+// The global setup.js mocks jobs/index.js as an HTTP-handler stub (for route
+// tests). This suite needs the real cron implementation, so unmock it here.
+vi.unmock("../../../src/jobs/index.js");
+
+import { runJobs } from "../../../src/jobs/index.js";
+import { recalculatePoints } from "../../../src/jobs/points.job.js";
+import { runAnalyticsJob } from "../../../src/jobs/analytics.job.js";
+import { checkInactiveProgress } from "../../../src/jobs/progress.job.js";
+import { processComplaints } from "../../../src/jobs/complaints.job.js";
+import { generateAnnualWrapped } from "../../../src/jobs/wrapped.job.js";
+
+vi.mock("../../../src/jobs/points.job.js", () => ({ recalculatePoints: vi.fn() }));
+vi.mock("../../../src/jobs/analytics.job.js", () => ({ runAnalyticsJob: vi.fn() }));
+vi.mock("../../../src/jobs/progress.job.js", () => ({ checkInactiveProgress: vi.fn() }));
+vi.mock("../../../src/jobs/complaints.job.js", () => ({ processComplaints: vi.fn() }));
+vi.mock("../../../src/jobs/wrapped.job.js", () => ({ generateAnnualWrapped: vi.fn() }));
 
 describe("runJobs", () => {
   beforeEach(() => {
@@ -18,7 +23,7 @@ describe("runJobs", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     // Usar fake timers para poder alterar la fecha del sistema con libertad
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {

@@ -22,46 +22,58 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 // Prisma
 // ==============================
 
+function createModelMock() {
+  const cache = {};
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+        if (!cache[prop]) cache[prop] = vi.fn();
+        return cache[prop];
+      },
+    }
+  );
+}
+
+function createPrismaMock() {
+  const modelCache = {};
+  const prismaMock = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+
+        if (prop === "$transaction") {
+          if (!modelCache.$transaction) {
+            modelCache.$transaction = vi.fn((arg) => {
+              // Supports both prisma.$transaction(async (tx) => {...})
+              // and prisma.$transaction([promise1, promise2]) styles.
+              if (typeof arg === "function") return arg(prismaMock);
+              return Promise.all(arg);
+            });
+          }
+          return modelCache.$transaction;
+        }
+
+        if (prop === "$connect" || prop === "$disconnect") {
+          if (!modelCache[prop]) modelCache[prop] = vi.fn().mockResolvedValue(undefined);
+          return modelCache[prop];
+        }
+
+        if (!modelCache[prop]) modelCache[prop] = createModelMock();
+        return modelCache[prop];
+      },
+    }
+  );
+  return prismaMock;
+}
+
+const prismaMock = createPrismaMock();
+
 vi.mock("../src/config/prisma.js", () => ({
-  default: {
-    user: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    gym: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    reward: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
-    redemption: {
-      create: vi.fn(),
-      update: vi.fn(),
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
-    pointTransaction: {
-      aggregate: vi.fn(),
-      create: vi.fn(),
-    },
-    progress: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    challenge: {
-      findMany: vi.fn(),
-    },
-    routine: {
-      findUnique: vi.fn(),
-    },
-  },
+  default: prismaMock,
+  prisma: prismaMock,
 }));
 
 // ==============================

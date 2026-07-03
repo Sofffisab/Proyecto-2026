@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import * as rewardController from '../../src/controllers/reward.controller.js';
-import { rewardService } from '../../src/services/reward.service.js';
+import * as rewardController from '../../../src/controllers/reward.controller.js';
+import { rewardService } from '../../../src/services/reward.service.js';
 
-vi.mock('../../src/services/reward.service.js');
+vi.mock('../../../src/services/reward.service.js');
 
 describe('RewardController', () => {
   let req, res, next;

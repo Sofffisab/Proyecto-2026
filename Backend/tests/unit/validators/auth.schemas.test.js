@@ -5,7 +5,7 @@ import {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from '../../src/validators/auth.schemas.js';
+} from '../../../src/validators/auth.schemas.js';
 
 describe('Auth Schemas', () => {
   describe('registerSchema', () => {
@@ -13,7 +13,8 @@ describe('Auth Schemas', () => {
       const valid = {
         email: 'test@example.com',
         password: 'SecurePass123!',
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
       const result = registerSchema.safeParse(valid);
@@ -118,7 +119,7 @@ describe('Auth Schemas', () => {
     it('acepta token y password válidos', () => {
       const valid = {
         token: 'reset-token-123',
-        newPassword: 'NewSecurePass123!',
+        password: 'NewSecurePass123!',
       };
 
       const result = resetPasswordSchema.safeParse(valid);

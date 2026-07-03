@@ -7,7 +7,7 @@ export const authorize =
         .json({ success: false, message: "Authentication required" });
     }
 
-    const roles = allowedRoles.flat();
+    const roles = allowedRoles.flat(Infinity);
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: "Forbidden" });
