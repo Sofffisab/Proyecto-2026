@@ -56,3 +56,28 @@ img{
     font-size: 14px;
     color: grey;
 }
+.input-container{
+    position: relative;
+    width: 80%;
+}
+
+.input{
+    width: 100%;
+    height: 57px;
+    padding-right: 40px;
+    padding-left: 27px;
+}
+
+.icono-vacio,
+.icono-check{
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+}
+
+.icono-check{
+    display: none;
+}

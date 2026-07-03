@@ -15,9 +15,30 @@
     <div class="titulo">
         <h1 class="Titulo">Titulo del dia</h1>
         <div class="Einput">
-            <input class="input" id="tituloInput" type="text" maxlength="40">
-            <p class="texto"><span id="cantidad">0</span>/40</p>
-        </div>
+    <div class="input-container">
+        <input class="input" id="tituloInput" type="text" maxlength="40">
+
+        <img class="icono-vacio"
+            src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
+            alt="">
+
+        <img class="icono-check"
+            src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_check-solid.png"
+            alt="">
+    </div>
+
+    <p class="texto"><span id="cantidad">0</span>/40</p>
+</div>
+    </div>
+    <div class="a">
+        <h1>Ejercicios</h1>
+        <img class="icono-vacio"
+              src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
+              alt="">
+
+          <img class="icono-check"
+              src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_check-solid.png"
+              alt="">
     </div>
     
 </body>
@@ -25,10 +46,20 @@
 
 
 <script>
-    const input = document.getElementById("tituloInput");
-    const cantidad = document.getElementById("cantidad");
+  const input = document.getElementById("tituloInput");
+const cantidad = document.getElementById("cantidad");
+const vacio = document.querySelector(".icono-vacio");
+const check = document.querySelector(".icono-check");
 
-    input.addEventListener("input", () => {
+input.addEventListener("input", () => {
     cantidad.textContent = input.value.length;
+
+    if (input.value.trim() !== "") {
+        vacio.style.display = "none";
+        check.style.display = "block";
+    } else {
+        vacio.style.display = "block";
+        check.style.display = "none";
+    }
 });
 </script>
