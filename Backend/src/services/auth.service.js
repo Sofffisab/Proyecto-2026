@@ -19,7 +19,7 @@ export async function register(data) {
   const { email, password, firstName, lastName } = data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
-  if (exists) throw new AppError("Email already in use", 409);
+  if (exists) throw new AppError("Email already in use", 400);
 
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -85,7 +85,7 @@ export async function logout(token) {
       decoded && decoded.exp
         ? Math.max(Math.round(decoded.exp - nowSeconds), 1)
         : ACCESS_TOKEN_TTL_SECONDS;
-    await redis.set(`blacklist:${token}`, "1", { ex: ttl });
+    await redis.setex(`blacklist:${token}`, ttl, "1");
   }
   return { success: true };
 }

@@ -36,7 +36,7 @@ export const authenticate = async (req, res, next) => {
       user = await prisma.user.findUnique({ where: { id: payload.userId } });
 
       if (user && redis) {
-        await redis.set(cacheKey, JSON.stringify(user), { ex: 60 });
+        await redis.setex(cacheKey, 60, JSON.stringify(user));
       }
     }
 

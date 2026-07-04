@@ -1,6 +1,26 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
-import app from '../../src/server.js';
+
+vi.mock('../../src/config/prisma.js', async () => {
+  const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
+  return { default: createE2EPrismaMock() };
+});
+
+vi.mock('../../src/config/redis.js', async () => {
+  const { createE2ERedisMock } = await import('../helpers/e2ePrismaMock.js');
+  return { default: createE2ERedisMock() };
+});
+
+vi.mock('../../src/middlewares/rateLimiter.js', () => {
+  const passthrough = (req, res, next) => next();
+  return {
+    authRateLimiter: passthrough,
+    apiRateLimiter: passthrough,
+    default: { authRateLimiter: passthrough, apiRateLimiter: passthrough },
+  };
+});
+
+const app = (await import('../../src/server.js')).default;
 
 describe('Auth E2E', () => {
   let server;

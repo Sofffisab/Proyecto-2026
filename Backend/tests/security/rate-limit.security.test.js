@@ -8,11 +8,13 @@ process.env.JWT_ACCESS_SECRET = "test-secret";
 vi.mock("../../src/config/prisma.js", () => ({
   default: {
     user: {
-      findUnique: vi.fn().mockResolvedValue({
-        id: "user-1",
-        isActive: true,
-        role: "USER",
-      }),
+      findUnique: vi.fn().mockImplementation(({ where }) =>
+        Promise.resolve({
+          id: where?.id ?? "user-1",
+          isActive: true,
+          role: "USER",
+        })
+      ),
     },
   },
 }));
@@ -21,6 +23,7 @@ vi.mock("../../src/config/redis.js", () => ({
   default: {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn(),
+    setex: vi.fn(),
   },
 }));
 
@@ -109,14 +112,14 @@ describe("Rate Limit Security", () => {
   it("does not rate limit different users together", async () => {
     const token1 = jwt.sign(
       {
-        userId: "user-1",
+        userId: "user-3",
       },
       process.env.JWT_ACCESS_SECRET
     );
 
     const token2 = jwt.sign(
       {
-        userId: "user-2",
+        userId: "user-4",
       },
       process.env.JWT_ACCESS_SECRET
     );

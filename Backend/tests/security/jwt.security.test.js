@@ -24,6 +24,7 @@ vi.mock("../../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),
     set: vi.fn(),
+    setex: vi.fn(),
   },
 }));
 
@@ -51,6 +52,7 @@ describe("JWT Security", () => {
 
     redis.get.mockResolvedValue(null);
     redis.set.mockResolvedValue(null);
+    redis.setex.mockResolvedValue(null);
   });
 
   it("rejects request without Authorization header", async () => {

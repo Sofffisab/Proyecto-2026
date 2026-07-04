@@ -51,7 +51,7 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 // in server.js instead of being swallowed here as a 401. Every prefix
 // below corresponds to a route actually registered further down.
 const PROTECTED_PREFIXES = [
-  "/auth", "/users", "/gym", "/progress", "/goals", "/routines", "/rewards",
+  "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
   "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin",
 ];
@@ -62,6 +62,8 @@ router.post("/auth/logout", authController.logout);
 
 // ── USERS ROUTES ──────────────────────────────────────────────────────────────
 router.get("/users/me",             userController.getMe);
+// Authenticated alias for /users/me
+router.get("/user/profile",         userController.getMe);
 router.put("/users/me",             validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);

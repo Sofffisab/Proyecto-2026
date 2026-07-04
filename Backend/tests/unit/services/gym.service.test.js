@@ -118,9 +118,10 @@ describe("GymService", () => {
       ];
 
       prisma.gymSession.findMany.mockResolvedValue(mockSessions);
-      prisma.assistance.findFirst.mockResolvedValue({
-        completedAt: new Date(Date.now() - 300000),
-      });
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-1", completedAt: new Date(Date.now() - 300000) },
+        { userId: "user-2", completedAt: new Date(Date.now() - 300000) },
+      ]);
 
       const result = await gymService.getPresentUsers();
 
@@ -148,7 +149,7 @@ describe("GymService", () => {
       ];
 
       prisma.gymSession.findMany.mockResolvedValue(mockSessions);
-      prisma.assistance.findFirst.mockResolvedValue(null);
+      prisma.assistance.findMany.mockResolvedValue([]);
 
       await gymService.getPresentUsers();
 
@@ -216,7 +217,7 @@ describe("GymService", () => {
         status: "COMPLETED",
       });
 
-      prisma.trainerRating.findUnique.mockResolvedValue({
+      prisma.trainerRating.findFirst.mockResolvedValue({
         id: "rating-123",
       });
 
@@ -239,7 +240,7 @@ describe("GymService", () => {
       });
 
       // CORRECCIÓN: Aquí simulamos que NO está calificado aún (null), para que no lance la excepción
-      prisma.trainerRating.findUnique.mockResolvedValue(null);
+      prisma.trainerRating.findFirst.mockResolvedValue(null);
       prisma.trainerRating.create.mockResolvedValue({
         id: "rating-123",
         trainerId: "trainer-123",

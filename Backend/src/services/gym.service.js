@@ -3,6 +3,7 @@ import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { emitUserNeedsAttention } from "../realtime/ably.js";
+import { AppError } from "../utils/errors.js";
 
 // Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
 const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
@@ -14,7 +15,7 @@ export async function checkIn(userId) {
   });
 
   if (existing) {
-    throw new Error("User already has an active session. Check out first.");
+    throw new AppError("User already has an active session. Check out first.", 409);
   }
 
   const session = await prisma.gymSession.create({
@@ -38,7 +39,7 @@ export async function checkOut(userId) {
     orderBy: { checkInAt: "desc" },
   });
 
-  if (!session) throw new Error("No active session");
+  if (!session) throw new AppError("No active session", 400);
 
   const checkOutAt = new Date();
   const durationMinutes = Math.round((checkOutAt - session.checkInAt) / 60000);
@@ -148,17 +149,17 @@ export async function getPresentUsers() {
 
 export async function rateTrainer(sessionId, userId, trainerId, rating) {
   if (rating < 1 || rating > 5) {
-    throw new Error("Rating must be between 1 and 5");
+    throw new AppError("Rating must be between 1 and 5", 422);
   }
 
   const session = await prisma.gymSession.findUnique({
     where: { id: sessionId },
   });
 
-  if (!session) throw new Error("Session not found");
-  if (session.userId !== userId) throw new Error("Session does not belong to this user");
+  if (!session) throw new AppError("Session not found", 404);
+  if (session.userId !== userId) throw new AppError("Session does not belong to this user", 403);
   if (!session.checkOutAt) {
-    throw new Error("Session must be completed before rating a trainer");
+    throw new AppError("Session must be completed before rating a trainer", 400);
   }
 
   const validAssistance = await prisma.assistance.findFirst({
@@ -170,7 +171,7 @@ export async function rateTrainer(sessionId, userId, trainerId, rating) {
   });
 
   if (!validAssistance) {
-    throw new Error("No completed assistance found for this trainer");
+    throw new AppError("No completed assistance found for this trainer", 400);
   }
 
   const alreadyRated = await prisma.trainerRating.findFirst({
@@ -178,7 +179,7 @@ export async function rateTrainer(sessionId, userId, trainerId, rating) {
   });
 
   if (alreadyRated) {
-    throw new Error("You have already rated this trainer for this session");
+    throw new AppError("You have already rated this trainer for this session", 409);
   }
 
   const trainerRating = await prisma.trainerRating.create({
