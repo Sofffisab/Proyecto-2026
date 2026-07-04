@@ -59,6 +59,7 @@ router.use(PROTECTED_PREFIXES, authenticate);
 router.use(PROTECTED_PREFIXES, apiRateLimiter);
 
 router.post("/auth/logout", authController.logout);
+router.post("/auth/users",  authorize(["ADMIN"]), validateSchema(authSchemas.createUserByAdminSchema), authController.createUserByAdmin);
 
 // ── USERS ROUTES ──────────────────────────────────────────────────────────────
 router.get("/users/me",             userController.getMe);
@@ -113,8 +114,9 @@ router.patch("/routines/requests/:id/complete", routineController.completeReques
 router.patch("/routines/:id/day/:dayIndex", routineController.completeDay);
 
 // ── REWARDS ROUTES ────────────────────────────────────────────────────────────
+// No catalog / no user choice: rewards are granted automatically by point
+// threshold (see reward.service.js#autoGrantRewards) and shipped by the gym.
 router.get("/rewards",                      rewardController.getAvailableRewards);
-router.post("/rewards/:id/redeem",          rewardController.redeemReward);
 router.get("/rewards/redemptions/me",       rewardController.getUserRedemptions);
 router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardController.getAllRedemptions);
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
@@ -122,7 +124,7 @@ router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardControll
 // ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
-router.get("/gamification/achievements", gamificationController.getAllAchievements);
+// Achievements/leaderboards intentionally removed — not wanted by the product.
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
@@ -133,7 +135,7 @@ router.get("/challenges/:id",               challengeController.getById);
 router.patch("/challenges/:id/join",        challengeController.joinChallenge);
 router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.completeChallengeSchema), challengeController.complete);
 router.patch("/challenges/:id/cancel",      challengeController.cancel);
-router.get("/challenges/:id/leaderboard",   challengeController.getChallengeLeaderboard);
+// Public/challenge leaderboards intentionally removed — not wanted by the product.
 
 // ── ASSISTANCE ROUTES ─────────────────────────────────────────────────────────
 router.post("/assistance/request",          assistanceController.request);
@@ -166,7 +168,7 @@ router.delete("/notifications/:id",        notificationController.deleteNotifica
 router.get("/analytics/me",          analyticsController.getUserAnalytics);
 router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.getGymAnalytics);
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
-router.get("/analytics/leaderboard", analyticsController.getGlobalLeaderboard);
+// Global leaderboard intentionally removed — not wanted by the product.
 router.get("/analytics/me/rank",     analyticsController.getUserRank);
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
 

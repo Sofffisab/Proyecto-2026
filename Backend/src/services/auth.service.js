@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
-import { sendPasswordResetEmail, sendWelcomeEmail } from "./communication.service.js";
+import { sendPasswordResetEmail, sendWelcomeEmail, sendEmail } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
@@ -36,6 +36,50 @@ export async function register(data) {
   const refreshToken = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: "7d" });
 
   return { user: sanitizeUser(user), accessToken, refreshToken };
+}
+
+// Admin creates an account on behalf of a member/trainer. No password is
+// chosen by the admin: we generate a random unusable placeholder hash and
+// immediately issue a "set your password" token (the same mechanism as
+// forgotPassword), then email the person their account + a link to set
+// their password for the first time.
+export async function createUserByAdmin(data) {
+  const { email, firstName, lastName, role = "USER" } = data;
+
+  const exists = await prisma.user.findUnique({ where: { email } });
+  if (exists) throw new AppError("Email already in use", 400);
+
+  const randomPassword = crypto.randomBytes(24).toString("hex");
+  const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+  const setPasswordToken = crypto.randomBytes(32).toString("hex");
+  const setPasswordTokenHash = crypto.createHash("sha256").update(setPasswordToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days to set it up
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      role,
+      passwordResetToken: setPasswordTokenHash,
+      passwordResetExpires: expiresAt,
+    },
+  });
+
+  const setPasswordUrl = `${process.env.FRONTEND_URL}/reset-password?token=${setPasswordToken}`;
+  await sendEmail(
+    email,
+    "Your Gym App account was created",
+    `<h1>Welcome, ${firstName}!</h1>
+     <p>An administrator created an account for you at Gym App.</p>
+     <p><strong>Email:</strong> ${email}</p>
+     <p>Set your password to get started (link valid for 7 days):</p>
+     <a href="${setPasswordUrl}">${setPasswordUrl}</a>`
+  );
+
+  return sanitizeUser(user);
 }
 
 // Fix #1: destructure { email, password } so callers can pass the validated object directly

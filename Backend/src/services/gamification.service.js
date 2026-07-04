@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
 import { createNotification, sendEmail } from "./communication.service.js";
+import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";
 
 export async function addPoints(userId, points, reason) {
@@ -12,10 +13,14 @@ export async function addPoints(userId, points, reason) {
     data: { userId, points, reason },
   });
 
+  // NOTE: automatic achievement unlocking + leaderboards were intentionally
+  // removed — the product no longer wants a catalog the user picks from,
+  // achievement pop-ups, or public rankings. Prizes are granted automatically
+  // by point threshold and shipped by the gym (see reward.service.js).
   try {
-    await checkAndUnlockAchievements(userId);
+    await autoGrantRewards(userId);
   } catch (err) {
-    console.error("[gamification] Failed to check achievements:", err.message);
+    console.error("[gamification] Failed to auto-grant rewards:", err.message);
   }
 
   return transaction;

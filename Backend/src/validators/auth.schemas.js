@@ -9,6 +9,13 @@ export const registerSchema = z.object({
   // Admins assign TRAINER/ADMIN roles via PATCH /users/:id/role.
 });
 
+export const createUserByAdminSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  role: z.enum(["USER", "TRAINER", "ADMIN"]).optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
   password: z.string().min(1),

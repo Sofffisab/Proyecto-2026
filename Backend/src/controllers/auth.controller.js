@@ -9,6 +9,17 @@ export async function register(req, res, next) {
   }
 }
 
+// Admin-only: create a member/trainer/admin account. The person receives an
+// email with their account info and a link to set their own password.
+export async function createUserByAdmin(req, res, next) {
+  try {
+    const user = await authService.createUserByAdmin(req.validatedData);
+    res.status(201).json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function login(req, res, next) {
   try {
     const result = await authService.login(req.validatedData);

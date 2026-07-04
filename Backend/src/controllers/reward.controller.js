@@ -30,15 +30,6 @@ export async function getRewardById(req, res, next) {
   }
 }
 
-export async function redeemReward(req, res, next) {
-  try {
-    const data = await rewardService.generateReward(req.user.id, req.params.id);
-    res.status(201).json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function createReward(req, res, next) {
   try {
     const data = await rewardService.createReward(req.validatedData);

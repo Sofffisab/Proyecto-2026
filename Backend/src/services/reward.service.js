@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { createNotification, sendEmail } from "./communication.service.js";
 
 export async function getAvailableRewards() {
   return prisma.reward.findMany({
@@ -37,36 +38,77 @@ export async function updateReward(id, data) {
   });
 }
 
-export async function generateReward(userId, rewardId) {
-  const reward = await prisma.reward.findUnique({ where: { id: rewardId } });
-  if (!reward) throw new Error("Reward not found");
-  if (!reward.active) throw new Error("Reward is not available");
-
+// Rewards are NOT chosen by the user. The gym decides what prize ships based
+// on the point thresholds it configures (via createReward/updateReward), and
+// the prize is sent automatically — with an email — the moment the user's
+// point balance crosses a threshold they haven't already been granted.
+// This replaces the old "catalog, pick one, redeem" flow on purpose.
+export async function autoGrantRewards(userId) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
     _sum: { points: true },
   });
   const totalPoints = agg._sum.points ?? 0;
 
-  if (totalPoints < reward.pointsCost) {
-    throw new Error(
-      `Not enough points. Required: ${reward.pointsCost}, available: ${totalPoints}`
-    );
+  const alreadyGranted = await prisma.rewardRedemption.findMany({
+    where: { userId },
+    select: { rewardId: true },
+  });
+  const grantedIds = new Set(alreadyGranted.map((r) => r.rewardId));
+
+  const eligible = await prisma.reward.findMany({
+    where: { active: true, pointsCost: { lte: totalPoints } },
+    orderBy: { pointsCost: "asc" },
+  });
+
+  const granted = [];
+  for (const reward of eligible) {
+    if (grantedIds.has(reward.id)) continue;
+
+    const redemption = await prisma.$transaction(async (tx) => {
+      const existing = await tx.rewardRedemption.findFirst({
+        where: { userId, rewardId: reward.id },
+      });
+      if (existing) return null;
+
+      await tx.pointTransaction.create({
+        data: {
+          userId,
+          points: -reward.pointsCost,
+          reason: `Reward earned: ${reward.name}`,
+        },
+      });
+
+      return tx.rewardRedemption.create({
+        data: { userId, rewardId: reward.id, status: "PENDING" },
+      });
+    });
+
+    if (redemption) {
+      granted.push(redemption);
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+      if (user) {
+        createNotification(
+          userId,
+          "You earned a reward! 🎁",
+          `You reached ${reward.pointsCost} points and earned "${reward.name}". The gym will send it to you.`
+        ).catch(() => {});
+        sendEmail(
+          user.email,
+          `You earned a reward: ${reward.name}`,
+          `<h2>Congratulations, ${user.firstName}!</h2>
+           <p>You reached ${reward.pointsCost} points and earned <strong>${reward.name}</strong>.</p>
+           <p>The gym will prepare it and it'll reach you soon — no action needed on your end.</p>`
+        ).catch(() => {});
+      }
+    }
   }
 
-  return prisma.$transaction(async (tx) => {
-    await tx.pointTransaction.create({
-      data: {
-        userId,
-        points: -reward.pointsCost,
-        reason: `Reward redeemed: ${reward.name}`,
-      },
-    });
-
-    return tx.rewardRedemption.create({
-      data: { userId, rewardId, status: "PENDING" },
-    });
-  });
+  return granted;
 }
 
 export async function approveReward(redemptionId, adminId) {
