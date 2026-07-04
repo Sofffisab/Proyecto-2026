@@ -193,15 +193,50 @@ describe("VerificationService", () => {
       expect(result).toBeDefined();
     });
 
-    it("tipo ENTRY_EXIT: devuelve stub fijo (documentar que no tiene lógica real)", async () => {
+    it("tipo ENTRY_EXIT: hace check-in si no hay sesión abierta", async () => {
       const payload = {
         type: "ENTRY_EXIT",
         ts: Date.now(),
       };
 
+      prisma.gymSession.findFirst.mockResolvedValue(null);
+      prisma.gymSession.create.mockResolvedValue({
+        id: "session-1",
+        userId: "user-123",
+        checkInAt: new Date(),
+        checkOutAt: null,
+      });
+
       const result = await verificationService.processScan("user-123", payload);
 
-      expect(result).toEqual({ status: "stub", message: "ENTRY_EXIT not implemented" });
+      expect(result.action).toBe("CHECK_IN");
+      expect(result.session).toBeDefined();
+    });
+
+    it("tipo ENTRY_EXIT: hace check-out si hay una sesión abierta", async () => {
+      const payload = {
+        type: "ENTRY_EXIT",
+        ts: Date.now(),
+      };
+
+      const openSession = {
+        id: "session-1",
+        userId: "user-123",
+        checkInAt: new Date(Date.now() - 60000),
+        checkOutAt: null,
+      };
+
+      prisma.gymSession.findFirst.mockResolvedValue(openSession);
+      prisma.gymSession.update.mockResolvedValue({
+        ...openSession,
+        checkOutAt: new Date(),
+        durationMinutes: 1,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(result.action).toBe("CHECK_OUT");
+      expect(result.session).toBeDefined();
     });
 
     it("tipo desconocido: lanza error 'Unknown QR type'", async () => {

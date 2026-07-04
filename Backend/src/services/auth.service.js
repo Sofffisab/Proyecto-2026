@@ -27,7 +27,7 @@ export async function register(data) {
     data: { email, passwordHash, firstName, lastName, role: "USER" },
   });
 
-  Promise.resolve(sendWelcomeEmail(user.email, user.firstName)).catch((err) =>
+  Promise.resolve(sendWelcomeEmail(user.email, user.firstName, user.id)).catch((err) =>
     console.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
   );
 
@@ -105,7 +105,7 @@ export async function forgotPassword(data) {
     data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
   });
 
-  await sendPasswordResetEmail(user.email, resetToken);
+  await sendPasswordResetEmail(user.email, resetToken, user.id);
 
   return { message: "If email exists, reset link was sent" };
 }

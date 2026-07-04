@@ -95,18 +95,31 @@ describe('CommunicationService', () => {
 
   describe('emails (mock de Resend)', () => {
     it('sendWelcomeEmail arma el HTML esperado', async () => {
-      await communicationService.sendWelcomeEmail('test@example.com', 'John');
+      prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
 
-      expect(prisma.notification.create).toHaveBeenCalled();
+      await communicationService.sendWelcomeEmail('test@example.com', 'John', 'user-1');
+
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'user-1' }),
+        })
+      );
     });
 
     it('sendPasswordResetEmail incluye el resetToken en la URL', async () => {
+      prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
+
       await communicationService.sendPasswordResetEmail(
         'test@example.com',
-        'reset-token-123'
+        'reset-token-123',
+        'user-1'
       );
 
-      expect(prisma.notification.create).toHaveBeenCalled();
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'user-1' }),
+        })
+      );
     });
 
     it('sendEmail propaga errores del proveedor sin romper el proceso llamante', async () => {

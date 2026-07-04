@@ -1,53 +1,5 @@
-import * as noteService from "../services/note.service.js";
 import * as gymService from "../services/gym.service.js";
 
-export async function getNotes(req, res, next) {
-  try {
-    const data = await noteService.getNotes(
-      req.params.id,
-      req.user.id,
-      req.user.role
-    );
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function createNote(req, res, next) {
-  try {
-    const data = await noteService.createNote(
-      req.user.id,
-      req.params.id,
-      req.validatedData.note
-    );
-    res.status(201).json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function updateNote(req, res, next) {
-  try {
-    const data = await noteService.updateNote(
-      req.params.noteId,
-      req.user.id,
-      req.validatedData.note
-    );
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function deleteNote(req, res, next) {
-  try {
-    await noteService.deleteNote(req.params.noteId, req.user.id);
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-}
 export async function checkIn(req, res, next) {
   try {
     const session = await gymService.checkIn(req.user.id);
@@ -90,6 +42,15 @@ export async function getSessionById(req, res, next) {
 export async function presentUsers(req, res, next) {
   try {
     const users = await gymService.getPresentUsers();
+    res.json({ success: true, data: users });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function priorityAssistanceList(req, res, next) {
+  try {
+    const users = await gymService.getPriorityAssistanceList(req.user.id);
     res.json({ success: true, data: users });
   } catch (err) {
     next(err);

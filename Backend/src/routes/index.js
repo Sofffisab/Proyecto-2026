@@ -85,6 +85,7 @@ router.get("/gym/status",           gymController.getGymStatus);
 router.post("/gym/checkin",         gymController.checkIn);
 router.post("/gym/checkout",        gymController.checkOut);
 router.get("/gym/occupancy/live",   cacheResponse(60), gymController.presentUsers);
+router.get("/gym/priority-assistance", authorize(["TRAINER", "ADMIN"]), gymController.priorityAssistanceList);
 router.get("/gym/sessions",         gymController.getSessionHistory);
 router.get("/gym/sessions/:id",     gymController.getSessionById);
 router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { completeChallengeByQR } from "./challenge.service.js";
 import { POINTS } from "../constants/points.js";
 import { addPoints } from "./gamification.service.js";
+import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
 
 // QR tokens expire after this many milliseconds (default: 5 minutes)
 const QR_TTL_MS = parseInt(process.env.USER_QR_TTL_MS ?? "300000", 10);
@@ -128,6 +129,10 @@ export async function processScan(scannerId, rawPayload) {
       }
     }
 
+    // Any machine scan proves the user is still physically in the gym —
+    // cancel a pending auto-checkout if one was scheduled/applied.
+    await reopenSessionIfAutoClosed(scannerId).catch(() => {});
+
     const openUsage = await prisma.machineUsage.findFirst({
       where: { userId: scannerId, machineId, endedAt: null },
       orderBy: { startedAt: "desc" },
@@ -154,6 +159,26 @@ export async function processScan(scannerId, rawPayload) {
       return shapeMachineUsage(updated);
     }
 
+    // Scanning a *different* machine without ending the previous one used to
+    // leave that MachineUsage open forever. Close it out first so every
+    // usage record is properly bounded.
+    const otherOpenUsage = await prisma.machineUsage.findFirst({
+      where: { userId: scannerId, endedAt: null, machineId: { not: machineId } },
+      orderBy: { startedAt: "desc" },
+    });
+
+    if (otherOpenUsage) {
+      const endedAt = new Date();
+      const durationMinutes = Math.max(
+        1,
+        Math.floor((endedAt - new Date(otherOpenUsage.startedAt)) / (1000 * 60))
+      );
+      await prisma.machineUsage.update({
+        where: { id: otherOpenUsage.id },
+        data: { endedAt, durationMinutes },
+      });
+    }
+
     const activeSession = await prisma.gymSession.findFirst({
       where: { userId: scannerId, checkOutAt: null },
       orderBy: { checkInAt: "desc" },
@@ -178,7 +203,18 @@ export async function processScan(scannerId, rawPayload) {
   }
 
   if (type === "ENTRY_EXIT") {
-    return { status: "stub", message: "ENTRY_EXIT not implemented" };
+    const openSession = await prisma.gymSession.findFirst({
+      where: { userId: scannerId, checkOutAt: null },
+      orderBy: { checkInAt: "desc" },
+    });
+
+    if (openSession) {
+      const session = await gymCheckOut(scannerId);
+      return { action: "CHECK_OUT", session };
+    }
+
+    const session = await gymCheckIn(scannerId);
+    return { action: "CHECK_IN", session };
   }
 
   throw new Error(`Unknown QR type: ${type}`);

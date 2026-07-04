@@ -101,38 +101,3 @@ export async function getAssistanceHistory(userId) {
     orderBy: { requestedAt: "desc" },
   });
 }
-// ============================================
-// assistanceService — simplified namespaced API
-// ============================================
-export const assistanceService = {
-  async request(userId, gymUserId) {
-    return prisma.assistance.create({
-      data: { userId, gymUserId, status: "PENDING" },
-    });
-  },
-
-  canAssign(user) {
-    return user?.role === "TRAINER" || user?.role === "ADMIN";
-  },
-
-  async complete(assistanceId) {
-    return prisma.assistance.update({
-      where: { id: assistanceId },
-      data: { status: "COMPLETED", completedAt: new Date() },
-    });
-  },
-
-  async cancel(assistanceId) {
-    const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
-    if (!assistance) throw new Error("Assistance request not found");
-
-    if (assistance.status === "COMPLETED") {
-      throw new Error("Cannot cancel completed assistance");
-    }
-
-    return prisma.assistance.update({
-      where: { id: assistanceId },
-      data: { status: "CANCELLED" },
-    });
-  },
-};

@@ -3,6 +3,9 @@ import { POINTS } from "../constants/points.js";
 import { addPoints } from "./gamification.service.js";
 import { AppError } from "../utils/errors.js";
 
+// Social challenges expire after this long if nobody responds/completes them.
+const CHALLENGE_TTL_HOURS = parseInt(process.env.SOCIAL_CHALLENGE_TTL_HOURS ?? "24", 10);
+
 export async function assignChallenge(userIdA, userIdB, station) {
   if (userIdA === userIdB) {
     throw new AppError("A user cannot challenge themselves", 400);
@@ -45,6 +48,7 @@ export async function assignChallenge(userIdA, userIdB, station) {
       partnerUserId: userIdB,
       station,
       status: "ASSIGNED",
+      expiresAt: new Date(Date.now() + CHALLENGE_TTL_HOURS * 60 * 60 * 1000),
     },
   });
 }
@@ -81,7 +85,11 @@ export async function rejectChallenge(challengeId, callerId) {
     data: { status: "REJECTED" },
   });
 
-  if (previousStatus === "ACCEPTED") {
+  if (previousStatus === "ACCEPTED" && callerId !== challenge.partnerUserId) {
+    // Only the assigner (userId) backing out after the partner already
+    // accepted counts as the partner having "made the effort" — award them
+    // consolation points. If the partner is the one rejecting their own
+    // acceptance, they didn't follow through, so no points are awarded.
     await addPoints(
       challenge.partnerUserId,
       POINTS.SOCIAL_CHALLENGE_ATTEMPTED,

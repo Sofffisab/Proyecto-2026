@@ -43,15 +43,17 @@ describe("GymService", () => {
       });
     });
 
-    it("lanza error si ya hay una sesión abierta", async () => {
-      prisma.gymSession.findFirst.mockResolvedValue({
+    it("si ya hay una sesión abierta, la devuelve sin crear una nueva (tolerancia a doble escaneo)", async () => {
+      const existingSession = {
         id: "session-123",
         checkOutAt: null,
-      });
+      };
+      prisma.gymSession.findFirst.mockResolvedValue(existingSession);
 
-      await expect(gymService.checkIn("user-123")).rejects.toThrow(
-        "User already has an active session"
-      );
+      const result = await gymService.checkIn("user-123");
+
+      expect(result).toEqual(existingSession);
+      expect(prisma.gymSession.create).not.toHaveBeenCalled();
     });
 
     it("llama a addPoints(POINTS.CHECK_IN) sin bloquear el flujo si falla", async () => {
@@ -103,10 +105,13 @@ describe("GymService", () => {
       });
     });
 
-    it("lanza error si no hay sesión activa", async () => {
+    it("no lanza error si no hay sesión activa: devuelve noActiveSession sin contarlo como visita", async () => {
       prisma.gymSession.findFirst.mockResolvedValue(null);
 
-      await expect(gymService.checkOut("user-123")).rejects.toThrow("No active session");
+      const result = await gymService.checkOut("user-123");
+
+      expect(result).toEqual({ noActiveSession: true });
+      expect(prisma.gymSession.update).not.toHaveBeenCalled();
     });
   });
 
@@ -126,10 +131,12 @@ describe("GymService", () => {
       const result = await gymService.getPresentUsers();
 
       expect(result).toHaveLength(2);
-      expect(prisma.gymSession.findMany).toHaveBeenCalledWith({
-        where: { checkOutAt: null },
-        include: expect.any(Object),
-      });
+      expect(prisma.gymSession.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ checkOutAt: null }),
+          include: expect.any(Object),
+        })
+      );
     });
 
     it("ordena por más urgente (más tiempo sin asistencia) y luego por trainerPreference", async () => {

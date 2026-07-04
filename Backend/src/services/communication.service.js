@@ -15,9 +15,9 @@ function getResendClient() {
 // IN-APP NOTIFICATIONS
 // ============================================
 
-export async function createNotification(userId, message) {
+export async function createNotification(userId, title, body = "") {
   return prisma.notification.create({
-    data: { userId, message, read: false },
+    data: { userId, title, body, read: false },
   });
 }
 
@@ -96,10 +96,10 @@ export async function sendEmail(to, subject, html) {
   }
 }
 
-export async function sendWelcomeEmail(email, name) {
-  await prisma.notification.create({
-    data: { userId: email, message: `Welcome ${name}!`, read: false },
-  });
+export async function sendWelcomeEmail(email, name, userId = null) {
+  if (userId) {
+    await createNotification(userId, "Welcome!", `Welcome ${name}!`);
+  }
 
   return sendEmail(
     email,
@@ -108,10 +108,10 @@ export async function sendWelcomeEmail(email, name) {
   );
 }
 
-export async function sendPasswordResetEmail(email, resetToken) {
-  await prisma.notification.create({
-    data: { userId: email, message: "Password reset requested", read: false },
-  });
+export async function sendPasswordResetEmail(email, resetToken, userId = null) {
+  if (userId) {
+    await createNotification(userId, "Password reset requested", "");
+  }
 
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   return sendEmail(

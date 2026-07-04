@@ -3,6 +3,7 @@ import { runAnalyticsJob } from './analytics.job.js';
 import { generateAnnualWrapped } from './wrapped.job.js';
 import { checkInactiveProgress } from './progress.job.js';
 import { processComplaints } from './complaints.job.js';
+import { expireStaleEntities } from './expiration.job.js';
 
 const RETRY_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 2000;
@@ -39,6 +40,7 @@ export async function runJobs() {
   await withRetry('runAnalyticsJob', runAnalyticsJob);
   await withRetry('checkInactiveProgress', checkInactiveProgress);
   await withRetry('processComplaints', processComplaints);
+  await withRetry('expireStaleEntities', expireStaleEntities);
 
   // Run wrapped job on January 1st (only once per year)
   const today = new Date();

@@ -10,12 +10,14 @@ import { runAnalyticsJob } from "../../../src/jobs/analytics.job.js";
 import { checkInactiveProgress } from "../../../src/jobs/progress.job.js";
 import { processComplaints } from "../../../src/jobs/complaints.job.js";
 import { generateAnnualWrapped } from "../../../src/jobs/wrapped.job.js";
+import { expireStaleEntities } from "../../../src/jobs/expiration.job.js";
 
 vi.mock("../../../src/jobs/points.job.js", () => ({ recalculatePoints: vi.fn() }));
 vi.mock("../../../src/jobs/analytics.job.js", () => ({ runAnalyticsJob: vi.fn() }));
 vi.mock("../../../src/jobs/progress.job.js", () => ({ checkInactiveProgress: vi.fn() }));
 vi.mock("../../../src/jobs/complaints.job.js", () => ({ processComplaints: vi.fn() }));
 vi.mock("../../../src/jobs/wrapped.job.js", () => ({ generateAnnualWrapped: vi.fn() }));
+vi.mock("../../../src/jobs/expiration.job.js", () => ({ expireStaleEntities: vi.fn() }));
 
 describe("runJobs", () => {
   beforeEach(() => {
@@ -40,6 +42,7 @@ describe("runJobs", () => {
     expect(runAnalyticsJob).toHaveBeenCalledTimes(1);
     expect(checkInactiveProgress).toHaveBeenCalledTimes(1);
     expect(processComplaints).toHaveBeenCalledTimes(1);
+    expect(expireStaleEntities).toHaveBeenCalledTimes(1);
     expect(generateAnnualWrapped).not.toHaveBeenCalled();
   });
 
