@@ -1,17 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import * as userController from '../../../src/controllers/user.controller.js';
-import { userService } from '../../../src/services/user.service.js';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import * as userController from "../../../src/controllers/user.controller.js";
+import * as userService from "../../../src/services/user.service.js";
 
-vi.mock('../../../src/services/user.service.js');
+vi.mock("../../../src/services/user.service.js");
+vi.mock("../../../src/config/redis.js", () => ({ default: null }));
 
-describe('UserController', () => {
+describe("UserController", () => {
   let req, res, next;
 
   beforeEach(() => {
     req = {
-      user: { id: 'user-1' },
+      user: { id: "user-1", role: "USER" },
       params: {},
       body: {},
+      validatedData: {},
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -21,63 +23,59 @@ describe('UserController', () => {
     vi.clearAllMocks();
   });
 
-  it('getProfile retorna 200 con el perfil del usuario', async () => {
-    const mockProfile = {
-      id: 'user-1',
-      email: 'test@example.com',
-      name: 'Test User',
-    };
+  describe("getMe", () => {
+    it("retorna 200 con el perfil del usuario", async () => {
+      const mockProfile = { id: "user-1", email: "test@example.com" };
+      vi.spyOn(userService, "getById").mockResolvedValue(mockProfile);
 
-    userService.getUserById.mockResolvedValue(mockProfile);
+      await userController.getMe(req, res, next);
 
-    await userController.getProfile(req, res, next);
+      expect(userService.getById).toHaveBeenCalledWith("user-1", "USER");
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockProfile });
+    });
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: true,
-        data: mockProfile,
-      })
-    );
+    it("llama next(err) en error", async () => {
+      const error = new Error("DB Error");
+      vi.spyOn(userService, "getById").mockRejectedValue(error);
+
+      await userController.getMe(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
 
-  it('updateProfile retorna 200 y llama a userService.updateProfile', async () => {
-    req.body = { name: 'New Name' };
+  describe("updateMe", () => {
+    it("actualiza el perfil y llama a userService.update", async () => {
+      req.validatedData = { firstName: "New Name" };
+      const mockUpdated = { id: "user-1", firstName: "New Name" };
+      vi.spyOn(userService, "update").mockResolvedValue(mockUpdated);
 
-    const mockUpdated = {
-      id: 'user-1',
-      name: 'New Name',
-    };
+      await userController.updateMe(req, res, next);
 
-    userService.updateProfile.mockResolvedValue(mockUpdated);
-
-    await userController.updateProfile(req, res, next);
-
-    expect(userService.updateProfile).toHaveBeenCalledWith('user-1', req.body);
-    expect(res.status).toHaveBeenCalledWith(200);
+      expect(userService.update).toHaveBeenCalledWith("user-1", req.validatedData);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUpdated });
+    });
   });
 
-  it('devuelve 500 y llama next(err) en error', async () => {
-    const error = new Error('DB Error');
-    userService.getUserById.mockRejectedValue(error);
+  describe("changePassword", () => {
+    it("valida credenciales antiguas y responde con mensaje de éxito", async () => {
+      req.validatedData = { currentPassword: "old", newPassword: "new" };
+      vi.spyOn(userService, "changePassword").mockResolvedValue(undefined);
 
-    await userController.getProfile(req, res, next);
+      await userController.changePassword(req, res, next);
 
-    expect(next).toHaveBeenCalledWith(error);
-  });
+      expect(userService.changePassword).toHaveBeenCalledWith("user-1", req.validatedData);
+      expect(res.json).toHaveBeenCalledWith({ success: true, message: "Password updated" });
+    });
 
-  it('changePassword valida credenciales antiguas', async () => {
-    req.body = { oldPassword: 'old', newPassword: 'new' };
+    it("llama next(err) si las credenciales son inválidas", async () => {
+      req.validatedData = { currentPassword: "wrong", newPassword: "new" };
+      const error = new Error("Invalid current password");
+      vi.spyOn(userService, "changePassword").mockRejectedValue(error);
 
-    userService.changePassword.mockResolvedValue({ success: true });
+      await userController.changePassword(req, res, next);
 
-    await userController.changePassword(req, res, next);
-
-    expect(userService.changePassword).toHaveBeenCalledWith(
-      'user-1',
-      'old',
-      'new'
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
 });

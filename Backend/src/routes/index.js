@@ -46,8 +46,17 @@ router.post("/auth/refresh-token",   validateSchema(authSchemas.refreshTokenSche
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
 router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas.resetPasswordSchema), authController.resetPassword);
 
-router.use(authenticate);
-router.use(apiRateLimiter);
+// Scoped (not blanket) so that requests to genuinely unmatched routes
+// (e.g. GET /route-that-does-not-exist) fall through to the 404 handler
+// in server.js instead of being swallowed here as a 401. Every prefix
+// below corresponds to a route actually registered further down.
+const PROTECTED_PREFIXES = [
+  "/auth", "/users", "/gym", "/progress", "/goals", "/routines", "/rewards",
+  "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
+  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin",
+];
+router.use(PROTECTED_PREFIXES, authenticate);
+router.use(PROTECTED_PREFIXES, apiRateLimiter);
 
 router.post("/auth/logout", authController.logout);
 
@@ -140,7 +149,6 @@ router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema
 // ── QR MANAGEMENT ROUTES ──────────────────────────────────────────────────────
 router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
-router.get("/qr/gym-access", qrController.getGymQRCodes);
 router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
 router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchemas.createMachineSchema), qrController.createMachine);
 

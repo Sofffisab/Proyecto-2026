@@ -4,6 +4,17 @@ import { authenticate } from "../../../src/middlewares/auth.middleware.js";
 import prisma from "../../../src/config/prisma.js";
 import redis from "../../../src/config/redis.js";
 
+// Mock local explícito para asegurar el rastreo de llamadas de Redis en este entorno unitario
+vi.mock("../../../src/config/redis.js", () => ({
+  default: {
+    get: vi.fn(),
+    set: vi.fn(),
+    setex: vi.fn(() => Promise.resolve("OK")),
+    del: vi.fn(),
+    expire: vi.fn(),
+  },
+}));
+
 describe("authenticate middleware", () => {
   let req, res, next;
 

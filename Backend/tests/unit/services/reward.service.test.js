@@ -7,144 +7,138 @@ describe("RewardService", () => {
     vi.clearAllMocks();
   });
 
-  describe("redeemReward", () => {
+  describe("generateReward", () => {
     it("rechaza si el usuario no tiene puntos suficientes", async () => {
-      const mockUser = { id: "user-123", totalPoints: 50 };
-      const mockReward = { id: "reward-1", cost: 100 };
+      const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
 
-      prisma.user.findUnique.mockResolvedValue(mockUser);
       prisma.reward.findUnique.mockResolvedValue(mockReward);
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 50 } });
 
-      await expect(rewardService.redeemReward("user-123", "reward-1")).rejects.toThrow(
-        "insufficient points"
+      await expect(rewardService.generateReward("user-123", "reward-1")).rejects.toThrow(
+        "Not enough points"
       );
     });
 
-    it("deduce puntos correctamente al canjear", async () => {
-      const mockUser = { id: "user-123", totalPoints: 200 };
-      const mockReward = { id: "reward-1", cost: 100 };
+    it("rechaza si el reward no está activo", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "reward-1", active: false, pointsCost: 100 });
 
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      await expect(rewardService.generateReward("user-123", "reward-1")).rejects.toThrow(
+        "Reward is not available"
+      );
+    });
+
+    it("deduce puntos y crea redemption con estado PENDING", async () => {
+      const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
+
       prisma.reward.findUnique.mockResolvedValue(mockReward);
-      prisma.user.update.mockResolvedValue({
-        id: "user-123",
-        totalPoints: 100,
-      });
-      prisma.redemption.create.mockResolvedValue({
-        id: "redemption-1",
-        userId: "user-123",
-        rewardId: "reward-1",
-        status: "PENDING",
-      });
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 200 } });
 
-      const result = await rewardService.redeemReward("user-123", "reward-1");
+      const mockTx = {
+        pointTransaction: { create: vi.fn().mockResolvedValue({}) },
+        rewardRedemption: {
+          create: vi.fn().mockResolvedValue({
+            id: "redemption-1",
+            userId: "user-123",
+            rewardId: "reward-1",
+            status: "PENDING",
+          }),
+        },
+      };
+      prisma.$transaction.mockImplementation((fn) => fn(mockTx));
+
+      const result = await rewardService.generateReward("user-123", "reward-1");
 
       expect(result.status).toBe("PENDING");
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: "user-123" },
-        data: { totalPoints: 100 },
-      });
-    });
-
-    it("crea registro de redemption con estado inicial", async () => {
-      const mockUser = { id: "user-123", totalPoints: 200 };
-      const mockReward = { id: "reward-1", cost: 100 };
-
-      prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.reward.findUnique.mockResolvedValue(mockReward);
-      prisma.user.update.mockResolvedValue({ totalPoints: 100 });
-      prisma.redemption.create.mockResolvedValue({
-        id: "redemption-1",
-        userId: "user-123",
-        rewardId: "reward-1",
-        status: "PENDING",
-        createdAt: new Date(),
-      });
-
-      const result = await rewardService.redeemReward("user-123", "reward-1");
-
       expect(result.userId).toBe("user-123");
       expect(result.rewardId).toBe("reward-1");
-      expect(prisma.redemption.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: "user-123",
-          rewardId: "reward-1",
-          status: "PENDING",
-        }),
+      expect(mockTx.pointTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: "user-123", points: -100 }),
+      });
+      expect(mockTx.rewardRedemption.create).toHaveBeenCalledWith({
+        data: { userId: "user-123", rewardId: "reward-1", status: "PENDING" },
       });
     });
   });
 
-  describe("updateRedemptionStatus", () => {
-    it("cambia estado válido (PENDING → APPROVED → COMPLETED)", async () => {
-      const mockRedemption = {
-        id: "redemption-1",
-        status: "PENDING",
-        userId: "user-123",
-      };
+  describe("approveReward / rejectReward", () => {
+    it("aprueba una redemption PENDING", async () => {
+      prisma.rewardRedemption.findUnique.mockResolvedValue({ id: "redemption-1", status: "PENDING" });
+      prisma.rewardRedemption.update.mockResolvedValue({ id: "redemption-1", status: "APPROVED" });
 
-      prisma.redemption.findUnique.mockResolvedValue(mockRedemption);
-      prisma.redemption.update.mockResolvedValue({
-        ...mockRedemption,
-        status: "APPROVED",
-      });
-
-      const result = await rewardService.updateRedemptionStatus("redemption-1", "APPROVED");
+      const result = await rewardService.approveReward("redemption-1", "admin-1");
 
       expect(result.status).toBe("APPROVED");
+      expect(prisma.rewardRedemption.update).toHaveBeenCalledWith({
+        where: { id: "redemption-1" },
+        data: expect.objectContaining({ status: "APPROVED", approvedBy: "admin-1" }),
+      });
     });
 
-    it("rechaza transición inválida de estado", async () => {
+    it("rechaza aprobar una redemption que no está PENDING", async () => {
+      prisma.rewardRedemption.findUnique.mockResolvedValue({ id: "redemption-1", status: "APPROVED" });
+
+      await expect(rewardService.approveReward("redemption-1", "admin-1")).rejects.toThrow(
+        "Cannot approve a redemption with status: APPROVED"
+      );
+    });
+
+    it("rechazar una redemption reembolsa los puntos", async () => {
       const mockRedemption = {
         id: "redemption-1",
-        status: "COMPLETED",
+        status: "PENDING",
         userId: "user-123",
+        reward: { pointsCost: 100, name: "Coffee" },
       };
+      prisma.rewardRedemption.findUnique.mockResolvedValue(mockRedemption);
 
-      prisma.redemption.findUnique.mockResolvedValue(mockRedemption);
+      const mockTx = {
+        pointTransaction: { create: vi.fn().mockResolvedValue({}) },
+        rewardRedemption: {
+          update: vi.fn().mockResolvedValue({ id: "redemption-1", status: "REJECTED" }),
+        },
+      };
+      prisma.$transaction.mockImplementation((fn) => fn(mockTx));
 
-      await expect(
-        rewardService.updateRedemptionStatus("redemption-1", "PENDING")
-      ).rejects.toThrow("invalid state transition");
+      const result = await rewardService.rejectReward("redemption-1", "admin-1");
+
+      expect(result.status).toBe("REJECTED");
+      expect(mockTx.pointTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: "user-123", points: 100 }),
+      });
     });
   });
 
-  describe("getRewards", () => {
-    it("lista rewards disponibles con paginación", async () => {
+  describe("getAvailableRewards", () => {
+    it("lista rewards activos ordenados por costo", async () => {
       const mockRewards = [
-        { id: "reward-1", name: "Coffee", cost: 50 },
-        { id: "reward-2", name: "Protein Shake", cost: 100 },
-        { id: "reward-3", name: "Gym Merch", cost: 200 },
+        { id: "reward-1", name: "Coffee", pointsCost: 50 },
+        { id: "reward-2", name: "Protein Shake", pointsCost: 100 },
       ];
-
       prisma.reward.findMany.mockResolvedValue(mockRewards);
 
-      const result = await rewardService.getRewards({ limit: 10, offset: 0 });
+      const result = await rewardService.getAvailableRewards();
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(2);
       expect(prisma.reward.findMany).toHaveBeenCalledWith({
-        where: { available: true },
-        take: 10,
-        skip: 0,
+        where: { active: true },
+        orderBy: { pointsCost: "asc" },
       });
     });
   });
 
-  describe("getRedemptions", () => {
-    it("lista redemptions del usuario con filtro por status", async () => {
-      const mockRedemptions = [
-        { id: "r-1", status: "PENDING", createdAt: new Date() },
-        { id: "r-2", status: "APPROVED", createdAt: new Date() },
-      ];
+  describe("getUserRedemptions", () => {
+    it("lista redemptions del usuario ordenadas por fecha", async () => {
+      const mockRedemptions = [{ id: "r-1", status: "PENDING" }];
+      prisma.rewardRedemption.findMany.mockResolvedValue(mockRedemptions);
 
-      prisma.redemption.findMany.mockResolvedValue(mockRedemptions);
+      const result = await rewardService.getUserRedemptions("user-123");
 
-      const result = await rewardService.getRedemptions("user-123", {
-        status: "PENDING",
-        limit: 10,
+      expect(result).toEqual(mockRedemptions);
+      expect(prisma.rewardRedemption.findMany).toHaveBeenCalledWith({
+        where: { userId: "user-123" },
+        include: { reward: true },
+        orderBy: { createdAt: "desc" },
       });
-
-      expect(result).toBeDefined();
     });
   });
 });

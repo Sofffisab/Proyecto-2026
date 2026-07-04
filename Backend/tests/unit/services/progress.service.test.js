@@ -17,6 +17,7 @@ describe("ProgressService", () => {
         date: new Date(),
       };
 
+      prisma.progressLog.findFirst.mockResolvedValue(null);
       prisma.progressLog.create.mockResolvedValue(mockLog);
 
       const result = await progressService.addProgressLog("user-123", {

@@ -27,7 +27,8 @@ describe('Auth E2E', () => {
         .send({
           email: `test-${Date.now()}@example.com`,
           password: 'SecurePassword123!',
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
         });
 
       expect(response.status).toBe(201);
@@ -48,7 +49,8 @@ describe('Auth E2E', () => {
         .send({
           email,
           password: 'SecurePassword123!',
-          name: 'First User',
+          firstName: 'First',
+          lastName: 'User',
         });
 
       const response = await request(server)
@@ -56,7 +58,8 @@ describe('Auth E2E', () => {
         .send({
           email,
           password: 'SecurePassword123!',
-          name: 'Second User',
+          firstName: 'Second',
+          lastName: 'User',
         });
 
       expect(response.status).toBe(400);
@@ -69,7 +72,8 @@ describe('Auth E2E', () => {
         .send({
           email: `weak-${Date.now()}@example.com`,
           password: '123',
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
         });
 
       expect(response.status).toBe(422);
@@ -87,7 +91,8 @@ describe('Auth E2E', () => {
         .send({
           email: testEmail,
           password: 'SecurePassword123!',
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
         });
     });
 
@@ -139,13 +144,14 @@ describe('Auth E2E', () => {
         .send({
           email: `refresh-${Date.now()}@example.com`,
           password: 'SecurePassword123!',
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
         });
 
       const refreshToken = registerRes.body.data.refreshToken;
 
       const response = await request(server)
-        .post('/auth/refresh')
+        .post('/auth/refresh-token')
         .send({ refreshToken });
 
       expect(response.status).toBe(200);
@@ -155,7 +161,7 @@ describe('Auth E2E', () => {
 
     it('rechaza refresh token inválido', async () => {
       const response = await request(server)
-        .post('/auth/refresh')
+        .post('/auth/refresh-token')
         .send({ refreshToken: 'invalid-token' });
 
       expect(response.status).toBe(401);
@@ -170,7 +176,8 @@ describe('Auth E2E', () => {
         .send({
           email: `logout-${Date.now()}@example.com`,
           password: 'SecurePassword123!',
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
         });
 
       const token = registerRes.body.data.accessToken;

@@ -3,6 +3,13 @@ import crypto from "crypto";
 import * as verificationService from "../../../src/services/verification.service.js";
 import prisma from "../../../src/config/prisma.js";
 
+// Mirrors verificationService's internal signing so tests can build
+// payloads with a real, valid HMAC signature instead of a fake string.
+function signPayload(rest) {
+  const secret = process.env.QR_HMAC_SECRET ?? process.env.JWT_ACCESS_SECRET;
+  return crypto.createHmac("sha256", secret).update(JSON.stringify(rest)).digest("hex");
+}
+
 describe("VerificationService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,12 +62,8 @@ describe("VerificationService", () => {
       const QR_TTL_MS = 5 * 60 * 1000; // 5 minutes
       const oldTimestamp = Date.now() - QR_TTL_MS - 1000; // 1 second past expiry
 
-      const payload = {
-        type: "USER",
-        userId: "user-123",
-        ts: oldTimestamp,
-        signature: "valid_sig",
-      };
+      const rest = { type: "USER", userId: "user-123", ts: oldTimestamp };
+      const payload = { ...rest, signature: signPayload(rest) };
 
       expect(() => verificationService.validateQRPayload(payload)).toThrow(
         "QR expired"
@@ -82,11 +85,8 @@ describe("VerificationService", () => {
 
   describe("processScan", () => {
     it("tipo USER: requiere SocialChallenge ACCEPTED entre scanner y target", async () => {
-      const payload = {
-        type: "USER",
-        userId: "target-user",
-        ts: Date.now(),
-      };
+      const rest = { type: "USER", userId: "target-user", ts: Date.now() };
+      const payload = { ...rest, signature: signPayload(rest) };
 
       prisma.socialChallenge.findFirst.mockResolvedValue(null);
 

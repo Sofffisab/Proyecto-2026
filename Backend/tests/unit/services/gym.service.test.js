@@ -9,6 +9,13 @@ vi.mock("../../../src/services/gamification.service.js");
 vi.mock("../../../src/services/trainerMetrics.service.js");
 vi.mock("../../../src/realtime/ably.js");
 
+prisma.gymSession.findUnique.mockResolvedValue({
+  id: "session-123",
+  userId: "user-123",
+  checkOutAt: new Date(),
+  ratings: [] 
+});
+
 describe("GymService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -170,7 +177,7 @@ describe("GymService", () => {
   describe("rateTrainer", () => {
     it("rechaza rating fuera de 1-5", async () => {
       await expect(
-        gymService.rateTrainer("user-123", "session-123", "trainer-123", 6)
+        gymService.rateTrainer("session-123", "user-123", "trainer-123", 6)
       ).rejects.toThrow("Rating must be between 1 and 5");
     });
 
@@ -181,7 +188,7 @@ describe("GymService", () => {
       });
 
       await expect(
-        gymService.rateTrainer("user-123", "session-123", "trainer-123", 4)
+        gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
       ).rejects.toThrow();
     });
 
@@ -193,7 +200,7 @@ describe("GymService", () => {
       });
 
       await expect(
-        gymService.rateTrainer("user-123", "session-123", "trainer-123", 4)
+        gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
       ).rejects.toThrow();
     });
 
@@ -204,13 +211,19 @@ describe("GymService", () => {
         checkOutAt: new Date(),
       });
 
+      prisma.assistance.findFirst.mockResolvedValue({
+        id: "assistance-123",
+        status: "COMPLETED",
+      });
+
       prisma.trainerRating.findUnique.mockResolvedValue({
         id: "rating-123",
       });
 
+      // CORRECCIÓN: Alineación con el texto exacto lanzado por tu servicio
       await expect(
-        gymService.rateTrainer("user-123", "session-123", "trainer-123", 4)
-      ).rejects.toThrow("Already rated");
+        gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
+      ).rejects.toThrow("You have already rated this trainer for this session");
     });
 
     it("llama a updateTrainerMetrics tras crear el rating", async () => {
@@ -220,6 +233,12 @@ describe("GymService", () => {
         checkOutAt: new Date(),
       });
 
+      prisma.assistance.findFirst.mockResolvedValue({
+        id: "assistance-123",
+        status: "COMPLETED",
+      });
+
+      // CORRECCIÓN: Aquí simulamos que NO está calificado aún (null), para que no lance la excepción
       prisma.trainerRating.findUnique.mockResolvedValue(null);
       prisma.trainerRating.create.mockResolvedValue({
         id: "rating-123",
@@ -229,7 +248,7 @@ describe("GymService", () => {
 
       vi.spyOn(trainerMetricsService, "updateTrainerMetrics").mockResolvedValue(undefined);
 
-      await gymService.rateTrainer("user-123", "session-123", "trainer-123", 4);
+      await gymService.rateTrainer("session-123", "user-123", "trainer-123", 4);
 
       expect(trainerMetricsService.updateTrainerMetrics).toHaveBeenCalledWith("trainer-123");
     });

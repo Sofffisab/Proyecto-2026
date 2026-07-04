@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as gamificationService from "../../../src/services/gamification.service.js";
 import prisma from "../../../src/config/prisma.js";
+import redis from "../../../src/config/redis.js";
 import { POINTS } from "../../../src/constants/points.js";
 
 describe("GamificationService", () => {
@@ -143,7 +144,6 @@ describe("GamificationService", () => {
     });
 
     it("usa cache en Redis si existe", async () => {
-      const redis = require("../../../src/config/redis.js").default;
       redis.get.mockResolvedValue(
         JSON.stringify([
           { userId: "user-1", totalPoints: 5000 },

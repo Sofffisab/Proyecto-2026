@@ -21,7 +21,8 @@ describe('Profile E2E', () => {
       .send({
         email: `profile-${Date.now()}@example.com`,
         password: 'SecurePassword123!',
-        name: 'Profile Test',
+        firstName: 'Profile',
+        lastName: 'Test',
       });
 
     token = registerRes.body.data.accessToken;
@@ -30,7 +31,7 @@ describe('Profile E2E', () => {
 
   it('GET /user/profile retorna perfil del usuario autenticado', async () => {
     const response = await request(server)
-      .get('/user/profile')
+      .get('/users/me')
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
@@ -40,24 +41,25 @@ describe('Profile E2E', () => {
 
   it('PUT /user/profile actualiza perfil', async () => {
     const response = await request(server)
-      .put('/user/profile')
+      .put('/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        name: 'Updated Name',
+        firstName: 'Updated',
+        lastName: 'Name',
         bio: 'New bio',
       });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.name).toBe('Updated Name');
+    expect(response.body.data.firstName).toBe('Updated');
   });
 
   it('POST /user/change-password cambia contraseña', async () => {
     const response = await request(server)
-      .post('/user/change-password')
+      .patch('/users/me/password')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        oldPassword: 'SecurePassword123!',
+        currentPassword: 'SecurePassword123!',
         newPassword: 'NewSecurePassword123!',
       });
 
@@ -76,7 +78,7 @@ describe('Profile E2E', () => {
   });
 
   it('retorna 401 sin token', async () => {
-    const response = await request(server).get('/user/profile');
+    const response = await request(server).get('/users/me');
 
     expect(response.status).toBe(401);
     expect(response.body.success).toBe(false);
@@ -84,7 +86,7 @@ describe('Profile E2E', () => {
 
   it('retorna 401 con token inválido', async () => {
     const response = await request(server)
-      .get('/user/profile')
+      .get('/users/me')
       .set('Authorization', 'Bearer invalid-token');
 
     expect(response.status).toBe(401);

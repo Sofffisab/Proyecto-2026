@@ -1,64 +1,69 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { insightsService } from '../../../src/services/insights.service.js';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as insightsService from "../../../src/services/insights.service.js";
+import prisma from "../../../src/config/prisma.js";
 
-describe('InsightsService', () => {
+describe("InsightsService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('maneja dataset vacío sin lanzar error', async () => {
-    const result = await insightsService.generateInsights([]);
-    expect(result).toBeDefined();
-    expect(Array.isArray(result)).toBe(true);
+  describe("getUserAnalytics", () => {
+    it("maneja dataset vacío sin lanzar error", async () => {
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.machineUsage.findMany.mockResolvedValue([]);
+
+      const result = await insightsService.getUserAnalytics("user-123");
+
+      expect(result).toBeDefined();
+      expect(result.total.sessions).toBe(0);
+      expect(result.total.minutes).toBe(0);
+      expect(result.machineUsage).toEqual({});
+    });
+
+    it("calcula correctamente con un solo registro", async () => {
+      const now = new Date();
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: now, durationMinutes: 45 },
+      ]);
+      prisma.machineUsage.findMany.mockResolvedValue([
+        { machine: { name: "Treadmill" } },
+      ]);
+
+      const result = await insightsService.getUserAnalytics("user-123");
+
+      expect(result.total.sessions).toBe(1);
+      expect(result.total.minutes).toBe(45);
+      expect(result.machineUsage).toEqual({ Treadmill: 1 });
+    });
+
+    it("calcula correctamente con múltiples registros/outliers", async () => {
+      const now = new Date();
+      const oldDate = new Date(now.getFullYear() - 1, 0, 1);
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: now, durationMinutes: 30 },
+        { checkInAt: now, durationMinutes: 500 },
+        { checkInAt: oldDate, durationMinutes: 20 },
+      ]);
+      prisma.machineUsage.findMany.mockResolvedValue([]);
+
+      const result = await insightsService.getUserAnalytics("user-123");
+
+      expect(result.total.sessions).toBe(3);
+      expect(result.total.minutes).toBe(550);
+      // The outdated session shouldn't be counted in the monthly bucket
+      expect(result.monthly.sessions).toBeLessThan(3);
+    });
   });
 
-  it('calcula correctamente con un solo registro', async () => {
-    const data = [
-      {
-        userId: 'user-1',
-        date: new Date(),
-        duration: 60,
-        intensity: 'HIGH',
-      },
-    ];
+  describe("getGymAnalytics", () => {
+    it("retorna totales globales del gimnasio", async () => {
+      prisma.gymSession.count.mockResolvedValue(42);
+      prisma.user.count.mockResolvedValue(10);
 
-    const result = await insightsService.generateInsights(data);
+      const result = await insightsService.getGymAnalytics();
 
-    expect(result).toBeDefined();
-    expect(result.length).toBeGreaterThanOrEqual(0);
-  });
-
-  it('calcula correctamente con múltiples registros/outliers', async () => {
-    const data = [
-      { userId: 'user-1', date: new Date(), duration: 30, intensity: 'LOW' },
-      { userId: 'user-1', date: new Date(), duration: 120, intensity: 'HIGH' },
-      { userId: 'user-1', date: new Date(), duration: 45, intensity: 'MEDIUM' },
-      {
-        userId: 'user-1',
-        date: new Date(),
-        duration: 500,
-        intensity: 'EXTREME',
-      }, // outlier
-    ];
-
-    const result = await insightsService.generateInsights(data);
-
-    expect(result).toBeDefined();
-    expect(Array.isArray(result)).toBe(true);
-  });
-
-  it('aísla errores por usuario en las funciones "ForAll" (no corta el loop)', async () => {
-    const users = [
-      { id: 'user-1', data: [1, 2, 3] },
-      { id: 'user-2', data: null }, // va a causar error
-      { id: 'user-3', data: [4, 5, 6] },
-    ];
-
-    const result = await insightsService.processForAll(users);
-
-    // Debe procesar todos, sin romper por el error en user-2
-    expect(result.length).toBe(3);
-    expect(result.some(r => r.id === 'user-1')).toBe(true);
-    expect(result.some(r => r.id === 'user-3')).toBe(true);
+      expect(result).toEqual({ totalSessions: 42, activeUsers: 10 });
+      expect(prisma.user.count).toHaveBeenCalledWith({ where: { isActive: true } });
+    });
   });
 });

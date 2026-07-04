@@ -85,7 +85,7 @@ export async function logout(token) {
       decoded && decoded.exp
         ? Math.max(Math.round(decoded.exp - nowSeconds), 1)
         : ACCESS_TOKEN_TTL_SECONDS;
-    await redis.setex(`blacklist:${token}`, ttl, "1");
+    await redis.set(`blacklist:${token}`, "1", { ex: ttl });
   }
   return { success: true };
 }

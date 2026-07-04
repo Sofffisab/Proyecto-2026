@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 
-// Importar las funciones de utils/qr.js
-// En un proyecto real estas estarían importadas de ahí
 const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || process.env.JWT_ACCESS_SECRET;
 const QR_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -56,7 +54,8 @@ describe("QR Utils", () => {
     });
 
     it("firma es reproducible con los mismos datos", () => {
-      const data = { userId: "user-123" };
+      const data = { userId: '123', timestamp: 1767225600000 };
+      // CORRECCIÓN: Se generan ambos payloads usando los mismos datos estáticos para comparar firmas
       const payload1 = generateQRPayload("USER", data);
       const payload2 = generateQRPayload("USER", data);
 
@@ -102,7 +101,7 @@ describe("QR Utils", () => {
       const payload = generateQRPayload("MACHINE", { machineId: "machine-123" });
       const isValid = validateQRSignature(payload);
 
-      expect(isValid).toBe(true); // MACHINE no requiere firma
+      expect(isValid).toBe(true); 
     });
   });
 

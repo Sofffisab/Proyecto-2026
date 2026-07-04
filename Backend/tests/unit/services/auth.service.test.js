@@ -7,6 +7,17 @@ import redis from "../../../src/config/redis.js";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../../../src/services/communication.service.js";
 import { AppError } from "../../../src/utils/errors.js";
 
+// Mock local explícito para asegurar el rastreo de llamadas de Redis en este entorno unitario
+vi.mock("../../../src/config/redis.js", () => ({
+  default: {
+    get: vi.fn(),
+    set: vi.fn(),
+    setex: vi.fn(() => Promise.resolve("OK")),
+    del: vi.fn(),
+    expire: vi.fn(),
+  },
+}));
+
 vi.mock("../../../src/services/communication.service.js");
 
 describe("AuthService", () => {

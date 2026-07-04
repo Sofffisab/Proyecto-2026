@@ -12,6 +12,7 @@ describe("GymController", () => {
     req = {
       body: {},
       params: {},
+      validatedData: {},
       user: { id: "user-123" },
     };
     res = {
@@ -22,7 +23,7 @@ describe("GymController", () => {
   });
 
   describe("checkIn", () => {
-    it("devuelve 201 con sesión creada", async () => {
+    it("devuelve la sesión creada", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -34,13 +35,7 @@ describe("GymController", () => {
 
       await gymController.checkIn(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          session: expect.any(Object),
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSession });
     });
 
     it("llama next(err) si ya hay sesión activa", async () => {
@@ -54,7 +49,7 @@ describe("GymController", () => {
   });
 
   describe("checkOut", () => {
-    it("devuelve 200 con sesión cerrada y durationMinutes", async () => {
+    it("devuelve la sesión cerrada con durationMinutes", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -66,15 +61,7 @@ describe("GymController", () => {
 
       await gymController.checkOut(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          session: expect.objectContaining({
-            durationMinutes: 45,
-          }),
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSession });
     });
 
     it("llama next(err) si no hay sesión activa", async () => {
@@ -87,8 +74,8 @@ describe("GymController", () => {
     });
   });
 
-  describe("getPresentUsers", () => {
-    it("devuelve 200 con lista de usuarios presentes", async () => {
+  describe("presentUsers", () => {
+    it("devuelve la lista de usuarios presentes", async () => {
       const mockUsers = [
         { id: "user-1", firstName: "John", minutesWaiting: 15 },
         { id: "user-2", firstName: "Jane", minutesWaiting: 30 },
@@ -96,45 +83,35 @@ describe("GymController", () => {
 
       vi.spyOn(gymService, "getPresentUsers").mockResolvedValue(mockUsers);
 
-      await gymController.getPresentUsers(req, res, next);
+      await gymController.presentUsers(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          users: mockUsers,
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUsers });
     });
   });
 
   describe("rateTrainer", () => {
-    it("devuelve 201 con rating creado", async () => {
-      req.body = { rating: 4 };
-      req.params = { sessionId: "session-123", trainerId: "trainer-123" };
+    it("devuelve el rating creado", async () => {
+      req.params = { id: "session-123" };
+      req.validatedData = { trainerId: "trainer-123", rating: 4 };
 
-      const mockRating = {
-        id: "rating-123",
-        rating: 4,
-        createdAt: new Date(),
-      };
+      const mockRating = { id: "rating-123", rating: 4, createdAt: new Date() };
 
       vi.spyOn(gymService, "rateTrainer").mockResolvedValue(mockRating);
 
       await gymController.rateTrainer(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          rating: expect.any(Object),
-        })
+      expect(gymService.rateTrainer).toHaveBeenCalledWith(
+        "session-123",
+        "user-123",
+        "trainer-123",
+        4
       );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRating });
     });
 
     it("llama next(err) con rating inválido", async () => {
-      req.body = { rating: 6 };
-      req.params = { sessionId: "session-123", trainerId: "trainer-123" };
+      req.params = { id: "session-123" };
+      req.validatedData = { trainerId: "trainer-123", rating: 6 };
 
       const error = new Error("Rating must be between 1 and 5");
       vi.spyOn(gymService, "rateTrainer").mockRejectedValue(error);
@@ -146,9 +123,7 @@ describe("GymController", () => {
   });
 
   describe("getSessionHistory", () => {
-    it("devuelve 200 con historial paginado", async () => {
-      req.query = { limit: "10", offset: "0" };
-
+    it("devuelve el historial de sesiones", async () => {
       const mockSessions = [
         { id: "session-1", checkInAt: new Date(), durationMinutes: 30 },
         { id: "session-2", checkInAt: new Date(), durationMinutes: 45 },
@@ -158,13 +133,7 @@ describe("GymController", () => {
 
       await gymController.getSessionHistory(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          sessions: mockSessions,
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSessions });
     });
   });
 });
