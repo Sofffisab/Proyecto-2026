@@ -1,5 +1,5 @@
 import { getGymAnalytics } from "../services/insights.service.js";
-import { runPatternAnalysisForAll } from "../services/patternAnalysis.service.js";
+import { runPatternAnalysisForAll } from "../services/behaviorAnalysis.service.js";
 
 /**
  * Runs the daily analytics snapshot.

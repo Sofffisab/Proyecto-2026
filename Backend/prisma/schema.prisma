@@ -145,10 +145,42 @@ model User {
   reviewedRequests     PointReviewRequest[] @relation("ReviewRequestReviewer")
   notifications        Notification[]
   wrappeds             Wrapped[]
+  behaviorProfile      UserBehaviorProfile?
 
   @@index([email])
   @@index([role])
   @@index([isActive])
+}
+
+// Cached output of the behavior-pattern learning engine (see
+// behaviorAnalysis.service.js). Recomputed periodically by the analytics
+// cron job so that reads (dashboard, difficulty/points engine) are cheap
+// and don't re-scan the user's whole session history on every request.
+model UserBehaviorProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  sessionCount        Int      @default(0)
+  // Per-weekday frequency + share of total sessions, e.g.
+  // [{ day: 1, name: "Monday", count: 12, share: 0.35 }, ...]
+  frequentDays        Json?
+  // Most common check-in hour (0-23), null if not enough data.
+  preferredHour       Int?
+  // Most used machines, e.g. [{ name: "Treadmill", count: 20 }, ...]
+  topMachines         Json?
+  // Detected recurring routines: groups of sessions that repeat the same
+  // (or near-identical) set of machines, e.g.
+  // [{ signature: ["Treadmill","Bench Press"], occurrences: 8, lastSeenAt }]
+  routines            Json?
+  // 0 (very irregular) .. 1 (perfectly regular) based on how consistent the
+  // gaps between sessions are relative to the user's own average cadence.
+  consistencyScore    Float?
+  avgSessionsPerWeek  Float?
+  calculatedAt        DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model UserSettings {

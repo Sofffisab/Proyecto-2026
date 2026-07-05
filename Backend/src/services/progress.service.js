@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
-import { POINTS, DIFFICULTY_MULTIPLIERS } from "../constants/points.js";
+import { computeProgressPoints } from "./scoringEngine.service.js";
 
 export async function addProgress(userId, goalId, value) {
   const goal = await prisma.goal.findUnique({ where: { id: goalId } });
@@ -9,6 +9,10 @@ export async function addProgress(userId, goalId, value) {
   if (goal.userId !== userId) {
     throw new Error("Forbidden: goal does not belong to this user");
   }
+
+  const previousPercent = goal.targetValue > 0
+    ? (goal.currentValue / goal.targetValue) * 100
+    : 0;
 
   const newValue = goal.currentValue + value;
   const progressPercent = goal.targetValue > 0
@@ -24,12 +28,19 @@ export async function addProgress(userId, goalId, value) {
     data: { userId, goalId, value, progressPercent },
   });
 
-  const multiplier = DIFFICULTY_MULTIPLIERS[goal.difficulty] ?? 1.0;
-  const pointsToAward = Math.round(POINTS.PROGRESS_UPDATE * multiplier);
+  // Points now depend on: how much % this update covered, the standardized
+  // difficulty for this goal type/action/target, and the user's personal
+  // behavior pattern — see scoringEngine.service.js.
+  const { points: pointsToAward, breakdown } = await computeProgressPoints(userId, goal, {
+    previousPercent,
+    newPercent: progressPercent,
+  });
 
-  addPoints(userId, pointsToAward, `Progress update (${goal.difficulty} difficulty)`).catch(
-    (err) => console.error("[progress] Failed to award points:", err.message)
-  );
+  addPoints(
+    userId,
+    pointsToAward,
+    `Progress update (${goal.type}/${goal.action}, difficulty x${breakdown.difficultyScore}, +${breakdown.deltaPercent}%)`
+  ).catch((err) => console.error("[progress] Failed to award points:", err.message));
 
   return entry;
 }

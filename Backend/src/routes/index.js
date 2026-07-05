@@ -192,6 +192,7 @@ router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.g
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
 // Global leaderboard intentionally removed — not wanted by the product.
 router.get("/analytics/me/rank",     analyticsController.getUserRank);
+router.get("/analytics/patterns",    analyticsController.getUserPatterns);
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
 
 // ── TRAINER NOTES ROUTES ──────────────────────────────────────────────────────

@@ -17,6 +17,16 @@ export const POINTS = {
 
   PROGRESS_UPDATE: 20,
 
+  // Total points "budget" for taking a goal from 0% to 100% progress, before
+  // the standardized-difficulty and personal-case multipliers are applied.
+  // Each progress update earns a slice of this budget proportional to how
+  // much percentage it actually contributed (see scoringEngine.service.js).
+  GOAL_COMPLETION_BASE: 200,
+
+  // One-time bonus awarded the moment a goal crosses 100% for the first time,
+  // on top of whatever slice of GOAL_COMPLETION_BASE the update itself earned.
+  GOAL_FULLY_COMPLETED_BONUS: 50,
+
   SOCIAL_CHALLENGE_COMPLETED: 30,
 
   SOCIAL_CHALLENGE_ATTEMPTED: 10,

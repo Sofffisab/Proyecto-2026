@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runAnalyticsJob } from "../../../src/jobs/analytics.job.js";
 import { getGymAnalytics } from "../../../src/services/insights.service.js";
-import { runPatternAnalysisForAll } from "../../../src/services/patternAnalysis.service.js";
+import { runPatternAnalysisForAll } from "../../../src/services/behaviorAnalysis.service.js";
 
 vi.mock("../../../src/services/insights.service.js", () => ({
   getGymAnalytics: vi.fn(),
 }));
 
-vi.mock("../../../src/services/patternAnalysis.service.js", () => ({
+vi.mock("../../../src/services/behaviorAnalysis.service.js", () => ({
   runPatternAnalysisForAll: vi.fn(),
 }));
 
