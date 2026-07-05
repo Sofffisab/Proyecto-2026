@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import * as gymService from "../services/gym.service.js";
 
 /**
  * Receives a batch of offline-queued actions and processes them in order.
@@ -43,11 +44,18 @@ export async function syncOfflineActions(req, res, next) {
         let result = null;
 
         if (action.type === "checkin") {
-          result = await prisma.gymSession.create({
-            data: {
-              userId: req.user.id,
-              checkInAt: new Date(action.timestamp),
-            },
+          // IMPORTANT: go through gymService.checkIn instead of writing the
+          // GymSession row directly. A raw prisma.create here used to skip
+          // points awarding AND the real-time "student needs attention"
+          // trainer alert (notifyAbandoningTrainersOnCheckIn) — meaning a
+          // check-in synced late from an offline queue would silently never
+          // notify a trainer, even though the student may be on the floor
+          // right now. gymService.checkIn always alerts using the current
+          // moment (alertNow, default true) regardless of how old the
+          // synced checkInAt timestamp is, since that's what real-time
+          // attention requires.
+          result = await gymService.checkIn(req.user.id, {
+            checkInAt: new Date(action.timestamp),
           });
         } else if (action.type === "checkout") {
           const session = await prisma.gymSession.findFirst({

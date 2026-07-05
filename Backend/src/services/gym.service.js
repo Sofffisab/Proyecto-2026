@@ -13,7 +13,12 @@ const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MIN
 // last assisted this specific student (or they've never assisted them at all).
 const ABANDONMENT_ALERT_THRESHOLD_DAYS = parseInt(process.env.ABANDONMENT_ALERT_THRESHOLD_DAYS ?? "14", 10);
 
-export async function checkIn(userId) {
+export async function checkIn(userId, options = {}) {
+  // `checkInAt` lets callers (e.g. offline sync) record the real moment the
+  // check-in happened, while the trainer alert below always uses "now"
+  // (unless explicitly disabled) — see the comment further down.
+  const { checkInAt: requestedCheckInAt, alertNow = true } = options;
+
   // Real-world tolerance: if the user already has an open session (e.g. they
   // scanned the entry QR twice by accident), don't block them — just return
   // the existing session instead of treating it as an error. The first scan
@@ -27,10 +32,12 @@ export async function checkIn(userId) {
     return existing;
   }
 
+  const checkInAt = requestedCheckInAt ?? new Date();
+
   const session = await prisma.gymSession.create({
     data: {
       userId,
-      checkInAt: new Date(),
+      checkInAt,
     },
   });
 
@@ -41,11 +48,43 @@ export async function checkIn(userId) {
 
   // Alert trainer(s) who haven't helped this student in a long time that
   // they just walked in (non-blocking — never delay the check-in response).
-  notifyAbandoningTrainersOnCheckIn(userId, session.checkInAt).catch((err) =>
-    console.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
-  );
+  // The alert always uses "now" (unless explicitly disabled) since the whole
+  // point is real-time attention: even a check-in synced late from offline
+  // storage means the student may currently be on the floor right now.
+  if (alertNow) {
+    notifyAbandoningTrainersOnCheckIn(userId, new Date()).catch((err) =>
+      console.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
+    );
+  }
 
   return session;
+}
+
+/**
+ * Resolves a human-readable description of where a student currently is in
+ * the gym, for trainer-facing real-time alerts. Prefers the machine/zone of
+ * their most recent still-active MachineUsage; falls back to a generic
+ * "just checked in" location if they haven't started using a machine yet.
+ */
+export async function getUserCurrentLocation(userId) {
+  const activeUsage = await prisma.machineUsage.findFirst({
+    where: { userId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+    include: { machine: true },
+  });
+
+  if (activeUsage?.machine) {
+    return activeUsage.machine.zone
+      ? `${activeUsage.machine.zone} (${activeUsage.machine.name})`
+      : activeUsage.machine.name;
+  }
+
+  const activeSession = await prisma.gymSession.findFirst({
+    where: { userId, checkOutAt: null },
+    orderBy: { checkInAt: "desc" },
+  });
+
+  return activeSession ? "entrada del gimnasio (recién ingresó)" : "ubicación desconocida";
 }
 
 /**
@@ -100,9 +139,15 @@ async function notifyAbandoningTrainersOnCheckIn(userId, checkInAt) {
     const shouldAlert = daysSinceLastAssistance == null || daysSinceLastAssistance >= ABANDONMENT_ALERT_THRESHOLD_DAYS;
     if (!shouldAlert) continue;
 
+    // Resolved fresh per trainer/alert since a little time may pass between
+    // check-in and this loop running; the trainer needs where the student
+    // IS right now, not where they were when the loop started.
+    const location = await getUserCurrentLocation(userId);
+
     await notifyTrainerOfReturningStudent(trainerId, student, {
       checkInAt,
       daysSinceLastAssistance,
+      location,
     });
   }
 }

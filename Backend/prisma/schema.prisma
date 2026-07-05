@@ -233,6 +233,7 @@ model GymSession {
 model Machine {
   id               String   @id @default(uuid())
   name             String
+  zone             String?  // Physical area/station in the gym (e.g. "Zona de pesas", "Cardio 2") — used to tell a trainer where a student is standing.
   qrToken          String   @unique
   qrTokenUpdatedAt DateTime @default(now())
   active           Boolean  @default(true)
@@ -316,6 +317,7 @@ model Routine {
   userId    String
   name      String?
   isCustom  Boolean  @default(false)
+  source    String   @default("MANUAL") // MANUAL | AI_SUGGESTED — where the routine came from
   content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

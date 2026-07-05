@@ -132,17 +132,45 @@ export async function sendProgressEmail(email, message) {
  * trainer) just checked into the gym. Includes where the student currently
  * is so the trainer can go find them.
  */
-export async function notifyTrainerOfReturningStudent(trainerId, student, { checkInAt, daysSinceLastAssistance }) {
+export async function notifyTrainerOfReturningStudent(
+  trainerId,
+  student,
+  { checkInAt, daysSinceLastAssistance, location }
+) {
   const studentName = `${student.firstName} ${student.lastName}`.trim();
-  const location = "on the gym floor (just checked in)";
+  // Fall back only if the caller genuinely couldn't resolve a location —
+  // the whole point of this alert is telling the trainer where to go.
+  const resolvedLocation = location || "ubicación desconocida";
 
-  const title = "A student needs your attention";
+  const title = "Un alumno necesita tu atención";
   const body =
     daysSinceLastAssistance == null
-      ? `${studentName} just checked in and you haven't assisted them yet. They're ${location}.`
-      : `${studentName} just checked in — it's been ${daysSinceLastAssistance} day(s) since you last helped them. They're ${location}.`;
+      ? `${studentName} acaba de entrar al gimnasio y todavía no lo/la ayudaste. Está en: ${resolvedLocation}.`
+      : `${studentName} acaba de entrar al gimnasio — hace ${daysSinceLastAssistance} día(s) que no lo/la ayudás. Está en: ${resolvedLocation}.`;
 
-  return createNotification(trainerId, title, body);
+  const notification = await createNotification(trainerId, title, body);
+
+  // Real-time push so the trainer sees it immediately (not on their next
+  // poll) — critical since the whole point is acting on it while the
+  // student is still on the floor.
+  try {
+    const { emitNotificationEvent } = await import("../realtime/ably.js");
+    emitNotificationEvent({
+      notificationId: notification.id,
+      userId: trainerId,
+      title,
+      body,
+      studentId: student.id,
+      location: resolvedLocation,
+      checkInAt,
+      daysSinceLastAssistance,
+      type: "STUDENT_ABANDONMENT_ALERT",
+    });
+  } catch (err) {
+    console.error("[communication.service] Failed to emit realtime notification:", err.message);
+  }
+
+  return notification;
 }
 
 // ============================================

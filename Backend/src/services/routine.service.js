@@ -2,6 +2,12 @@ import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { AppError } from "../utils/errors.js";
+import { getUserBehaviorProfile } from "./behaviorAnalysis.service.js";
+import { createNotification } from "./communication.service.js";
+
+// A detected pattern needs at least this many occurrences before we're
+// confident enough to actively propose it as a ready-made routine.
+const MIN_OCCURRENCES_FOR_SUGGESTION = 3;
 
 export async function createRoutine(userId, data) {
   const { name, content, isCustom } = data;
@@ -173,4 +179,119 @@ export async function completeRoutineRequest(requestId, callerId) {
     where: { id: requestId },
     data: { status: "COMPLETED" },
   });
+}
+
+/**
+ * Builds a ready-to-accept routine proposal from the user's learned training
+ * patterns (see behaviorAnalysis.service.js). This is the "AI" behind the
+ * suggested-routines feature: it looks at the machine-signature the user
+ * already repeats most often and turns it into routine content, instead of
+ * asking the user to build one from scratch.
+ *
+ * Returns `{ available: false, reason }` when there isn't enough history yet
+ * to responsibly suggest anything.
+ */
+export async function getPatternSuggestion(userId) {
+  const profile = await getUserBehaviorProfile(userId);
+
+  const topRoutine = (profile.routines ?? [])
+    .filter((r) => r.occurrences >= MIN_OCCURRENCES_FOR_SUGGESTION)
+    .sort((a, b) => b.occurrences - a.occurrences)[0];
+
+  // Fall back to the user's overall top machines if no repeating signature
+  // has been detected yet, as long as there's at least some history —
+  // better than offering nothing, but clearly marked as a lighter-weight guess.
+  const machines = topRoutine?.signature ?? (profile.topMachines ?? []).map((m) => m.name);
+
+  if (machines.length === 0) {
+    return {
+      available: false,
+      reason: "Todavía no hay suficiente historial de entrenamiento para sugerir una rutina.",
+    };
+  }
+
+  const dayLabel = profile.frequentDays?.[0]?.name ?? null;
+  const name = topRoutine
+    ? `Rutina sugerida${dayLabel ? ` de ${dayLabel}` : ""}`
+    : "Rutina sugerida (según tus máquinas más usadas)";
+
+  const content = {
+    exercises: machines.map((machineName) => ({ machine: machineName })),
+    basedOn: topRoutine
+      ? { type: "RECURRING_PATTERN", occurrences: topRoutine.occurrences }
+      : { type: "TOP_MACHINES" },
+  };
+
+  return {
+    available: true,
+    type: "AI_SUGGESTED_ROUTINE",
+    name,
+    content,
+  };
+}
+
+/**
+ * Saves an AI-suggested routine into the user's own routine list (so it
+ * shows up next to their other saved routines / "Rutina Libre" on the home
+ * screen). If the client doesn't re-send the exact suggestion payload, we
+ * recompute it fresh rather than trusting an unrelated body.
+ */
+export async function acceptPatternSuggestion(userId, override = {}) {
+  let { name, content } = override;
+
+  if (!content) {
+    const suggestion = await getPatternSuggestion(userId);
+    if (!suggestion.available) {
+      throw new AppError(suggestion.reason ?? "No suggestion available to accept", 400);
+    }
+    name = name ?? suggestion.name;
+    content = suggestion.content;
+  }
+
+  const routine = await prisma.routine.create({
+    data: {
+      userId,
+      name: name ?? "Rutina sugerida",
+      content,
+      isCustom: false,
+      source: "AI_SUGGESTED",
+    },
+  });
+
+  return routine;
+}
+
+/**
+ * Records that the user declined the suggested routine. This doesn't delete
+ * anything (nothing was saved yet) — it just lets the app avoid nagging the
+ * same user with the same suggestion again right away.
+ */
+export async function rejectPatternSuggestion(userId) {
+  await createNotification(
+    userId,
+    "Sugerencia descartada",
+    "Podés seguir usando tus rutinas guardadas o crear una nueva cuando quieras."
+  ).catch(() => {});
+
+  return { rejected: true };
+}
+
+/**
+ * What the home screen shows the user to pick "which routine today":
+ * every routine they've saved (manual or previously-accepted AI ones), the
+ * always-available "Rutina Libre" (free-form, no fixed plan) option, and —
+ * if their pattern history supports it — a fresh AI suggestion they can
+ * accept or reject on the spot.
+ */
+export async function getTodayOptions(userId) {
+  const [routines, suggestion] = await Promise.all([
+    getRoutines(userId),
+    getPatternSuggestion(userId),
+  ]);
+
+  return {
+    routines,
+    freeRoutine: { id: "FREE_ROUTINE", name: "Rutina Libre", isFreeRoutine: true },
+    suggestion: suggestion.available ? suggestion : null,
+  };
 }

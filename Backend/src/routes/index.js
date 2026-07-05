@@ -121,6 +121,10 @@ router.put("/progress/:id",         validateSchema(progressSchemas.updateProgres
 router.post("/routines",                    validateSchema(progressSchemas.createRoutineSchema), routineController.create);
 router.get("/routines",                     routineController.getAll);
 router.get("/routines/suggestion",          routineController.getSuggestion);
+router.get("/routines/today",               routineController.getToday);
+router.get("/routines/suggestions/patterns",  routineController.getPatternSuggestion);
+router.post("/routines/suggestions/accept",   validateSchema(progressSchemas.acceptRoutineSuggestionSchema), routineController.acceptPatternSuggestion);
+router.post("/routines/suggestions/reject",   routineController.rejectPatternSuggestion);
 router.get("/routines/:id",                 routineController.getById);
 router.put("/routines/:id",                 validateSchema(progressSchemas.updateRoutineSchema), routineController.update);
 router.delete("/routines/:id",              routineController.remove);

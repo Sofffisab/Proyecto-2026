@@ -38,6 +38,16 @@ export const updateRoutineSchema = z.object({
   content: z.record(z.unknown()).optional(),
 });
 
+// Accepting an AI-suggested routine: the client normally just echoes back
+// what /routines/suggestions/patterns returned, but we allow overriding the
+// name/content in case the user tweaked it before accepting. If omitted,
+// the server recomputes the suggestion fresh from the user's current
+// behavior profile.
+export const acceptRoutineSuggestionSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  content: z.record(z.unknown()).optional(),
+});
+
 // ── Rewards ──────────────────────────────────────────────────────────────────
 
 export const createRewardSchema = z.object({

@@ -113,3 +113,39 @@ export async function getSuggestion(req, res, next) {
     next(err);
   }
 }
+
+export async function getPatternSuggestion(req, res, next) {
+  try {
+    const data = await routineService.getPatternSuggestion(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function acceptPatternSuggestion(req, res, next) {
+  try {
+    const data = await routineService.acceptPatternSuggestion(req.user.id, req.validatedData ?? {});
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectPatternSuggestion(req, res, next) {
+  try {
+    const data = await routineService.rejectPatternSuggestion(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getToday(req, res, next) {
+  try {
+    const data = await routineService.getTodayOptions(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
