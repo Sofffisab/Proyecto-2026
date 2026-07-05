@@ -3,9 +3,11 @@ import prisma from "../config/prisma.js";
 export async function getNotes(targetUserId, callerId, callerRole) {
   const where = { userId: targetUserId };
 
-  // Trainers see only their own notes; admins see all notes for the user
+  // Admins see every note. A trainer sees their own notes (public or
+  // private) plus any PUBLIC note another trainer left on this user —
+  // PRIVATE notes stay visible only to the trainer who wrote them.
   if (callerRole === "TRAINER") {
-    where.trainerId = callerId;
+    where.OR = [{ trainerId: callerId }, { visibility: "PUBLIC" }];
   }
 
   return prisma.trainerNote.findMany({
@@ -17,14 +19,14 @@ export async function getNotes(targetUserId, callerId, callerRole) {
   });
 }
 
-export async function createNote(trainerId, targetUserId, note) {
+export async function createNote(trainerId, targetUserId, note, visibility = "PRIVATE") {
   // Verify the target user exists before creating a note.
   // Prevents notes from being created for arbitrary/non-existent UUIDs.
   const target = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!target) throw new Error("User not found");
 
   return prisma.trainerNote.create({
-    data: { trainerId, userId: targetUserId, note },
+    data: { trainerId, userId: targetUserId, note, visibility: visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE" },
   });
 }
 
@@ -46,35 +48,4 @@ export async function deleteNote(noteId, trainerId) {
 
   return prisma.trainerNote.delete({ where: { id: noteId } });
 }
-// ============================================
-// noteService — simplified namespaced API
-// (kept alongside the named exports above for callers that prefer it)
-// ============================================
-export const noteService = {
-  async create(trainerId, userId, content) {
-    return prisma.note.create({ data: { trainerId, userId, content } });
-  },
 
-  async update(noteId, trainerId, content) {
-    const existing = await prisma.note.findUnique({ where: { id: noteId } });
-    if (!existing) throw new Error("Note not found");
-    if (existing.trainerId !== trainerId) throw new Error("Forbidden");
-
-    return prisma.note.update({ where: { id: noteId }, data: { content } });
-  },
-
-  async delete(noteId, trainerId) {
-    const existing = await prisma.note.findUnique({ where: { id: noteId } });
-    if (!existing) throw new Error("Note not found");
-    if (existing.trainerId !== trainerId) throw new Error("Forbidden");
-
-    return prisma.note.delete({ where: { id: noteId } });
-  },
-
-  async getNotes(userId) {
-    return prisma.note.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
-  },
-};

@@ -4,6 +4,7 @@ import { authorize } from "../middlewares/role.middleware.js";
 import { authRateLimiter, apiRateLimiter } from "../middlewares/rateLimiter.js";
 import { cacheResponse } from "../middlewares/cache.middleware.js";
 import { runJobs } from "../jobs/index.js";
+import { rotateMachineQRCodes } from "../jobs/qr.job.js";
 
 import * as authController         from "../controllers/auth.controller.js";
 import * as userController         from "../controllers/user.controller.js";
@@ -38,6 +39,24 @@ router.post("/cron/jobs", (req, res, next) => {
   }
   next();
 }, runJobs);
+
+// Separate cron trigger because it runs on its own schedule (noon) instead
+// of the main nightly job batch — see vercel.json "crons".
+router.post("/cron/qr-rotate", (req, res, next) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  next();
+}, async (req, res, next) => {
+  try {
+    await rotateMachineQRCodes();
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ── PUBLIC / AUTH ROUTES ──────────────────────────────────────────────────────
 router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema), authController.register);
@@ -156,6 +175,8 @@ router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
 router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchemas.createMachineSchema), qrController.createMachine);
+router.patch("/qr/machines/:id/regenerate", authorize(["ADMIN", "TRAINER"]), qrController.regenerateMachine);
+router.delete("/qr/machines/:id",           authorize(["ADMIN"]), qrController.deactivateMachine);
 
 // ── NOTIFICATIONS ROUTES ──────────────────────────────────────────────────────
 router.get("/notifications",               notificationController.getNotifications);

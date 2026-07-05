@@ -34,35 +34,14 @@ describe("RewardController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRewards });
   });
 
-  it("redeemReward rechaza si no hay puntos suficientes", async () => {
-    req.params = { id: "reward-1" };
-
-    vi.spyOn(rewardService, "generateReward").mockRejectedValue(
-      new Error("Not enough points. Required: 100, available: 50")
-    );
-
-    await rewardController.redeemReward(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-  });
-
-  it("redeemReward retorna 201 y crea redemption", async () => {
-    req.params = { id: "reward-1" };
-
-    const mockRedemption = {
-      id: "redemption-1",
-      userId: "user-1",
-      rewardId: "reward-1",
-      status: "PENDING",
-    };
-
-    vi.spyOn(rewardService, "generateReward").mockResolvedValue(mockRedemption);
-
-    await rewardController.redeemReward(req, res, next);
-
-    expect(rewardService.generateReward).toHaveBeenCalledWith("user-1", "reward-1");
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRedemption });
+  it("getUserRedemptions retorna 200 con las redemptions del usuario", async () => {
+    const mockRedemptions = [
+      { id: "redemption-1", userId: "user-1", rewardId: "reward-1", status: "PENDING" },
+    ];
+    vi.spyOn(rewardService, "getUserRedemptions").mockResolvedValue(mockRedemptions);
+    await rewardController.getUserRedemptions(req, res, next);
+    expect(rewardService.getUserRedemptions).toHaveBeenCalledWith("user-1");
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRedemptions });
   });
 
   it("updateRedemptionStatus rechaza un status desconocido con 400", async () => {

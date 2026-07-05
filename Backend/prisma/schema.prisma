@@ -69,6 +69,11 @@ enum SocialChallengeStatus {
   EXPIRED
 }
 
+enum TrainerNoteVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 enum ComplaintStatus {
   PENDING
   APPROVED
@@ -229,12 +234,13 @@ model Assistance {
 }
 
 model TrainerNote {
-  id        String   @id @default(uuid())
-  trainerId String
-  userId    String
-  note      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String                @id @default(uuid())
+  trainerId  String
+  userId     String
+  note       String
+  visibility TrainerNoteVisibility @default(PRIVATE)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
 
   trainer   User @relation("TrainerNotesAuthor", fields: [trainerId], references: [id], onDelete: Cascade)
   user      User @relation("TrainerNotesUser",   fields: [userId],    references: [id], onDelete: Cascade)

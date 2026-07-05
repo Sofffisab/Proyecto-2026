@@ -42,6 +42,7 @@ export const gymCheckinSchema = z.object({}).optional();
 
 export const createNoteSchema = z.object({
   note: z.string().trim().min(1).max(2000),
+  visibility: z.enum(["PUBLIC", "PRIVATE"]).optional(),
 });
 
 export const requestRoutineSchema = z.object({

@@ -7,35 +7,33 @@ describe("RewardService", () => {
     vi.clearAllMocks();
   });
 
-  describe("generateReward", () => {
-    it("rechaza si el usuario no tiene puntos suficientes", async () => {
-      const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
-
-      prisma.reward.findUnique.mockResolvedValue(mockReward);
+  describe("autoGrantRewards", () => {
+    it("no otorga nada si el usuario no alcanza el umbral de ningún reward", async () => {
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 50 } });
+      prisma.rewardRedemption.findMany.mockResolvedValue([]);
+      prisma.reward.findMany.mockResolvedValue([]);
 
-      await expect(rewardService.generateReward("user-123", "reward-1")).rejects.toThrow(
-        "Not enough points"
-      );
+      const result = await rewardService.autoGrantRewards("user-123");
+
+      expect(result).toEqual([]);
+      expect(prisma.reward.findMany).toHaveBeenCalledWith({
+        where: { active: true, pointsCost: { lte: 50 } },
+        orderBy: { pointsCost: "asc" },
+      });
     });
 
-    it("rechaza si el reward no está activo", async () => {
-      prisma.reward.findUnique.mockResolvedValue({ id: "reward-1", active: false, pointsCost: 100 });
-
-      await expect(rewardService.generateReward("user-123", "reward-1")).rejects.toThrow(
-        "Reward is not available"
-      );
-    });
-
-    it("deduce puntos y crea redemption con estado PENDING", async () => {
+    it("otorga automáticamente los rewards elegibles no otorgados todavía", async () => {
       const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
 
-      prisma.reward.findUnique.mockResolvedValue(mockReward);
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 200 } });
+      prisma.rewardRedemption.findMany.mockResolvedValue([]);
+      prisma.reward.findMany.mockResolvedValue([mockReward]);
+      prisma.user.findUnique.mockResolvedValue({ email: "user@test.com", firstName: "Juan" });
 
       const mockTx = {
         pointTransaction: { create: vi.fn().mockResolvedValue({}) },
         rewardRedemption: {
+          findFirst: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue({
             id: "redemption-1",
             userId: "user-123",
@@ -46,17 +44,29 @@ describe("RewardService", () => {
       };
       prisma.$transaction.mockImplementation((fn) => fn(mockTx));
 
-      const result = await rewardService.generateReward("user-123", "reward-1");
+      const result = await rewardService.autoGrantRewards("user-123");
 
-      expect(result.status).toBe("PENDING");
-      expect(result.userId).toBe("user-123");
-      expect(result.rewardId).toBe("reward-1");
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe("PENDING");
       expect(mockTx.pointTransaction.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ userId: "user-123", points: -100 }),
       });
       expect(mockTx.rewardRedemption.create).toHaveBeenCalledWith({
         data: { userId: "user-123", rewardId: "reward-1", status: "PENDING" },
       });
+    });
+
+    it("no vuelve a otorgar un reward que el usuario ya recibió", async () => {
+      const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
+
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 200 } });
+      prisma.rewardRedemption.findMany.mockResolvedValue([{ rewardId: "reward-1" }]);
+      prisma.reward.findMany.mockResolvedValue([mockReward]);
+
+      const result = await rewardService.autoGrantRewards("user-123");
+
+      expect(result).toEqual([]);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

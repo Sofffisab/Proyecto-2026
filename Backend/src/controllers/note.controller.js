@@ -18,7 +18,8 @@ export async function createNote(req, res, next) {
     const data = await noteService.createNote(
       req.user.id,
       req.params.id,
-      req.validatedData.note
+      req.validatedData.note,
+      req.validatedData.visibility
     );
     res.status(201).json({ success: true, data });
   } catch (err) {
