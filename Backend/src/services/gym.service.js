@@ -3,10 +3,15 @@ import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { emitUserNeedsAttention } from "../realtime/ably.js";
+import { notifyTrainerOfReturningStudent } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 
 // Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
 const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
+
+// Alert a trainer on check-in if it's been at least this many days since they
+// last assisted this specific student (or they've never assisted them at all).
+const ABANDONMENT_ALERT_THRESHOLD_DAYS = parseInt(process.env.ABANDONMENT_ALERT_THRESHOLD_DAYS ?? "14", 10);
 
 export async function checkIn(userId) {
   // Real-world tolerance: if the user already has an open session (e.g. they
@@ -34,7 +39,72 @@ export async function checkIn(userId) {
     console.error("[gym] Failed to award check-in points:", err.message)
   );
 
+  // Alert trainer(s) who haven't helped this student in a long time that
+  // they just walked in (non-blocking — never delay the check-in response).
+  notifyAbandoningTrainersOnCheckIn(userId, session.checkInAt).catch((err) =>
+    console.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
+  );
+
   return session;
+}
+
+/**
+ * Finds trainers who are "overdue" on helping this student — the student's
+ * preferred trainer, plus any trainer who has assisted them before — and
+ * sends each of them an in-app notification when the gap since their last
+ * completed assistance with this specific student is at least
+ * ABANDONMENT_ALERT_THRESHOLD_DAYS (or they've never assisted them at all,
+ * despite being the preferred trainer).
+ */
+async function notifyAbandoningTrainersOnCheckIn(userId, checkInAt) {
+  const student = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      settings: { select: { trainerPreference: true, disableAssistance: true } },
+    },
+  });
+
+  if (!student || student.settings?.disableAssistance) return;
+
+  const candidateTrainerIds = new Set();
+  if (student.settings?.trainerPreference) {
+    candidateTrainerIds.add(student.settings.trainerPreference);
+  }
+
+  const pastTrainers = await prisma.assistance.findMany({
+    where: { userId, status: "COMPLETED", trainerId: { not: null } },
+    select: { trainerId: true },
+    distinct: ["trainerId"],
+  });
+  pastTrainers.forEach((a) => candidateTrainerIds.add(a.trainerId));
+
+  if (candidateTrainerIds.size === 0) return;
+
+  const now = checkInAt.getTime();
+
+  for (const trainerId of candidateTrainerIds) {
+    const lastAssistance = await prisma.assistance.findFirst({
+      where: { userId, trainerId, status: "COMPLETED" },
+      orderBy: { completedAt: "desc" },
+      select: { completedAt: true },
+    });
+
+    let daysSinceLastAssistance = null;
+    if (lastAssistance?.completedAt) {
+      daysSinceLastAssistance = Math.floor((now - new Date(lastAssistance.completedAt).getTime()) / 86400000);
+    }
+
+    const shouldAlert = daysSinceLastAssistance == null || daysSinceLastAssistance >= ABANDONMENT_ALERT_THRESHOLD_DAYS;
+    if (!shouldAlert) continue;
+
+    await notifyTrainerOfReturningStudent(trainerId, student, {
+      checkInAt,
+      daysSinceLastAssistance,
+    });
+  }
 }
 
 export async function checkOut(userId) {

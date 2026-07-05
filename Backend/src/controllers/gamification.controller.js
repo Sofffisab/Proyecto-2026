@@ -26,7 +26,7 @@ export async function getUserBadges(req, res, next) {
 // GET /gamification/achievements
 export async function getAllAchievements(req, res, next) {
   try {
-    // El servicio ya se llamaba bien internamente
+    // The underlying service call was already correctly named
     const data = await engagementService.getAllAchievements();
     res.json({ success: true, data });
   } catch (err) {

@@ -28,6 +28,16 @@ export async function assignChallenge(userIdA, userIdB, station) {
   if (!sessionA) throw new AppError("The first user does not have an active gym session", 400);
   if (!sessionB) throw new AppError("The second user does not have an active gym session", 400);
 
+  // A user mid-exercise (actively using a machine, not yet ended) should not
+  // be interrupted with a new social challenge assignment.
+  const [usageA, usageB] = await Promise.all([
+    prisma.machineUsage.findFirst({ where: { userId: userIdA, endedAt: null } }),
+    prisma.machineUsage.findFirst({ where: { userId: userIdB, endedAt: null } }),
+  ]);
+
+  if (usageA) throw new AppError("The first user is mid-exercise and cannot be assigned a challenge right now", 400);
+  if (usageB) throw new AppError("The second user is mid-exercise and cannot be assigned a challenge right now", 400);
+
   const existing = await prisma.socialChallenge.findFirst({
     where: {
       OR: [

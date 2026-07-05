@@ -23,7 +23,7 @@ describe("GymController", () => {
   });
 
   describe("checkIn", () => {
-    it("devuelve la sesión creada", async () => {
+    it("returns the created session", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -38,7 +38,7 @@ describe("GymController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSession });
     });
 
-    it("llama next(err) si ya hay sesión activa", async () => {
+    it("calls next(err) if there is already an active session", async () => {
       const error = new Error("User already has an active session");
       vi.spyOn(gymService, "checkIn").mockRejectedValue(error);
 
@@ -49,7 +49,7 @@ describe("GymController", () => {
   });
 
   describe("checkOut", () => {
-    it("devuelve la sesión cerrada con durationMinutes", async () => {
+    it("returns the closed session with durationMinutes", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -64,7 +64,7 @@ describe("GymController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSession });
     });
 
-    it("llama next(err) si no hay sesión activa", async () => {
+    it("calls next(err) if there is no active session", async () => {
       const error = new Error("No active session");
       vi.spyOn(gymService, "checkOut").mockRejectedValue(error);
 
@@ -75,7 +75,7 @@ describe("GymController", () => {
   });
 
   describe("presentUsers", () => {
-    it("devuelve la lista de usuarios presentes", async () => {
+    it("returns the list of present users", async () => {
       const mockUsers = [
         { id: "user-1", firstName: "John", minutesWaiting: 15 },
         { id: "user-2", firstName: "Jane", minutesWaiting: 30 },
@@ -90,7 +90,7 @@ describe("GymController", () => {
   });
 
   describe("rateTrainer", () => {
-    it("devuelve el rating creado", async () => {
+    it("returns the created rating", async () => {
       req.params = { id: "session-123" };
       req.validatedData = { trainerId: "trainer-123", rating: 4 };
 
@@ -109,7 +109,7 @@ describe("GymController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRating });
     });
 
-    it("llama next(err) con rating inválido", async () => {
+    it("calls next(err) with an invalid rating", async () => {
       req.params = { id: "session-123" };
       req.validatedData = { trainerId: "trainer-123", rating: 6 };
 
@@ -123,7 +123,7 @@ describe("GymController", () => {
   });
 
   describe("getSessionHistory", () => {
-    it("devuelve el historial de sesiones", async () => {
+    it("returns the session history", async () => {
       const mockSessions = [
         { id: "session-1", checkInAt: new Date(), durationMinutes: 30 },
         { id: "session-2", checkInAt: new Date(), durationMinutes: 45 },

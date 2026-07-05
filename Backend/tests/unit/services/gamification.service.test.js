@@ -10,7 +10,7 @@ describe("GamificationService", () => {
   });
 
   describe("addPoints", () => {
-    it("suma puntos y crea PointTransaction/activity log", async () => {
+    it("adds points and creates a PointTransaction/activity log", async () => {
       const mockTransaction = {
         id: "txn-123",
         userId: "user-123",
@@ -40,7 +40,7 @@ describe("GamificationService", () => {
       });
     });
 
-    it("no permite puntos negativos", async () => {
+    it("does not allow negative points", async () => {
       await expect(gamificationService.addPoints("user-123", -10, "Invalid")).rejects.toThrow(
         "Points must be positive"
       );
@@ -69,7 +69,7 @@ describe("GamificationService", () => {
   });
 
   describe("achievements", () => {
-    it("desbloquea achievement y otorga puntos", async () => {
+    it("unlocks an achievement and grants points", async () => {
       const mockAchievement = {
         id: "ach-123",
         userId: "user-123",
@@ -93,7 +93,7 @@ describe("GamificationService", () => {
       expect(prisma.userAchievement.create).toHaveBeenCalled();
     });
 
-    it("no permite desbloquear dos veces el mismo achievement", async () => {
+    it("does not allow unlocking the same achievement twice", async () => {
       prisma.userAchievement.findUnique.mockResolvedValue({
         id: "ach-123",
         unlockedAt: new Date(),

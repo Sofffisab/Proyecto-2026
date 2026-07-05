@@ -4,7 +4,7 @@ import { authenticate } from "../../../src/middlewares/auth.middleware.js";
 import prisma from "../../../src/config/prisma.js";
 import redis from "../../../src/config/redis.js";
 
-// Mock local explícito para asegurar el rastreo de llamadas de Redis en este entorno unitario
+// Explicit local mock to make sure Redis calls are tracked in this unit test environment
 vi.mock("../../../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),
@@ -30,14 +30,14 @@ describe("authenticate middleware", () => {
     next = vi.fn();
   });
 
-  it("401 si no hay header authorization", async () => {
+  it("401 if there is no authorization header", async () => {
     await authenticate(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("401 si el header no empieza con 'Bearer '", async () => {
+  it("401 if the header does not start with 'Bearer '", async () => {
     req.headers.authorization = "Basic token123";
 
     await authenticate(req, res, next);
@@ -45,7 +45,7 @@ describe("authenticate middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("401 si el token está en la blacklist de Redis", async () => {
+  it("401 if the token is on the Redis blacklist", async () => {
     const token = jwt.sign({ userId: "user-123", role: "USER" }, process.env.JWT_ACCESS_SECRET, {
       expiresIn: "15m",
     });
@@ -70,7 +70,7 @@ describe("authenticate middleware", () => {
           JSON.stringify({ id: "user-123", role: "USER", isActive: true })
         );
       }
-      return Promise.resolve(null); // no está en blacklist
+      return Promise.resolve(null); // not on the blacklist
     });
 
     await authenticate(req, res, next);
@@ -81,7 +81,7 @@ describe("authenticate middleware", () => {
     expect(req.user).toBeDefined();
   });
 
-  it("cachea en Redis con TTL de 60s tras leer de Prisma", async () => {
+  it("caches in Redis with a 60s TTL after reading from Prisma", async () => {
     const token = jwt.sign({ userId: "user-123", role: "USER" }, process.env.JWT_ACCESS_SECRET, {
       expiresIn: "15m",
     });
@@ -104,7 +104,7 @@ describe("authenticate middleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("401 si el usuario no existe en DB", async () => {
+  it("401 if the user does not exist in the DB", async () => {
     const token = jwt.sign({ userId: "user-123", role: "USER" }, process.env.JWT_ACCESS_SECRET, {
       expiresIn: "15m",
     });
@@ -135,7 +135,7 @@ describe("authenticate middleware", () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  it("401 si jwt.verify lanza (token inválido/expirado/malformado)", async () => {
+  it("401 if jwt.verify throws (invalid/expired/malformed token)", async () => {
     req.headers.authorization = "Bearer malformed_token";
 
     await authenticate(req, res, next);
@@ -143,7 +143,7 @@ describe("authenticate middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("adjunta req.user y llama next() en el caso feliz", async () => {
+  it("attaches req.user and calls next() in the happy path", async () => {
     const token = jwt.sign({ userId: "user-123", role: "ADMIN" }, process.env.JWT_ACCESS_SECRET, {
       expiresIn: "15m",
     });
@@ -155,7 +155,7 @@ describe("authenticate middleware", () => {
           JSON.stringify({ id: "user-123", role: "ADMIN", isActive: true })
         );
       }
-      return Promise.resolve(null); // no está en blacklist
+      return Promise.resolve(null); // not on the blacklist
     });
 
     await authenticate(req, res, next);

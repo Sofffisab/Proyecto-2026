@@ -8,7 +8,7 @@ describe('ComplaintService', () => {
     vi.clearAllMocks();
   });
 
-  it('crea queja en estado PENDING', async () => {
+  it('creates a complaint in PENDING status', async () => {
     const mockComplaint = {
       id: 'complaint-1',
       userId: 'user-1',
@@ -57,7 +57,7 @@ describe('ComplaintService', () => {
     expect(result.reviewedAt).toBeDefined();
   });
 
-  it('getMyComplaints filtra solo por el usuario autenticado', async () => {
+  it('getMyComplaints filters only by the authenticated user', async () => {
     const mockComplaints = [
       { id: 'complaint-1', userId: 'user-1' },
       { id: 'complaint-2', userId: 'user-1' },
@@ -76,7 +76,7 @@ describe('ComplaintService', () => {
     expect(result.every(c => c.userId === 'user-1')).toBe(true);
   });
 
-  it('getAdminComplaints devuelve todas (sin filtro de usuario)', async () => {
+  it('getAdminComplaints returns all of them (no user filter)', async () => {
     const mockComplaints = [
       { id: 'complaint-1', userId: 'user-1' },
       { id: 'complaint-2', userId: 'user-2' },

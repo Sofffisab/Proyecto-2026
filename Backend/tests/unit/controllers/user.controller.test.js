@@ -24,7 +24,7 @@ describe("UserController", () => {
   });
 
   describe("getMe", () => {
-    it("retorna 200 con el perfil del usuario", async () => {
+    it("returns 200 with the authenticated user profile", async () => {
       const mockProfile = { id: "user-1", email: "test@example.com" };
       vi.spyOn(userService, "getById").mockResolvedValue(mockProfile);
 
@@ -45,7 +45,7 @@ describe("UserController", () => {
   });
 
   describe("updateMe", () => {
-    it("actualiza el perfil y llama a userService.update", async () => {
+    it("updates the profile and calls userService.update", async () => {
       req.validatedData = { firstName: "New Name" };
       const mockUpdated = { id: "user-1", firstName: "New Name" };
       vi.spyOn(userService, "update").mockResolvedValue(mockUpdated);
@@ -58,7 +58,7 @@ describe("UserController", () => {
   });
 
   describe("changePassword", () => {
-    it("valida credenciales antiguas y responde con mensaje de éxito", async () => {
+    it("validates the old credentials and responds with a success message", async () => {
       req.validatedData = { currentPassword: "old", newPassword: "new" };
       vi.spyOn(userService, "changePassword").mockResolvedValue(undefined);
 
@@ -68,7 +68,7 @@ describe("UserController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, message: "Password updated" });
     });
 
-    it("llama next(err) si las credenciales son inválidas", async () => {
+    it("calls next(err) if the credentials are invalid", async () => {
       req.validatedData = { currentPassword: "wrong", newPassword: "new" };
       const error = new Error("Invalid current password");
       vi.spyOn(userService, "changePassword").mockRejectedValue(error);

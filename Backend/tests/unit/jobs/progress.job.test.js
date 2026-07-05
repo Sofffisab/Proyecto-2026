@@ -11,7 +11,7 @@ describe("checkInactiveProgress", () => {
     vi.clearAllMocks();
   });
 
-  it("delega en runSuggestionEngineForAll y loguea al terminar", async () => {
+  it("delegates to runSuggestionEngineForAll and logs when done", async () => {
     runSuggestionEngineForAll.mockResolvedValue();
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

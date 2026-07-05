@@ -61,7 +61,7 @@ describe('Challenges E2E', () => {
     userId2 = user2Res.body.data.user.id;
   });
 
-  it('POST /challenges crea un challenge 1:1 entre dos usuarios', async () => {
+  it('POST /challenges creates a 1:1 challenge between two users', async () => {
     const response = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)
@@ -75,7 +75,7 @@ describe('Challenges E2E', () => {
     expect(response.body.success).toBe(true);
   });
 
-  it('rechaza crear un challenge del que el caller no es participante', async () => {
+  it('rejects creating a challenge the caller is not a participant of', async () => {
     const response = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)
@@ -90,7 +90,7 @@ describe('Challenges E2E', () => {
     expect(response.status).toBe(201);
   });
 
-  it('PATCH /challenges/:id/join el destinatario acepta el challenge', async () => {
+  it('PATCH /challenges/:id/join the recipient accepts the challenge', async () => {
     const createRes = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)
@@ -106,7 +106,7 @@ describe('Challenges E2E', () => {
     expect(joinRes.body.success).toBe(true);
   });
 
-  it('rechaza aceptar dos veces el mismo challenge', async () => {
+  it('rejects accepting the same challenge twice', async () => {
     const createRes = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)
@@ -126,7 +126,7 @@ describe('Challenges E2E', () => {
     expect(response.body.success).toBe(false);
   });
 
-  it('GET /challenges/:id/leaderboard retorna datos del challenge', async () => {
+  it('GET /challenges/:id/leaderboard returns the challenge data', async () => {
     const createRes = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)

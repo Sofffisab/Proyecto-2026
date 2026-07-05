@@ -9,7 +9,7 @@ describe('NoteService', () => {
     vi.clearAllMocks();
   });
 
-  it('crea nota de trainer sobre un usuario', async () => {
+  it('creates a trainer note about a user', async () => {
     const mockNote = {
       id: 'note-1',
       trainerId: 'trainer-1',
@@ -27,7 +27,7 @@ describe('NoteService', () => {
     expect(prisma.note.create).toHaveBeenCalled();
   });
 
-  it('solo permite editar/borrar al trainer autor o admin', async () => {
+  it('only allows the authoring trainer or an admin to edit/delete', async () => {
     const mockNote = {
       id: 'note-1',
       trainerId: 'trainer-1',
@@ -41,7 +41,7 @@ describe('NoteService', () => {
       noteService.update('note-1', 'trainer-2', 'New content')
     ).rejects.toThrow();
 
-    // Trainer correcto puede editar
+    // The correct trainer can edit
     prisma.note.update.mockResolvedValue({
       ...mockNote,
       content: 'New content',
@@ -51,7 +51,7 @@ describe('NoteService', () => {
     expect(result).toBeDefined();
   });
 
-  it('getNotes devuelve notas de un usuario específico', async () => {
+  it('getNotes returns notes for a specific user', async () => {
     const mockNotes = [
       { id: 'note-1', userId: 'user-1', trainerId: 'trainer-1' },
       { id: 'note-2', userId: 'user-1', trainerId: 'trainer-2' },

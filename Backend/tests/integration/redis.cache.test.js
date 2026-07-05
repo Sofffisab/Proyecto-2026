@@ -26,7 +26,7 @@ describe("Redis Cache Integration", () => {
       expect(result).toBe("test-value");
     });
 
-    it("get devuelve null si no existe", async () => {
+    it("get returns null if the key does not exist", async () => {
       redis.get.mockResolvedValue(null);
 
       const result = await redis.get("nonexistent-key");
@@ -43,7 +43,7 @@ describe("Redis Cache Integration", () => {
       expect(result).toBe(1);
     });
 
-    it("setex setea valor con expiry en una operación", async () => {
+    it("setex sets a value with expiry in one operation", async () => {
       redis.setex.mockResolvedValue("OK");
 
       const result = await redis.setex("test-key", 60, "test-value");
@@ -53,29 +53,29 @@ describe("Redis Cache Integration", () => {
     });
   });
 
-  describe("invalidación tras update de perfil", () => {
-    it("update de usuario invalida su cache", async () => {
+  describe("cache invalidation after profile update", () => {
+    it("updating a user invalidates their cache", async () => {
       const userId = "user-123";
       redis.del.mockResolvedValue(1);
       prisma.user.update.mockResolvedValue({ id: userId });
 
-      // Simulación: cuando se actualiza un usuario, se borra su cache
+      // Simulation: when a user is updated, their cache is cleared
       await prisma.user.update({
         where: { id: userId },
         data: { firstName: "UpdatedName" },
       });
 
-      // Esperaríamos que el código luego llame a redis.del
+      // We would expect the code to then call redis.del
       await redis.del(`user:${userId}`);
 
       expect(redis.del).toHaveBeenCalledWith(`user:${userId}`);
     });
 
-    it("invalidación de múltiples caches relacionados", async () => {
+    it("invalidates multiple related caches", async () => {
       const userId = "user-123";
       redis.del.mockResolvedValue(2);
 
-      // Cuando se actualiza el perfil, se invalidan caches relacionados
+      // When the profile is updated, related caches are invalidated
       await redis.del(`user:${userId}`, `leaderboard`, `achievements:${userId}`);
 
       expect(redis.del).toHaveBeenCalled();
@@ -83,7 +83,7 @@ describe("Redis Cache Integration", () => {
   });
 
   describe("cache coherence", () => {
-    it("crea cache solo si Read de Prisma fue exitoso", async () => {
+    it("only creates the cache if the Prisma read succeeded", async () => {
       const userId = "user-123";
       const mockUser = { id: userId, email: "test@example.com" };
 
@@ -100,7 +100,7 @@ describe("Redis Cache Integration", () => {
       );
     });
 
-    it("no cachea si DB devuelve null", async () => {
+    it("does not cache if the DB returns null", async () => {
       const userId = "nonexistent";
       prisma.user.findUnique.mockResolvedValue(null);
       redis.setex.mockResolvedValue(null);
@@ -108,14 +108,14 @@ describe("Redis Cache Integration", () => {
       const user = await prisma.user.findUnique({ where: { id: userId } });
 
       if (!user) {
-        // No cachear null
+        // Don't cache null
         expect(redis.setex).not.toHaveBeenCalled();
       }
     });
   });
 
   describe("cache patterns", () => {
-    it("leaderboard se cachea con key 'leaderboard'", async () => {
+    it("the leaderboard is cached under the key 'leaderboard'", async () => {
       const mockLeaderboard = [
         { userId: "user-1", totalPoints: 5000 },
         { userId: "user-2", totalPoints: 4500 },

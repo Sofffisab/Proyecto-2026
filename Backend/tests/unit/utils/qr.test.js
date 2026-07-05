@@ -44,7 +44,7 @@ describe("QR Utils", () => {
   });
 
   describe("generateQRPayload (USER)", () => {
-    it("genera payload con firma HMAC-SHA256", () => {
+    it("generates a payload with an HMAC-SHA256 signature", () => {
       const payload = generateQRPayload("USER", { userId: "user-123" });
 
       expect(payload).toHaveProperty("type", "USER");
@@ -53,16 +53,16 @@ describe("QR Utils", () => {
       expect(payload).toHaveProperty("signature");
     });
 
-    it("firma es reproducible con los mismos datos", () => {
+    it("the signature is reproducible with the same data", () => {
       const data = { userId: '123', timestamp: 1767225600000 };
-      // CORRECCIÓN: Se generan ambos payloads usando los mismos datos estáticos para comparar firmas
+      // FIX: both payloads are generated from the same static data to compare signatures
       const payload1 = generateQRPayload("USER", data);
       const payload2 = generateQRPayload("USER", data);
 
       expect(payload1.signature).toBe(payload2.signature);
     });
 
-    it("firma diferente si el userId cambia", () => {
+    it("signature differs if the userId changes", () => {
       const payload1 = generateQRPayload("USER", { userId: "user-123" });
       const payload2 = generateQRPayload("USER", { userId: "user-456" });
 
@@ -71,7 +71,7 @@ describe("QR Utils", () => {
   });
 
   describe("generateQRPayload (MACHINE)", () => {
-    it("genera payload sin firma para MACHINE", () => {
+    it("generates a payload without a signature for MACHINE", () => {
       const payload = generateQRPayload("MACHINE", { machineId: "machine-123" });
 
       expect(payload).toHaveProperty("type", "MACHINE");
@@ -81,14 +81,14 @@ describe("QR Utils", () => {
   });
 
   describe("validateQRSignature", () => {
-    it("valida firma HMAC correcta", () => {
+    it("validates a correct HMAC signature", () => {
       const payload = generateQRPayload("USER", { userId: "user-123" });
       const isValid = validateQRSignature(payload);
 
       expect(isValid).toBe(true);
     });
 
-    it("rechaza firma HMAC inválida", () => {
+    it("rejects an invalid HMAC signature", () => {
       const payload = generateQRPayload("USER", { userId: "user-123" });
       payload.signature = "invalid_signature";
 
@@ -97,7 +97,7 @@ describe("QR Utils", () => {
       expect(isValid).toBe(false);
     });
 
-    it("no valida firma para MACHINE", () => {
+    it("does not validate a signature for MACHINE", () => {
       const payload = generateQRPayload("MACHINE", { machineId: "machine-123" });
       const isValid = validateQRSignature(payload);
 
@@ -106,7 +106,7 @@ describe("QR Utils", () => {
   });
 
   describe("validateQRExpiry", () => {
-    it("rechaza si el payload está expirado (> QR_TTL_MS)", () => {
+    it("rejects if the payload is expired (> QR_TTL_MS)", () => {
       const oldTimestamp = Date.now() - QR_TTL_MS - 1000; // 1s past expiry
       const payload = { ts: oldTimestamp };
 
@@ -115,7 +115,7 @@ describe("QR Utils", () => {
       expect(isValid).toBe(false);
     });
 
-    it("acepta si el payload está dentro del TTL", () => {
+    it("accepts if the payload is within the TTL", () => {
       const recentTimestamp = Date.now() - 60000; // 1 minute ago
       const payload = { ts: recentTimestamp };
 
@@ -124,7 +124,7 @@ describe("QR Utils", () => {
       expect(isValid).toBe(true);
     });
 
-    it("acepta recién generado (ts = now)", () => {
+    it("accepts a freshly generated payload (ts = now)", () => {
       const payload = { ts: Date.now() };
 
       const isValid = validateQRExpiry(payload);
@@ -134,7 +134,7 @@ describe("QR Utils", () => {
   });
 
   describe("QR roundtrip", () => {
-    it("payload generado pasa validación de firma + expiry", () => {
+    it("a generated payload passes signature + expiry validation", () => {
       const data = { userId: "user-123" };
       const payload = generateQRPayload("USER", data);
 
@@ -145,7 +145,7 @@ describe("QR Utils", () => {
       expect(expiryValid).toBe(true);
     });
 
-    it("payload sin firma falla validación de firma", () => {
+    it("a payload without a signature fails signature validation", () => {
       const payload = { type: "USER", userId: "user-123", ts: Date.now() };
 
       const signatureValid = validateQRSignature(payload);

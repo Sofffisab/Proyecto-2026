@@ -8,7 +8,7 @@ describe("RewardService", () => {
   });
 
   describe("autoGrantRewards", () => {
-    it("no otorga nada si el usuario no alcanza el umbral de ningún reward", async () => {
+    it("grants nothing if the user has not reached any reward threshold", async () => {
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 50 } });
       prisma.rewardRedemption.findMany.mockResolvedValue([]);
       prisma.reward.findMany.mockResolvedValue([]);
@@ -22,7 +22,7 @@ describe("RewardService", () => {
       });
     });
 
-    it("otorga automáticamente los rewards elegibles no otorgados todavía", async () => {
+    it("automatically grants eligible rewards not yet granted", async () => {
       const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
 
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 200 } });
@@ -56,7 +56,7 @@ describe("RewardService", () => {
       });
     });
 
-    it("no vuelve a otorgar un reward que el usuario ya recibió", async () => {
+    it("does not re-grant a reward the user already received", async () => {
       const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true };
 
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 200 } });
@@ -71,7 +71,7 @@ describe("RewardService", () => {
   });
 
   describe("approveReward / rejectReward", () => {
-    it("aprueba una redemption PENDING", async () => {
+    it("approves a PENDING redemption", async () => {
       prisma.rewardRedemption.findUnique.mockResolvedValue({ id: "redemption-1", status: "PENDING" });
       prisma.rewardRedemption.update.mockResolvedValue({ id: "redemption-1", status: "APPROVED" });
 
@@ -84,7 +84,7 @@ describe("RewardService", () => {
       });
     });
 
-    it("rechaza aprobar una redemption que no está PENDING", async () => {
+    it("rejects approving a redemption that is not PENDING", async () => {
       prisma.rewardRedemption.findUnique.mockResolvedValue({ id: "redemption-1", status: "APPROVED" });
 
       await expect(rewardService.approveReward("redemption-1", "admin-1")).rejects.toThrow(
@@ -92,7 +92,7 @@ describe("RewardService", () => {
       );
     });
 
-    it("rechazar una redemption reembolsa los puntos", async () => {
+    it("rejecting a redemption refunds the points", async () => {
       const mockRedemption = {
         id: "redemption-1",
         status: "PENDING",
@@ -119,7 +119,7 @@ describe("RewardService", () => {
   });
 
   describe("getAvailableRewards", () => {
-    it("lista rewards activos ordenados por costo", async () => {
+    it("lists active rewards ordered by cost", async () => {
       const mockRewards = [
         { id: "reward-1", name: "Coffee", pointsCost: 50 },
         { id: "reward-2", name: "Protein Shake", pointsCost: 100 },
@@ -137,7 +137,7 @@ describe("RewardService", () => {
   });
 
   describe("getUserRedemptions", () => {
-    it("lista redemptions del usuario ordenadas por fecha", async () => {
+    it("lists the user redemptions ordered by date", async () => {
       const mockRedemptions = [{ id: "r-1", status: "PENDING" }];
       prisma.rewardRedemption.findMany.mockResolvedValue(mockRedemptions);
 

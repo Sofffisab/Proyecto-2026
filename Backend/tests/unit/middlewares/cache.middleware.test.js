@@ -19,10 +19,10 @@ describe("cacheResponse middleware", () => {
     next = vi.fn();
   });
 
-  it("setea Cache-Control con el maxAgeSeconds indicado", async () => {
+  it("sets Cache-Control with the given maxAgeSeconds", async () => {
     const middleware = cacheResponse(300);
 
-    // Mockear el originalSend
+    // Mock the originalSend
     const originalSend = res.send;
     res.send = vi.fn((data) => {
       res.body = data;
@@ -31,11 +31,11 @@ describe("cacheResponse middleware", () => {
 
     await middleware(req, res, next);
 
-    // En una implementación real se setearía el header
+    // In a real implementation the header would be set here
     expect(res.set).toBeDefined();
   });
 
-  it("genera ETag consistente (md5) para el mismo body", () => {
+  it("generates a consistent ETag (md5) for the same body", () => {
     const body = JSON.stringify({ test: "data" });
     const etag1 = crypto.createHash("md5").update(body).digest("hex");
     const etag2 = crypto.createHash("md5").update(body).digest("hex");
@@ -43,14 +43,14 @@ describe("cacheResponse middleware", () => {
     expect(etag1).toBe(etag2);
   });
 
-  it("devuelve 304 si if-none-match coincide con el ETag calculado", async () => {
+  it("returns 304 if if-none-match matches the computed ETag", async () => {
     const middleware = cacheResponse(300);
     const body = JSON.stringify({ test: "data" });
     const etag = crypto.createHash("md5").update(body).digest("hex");
 
     req.headers["if-none-match"] = etag;
 
-    // Mock del middleware que verifica ETag
+    // Mock of the middleware that checks the ETag
     const etagHandler = (req, res, next) => {
       if (req.headers["if-none-match"] === etag) {
         res.status(304).send();
@@ -68,7 +68,7 @@ describe("cacheResponse middleware", () => {
     expect(res.send).toHaveBeenCalled();
   });
 
-  it("devuelve 200 con el body si no hay match", async () => {
+  it("returns 200 with the body if there is no match", async () => {
     const middleware = cacheResponse(300);
     const body = JSON.stringify({ test: "data" });
     const etag = crypto.createHash("md5").update(body).digest("hex");
@@ -92,7 +92,7 @@ describe("cacheResponse middleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("permite sobrescribir headers de cache por ruta", () => {
+  it("allows overriding cache headers per route", () => {
     const middleware1 = cacheResponse(60); // Short cache
     const middleware2 = cacheResponse(3600); // Long cache
 

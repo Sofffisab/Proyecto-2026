@@ -61,7 +61,7 @@ describe('Gym Access E2E', () => {
   });
 
   describe('Check-in/Check-out', () => {
-    it('POST /gym/checkin crea sesión de gym', async () => {
+    it('POST /gym/checkin creates a gym session', async () => {
       const response = await request(server)
         .post('/gym/checkin')
         .set('Authorization', `Bearer ${userToken}`)
@@ -72,7 +72,7 @@ describe('Gym Access E2E', () => {
       expect(response.body.data.checkOutAt).toBeNull();
     });
 
-    it('POST /gym/checkout finaliza sesión', async () => {
+    it('POST /gym/checkout ends the session', async () => {
       await request(server)
         .post('/gym/checkin')
         .set('Authorization', `Bearer ${userToken}`)
@@ -88,7 +88,7 @@ describe('Gym Access E2E', () => {
       expect(response.body.data.checkOutAt).toBeDefined();
     });
 
-    it('rechaza check-out sin check-in activo', async () => {
+    it('rejects a check-out without an active check-in', async () => {
       const response = await request(server)
         .post('/gym/checkout')
         .set('Authorization', `Bearer ${userToken}`)
@@ -100,7 +100,7 @@ describe('Gym Access E2E', () => {
   });
 
   describe('QR Gym Access (ADMIN-only)', () => {
-    it('usuario normal recibe 403 en /qr/gym-access', async () => {
+    it('a regular user gets 403 on /qr/gym-access', async () => {
       const response = await request(server)
         .get('/qr/gym-access')
         .set('Authorization', `Bearer ${userToken}`);
@@ -108,7 +108,7 @@ describe('Gym Access E2E', () => {
       expect(response.status).toBe(403);
     });
 
-    it('ADMIN puede acceder a /qr/gym-access', async () => {
+    it('ADMIN can access /qr/gym-access', async () => {
       const response = await request(server)
         .get('/qr/gym-access')
         .set('Authorization', `Bearer ${adminToken}`);
@@ -148,7 +148,7 @@ describe('Gym Access E2E', () => {
       expect([200, 400, 404]).toContain(response.status);
     });
 
-    it('rechaza rating fuera de 1-5', async () => {
+    it('rejects a rating outside of 1-5', async () => {
       const checkinRes = await request(server)
         .post('/gym/checkin')
         .set('Authorization', `Bearer ${userToken}`)

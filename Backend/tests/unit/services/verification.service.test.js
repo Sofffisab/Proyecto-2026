@@ -16,7 +16,7 @@ describe("VerificationService", () => {
   });
 
   describe("getUserQR", () => {
-    it("genera payload firmado con HMAC-SHA256 usando QR_HMAC_SECRET", () => {
+    it("generates a payload signed with HMAC-SHA256 using QR_HMAC_SECRET", () => {
       const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || "test-secret";
       const payload = verificationService.getUserQR("user-123");
 
@@ -26,7 +26,7 @@ describe("VerificationService", () => {
       expect(payload).toHaveProperty("signature");
     });
 
-    it("usa JWT_ACCESS_SECRET como fallback si no hay QR_HMAC_SECRET", () => {
+    it("uses JWT_ACCESS_SECRET as a fallback if there is no QR_HMAC_SECRET", () => {
       const originalSecret = process.env.QR_HMAC_SECRET;
       delete process.env.QR_HMAC_SECRET;
 
@@ -39,13 +39,13 @@ describe("VerificationService", () => {
   });
 
   describe("validateQRPayload", () => {
-    it("rechaza payload sin type", () => {
+    it("rejects a payload without a type", () => {
       const payload = { userId: "user-123", ts: Date.now() };
 
       expect(() => verificationService.validateQRPayload(payload)).toThrow("type");
     });
 
-    it("rechaza firma HMAC inválida en tipo USER", () => {
+    it("rejects an invalid HMAC signature on type USER", () => {
       const payload = {
         type: "USER",
         userId: "user-123",
@@ -58,7 +58,7 @@ describe("VerificationService", () => {
       );
     });
 
-    it("rechaza si ts excede QR_TTL_MS (TTL vencido)", () => {
+    it("rejects if ts exceeds QR_TTL_MS (expired TTL)", () => {
       const QR_TTL_MS = 5 * 60 * 1000; // 5 minutes
       const oldTimestamp = Date.now() - QR_TTL_MS - 1000; // 1 second past expiry
 
@@ -70,7 +70,7 @@ describe("VerificationService", () => {
       );
     });
 
-    it("acepta payload MACHINE sin validar HMAC (solo USER lo requiere)", () => {
+    it("accepts a MACHINE payload without validating HMAC (only USER requires it)", () => {
       const payload = {
         type: "MACHINE",
         machineId: "machine-123",
@@ -84,7 +84,7 @@ describe("VerificationService", () => {
   });
 
   describe("processScan", () => {
-    it("tipo USER: requiere SocialChallenge ACCEPTED entre scanner y target", async () => {
+    it("type USER: requires an ACCEPTED SocialChallenge between scanner and target", async () => {
       const rest = { type: "USER", userId: "target-user", ts: Date.now() };
       const payload = { ...rest, signature: signPayload(rest) };
 
@@ -95,7 +95,7 @@ describe("VerificationService", () => {
       ).rejects.toThrow("No active challenge");
     });
 
-    it("tipo USER: lanza error si no hay challenge activo", async () => {
+    it("type USER: throws if there is no active challenge", async () => {
       const payload = { type: "USER", userId: "target-user", ts: Date.now() };
 
       prisma.socialChallenge.findFirst.mockResolvedValue(null);
@@ -105,7 +105,7 @@ describe("VerificationService", () => {
       ).rejects.toThrow();
     });
 
-    it("tipo MACHINE: abre uso si no hay uno abierto (startedAt)", async () => {
+    it("type MACHINE: opens a usage if there is none open (startedAt)", async () => {
       const payload = {
         type: "MACHINE",
         machineId: "machine-123",
@@ -126,7 +126,7 @@ describe("VerificationService", () => {
       expect(result).not.toHaveProperty("endedAt");
     });
 
-    it("tipo MACHINE: cierra uso abierto y calcula durationMinutes", async () => {
+    it("type MACHINE: closes the open usage and calculates durationMinutes", async () => {
       const startTime = new Date(Date.now() - 30 * 60000); // 30 minutes ago
       const payload = {
         type: "MACHINE",
@@ -153,7 +153,7 @@ describe("VerificationService", () => {
       expect(result.endedAt).toBeDefined();
     });
 
-    it("tipo MACHINE: rechaza si machine.qrToken no coincide", async () => {
+    it("type MACHINE: rejects if machine.qrToken does not match", async () => {
       const payload = {
         type: "MACHINE",
         machineId: "machine-123",
@@ -170,7 +170,7 @@ describe("VerificationService", () => {
       ).rejects.toThrow("Invalid machine token");
     });
 
-    it("tipo MACHINE: asocia gymSessionId solo si hay sesión activa", async () => {
+    it("type MACHINE: associates gymSessionId only if there is an active session", async () => {
       const payload = {
         type: "MACHINE",
         machineId: "machine-123",
@@ -193,7 +193,7 @@ describe("VerificationService", () => {
       expect(result).toBeDefined();
     });
 
-    it("tipo ENTRY_EXIT: hace check-in si no hay sesión abierta", async () => {
+    it("type ENTRY_EXIT: checks in if there is no open session", async () => {
       const payload = {
         type: "ENTRY_EXIT",
         ts: Date.now(),
@@ -213,7 +213,7 @@ describe("VerificationService", () => {
       expect(result.session).toBeDefined();
     });
 
-    it("tipo ENTRY_EXIT: hace check-out si hay una sesión abierta", async () => {
+    it("type ENTRY_EXIT: checks out if there is an open session", async () => {
       const payload = {
         type: "ENTRY_EXIT",
         ts: Date.now(),
@@ -239,7 +239,7 @@ describe("VerificationService", () => {
       expect(result.session).toBeDefined();
     });
 
-    it("tipo desconocido: lanza error 'Unknown QR type'", async () => {
+    it("unknown type: throws 'Unknown QR type' error", async () => {
       const payload = {
         type: "UNKNOWN_TYPE",
         ts: Date.now(),

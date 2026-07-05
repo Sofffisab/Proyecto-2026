@@ -8,7 +8,7 @@ describe("InsightsService", () => {
   });
 
   describe("getUserAnalytics", () => {
-    it("maneja dataset vacío sin lanzar error", async () => {
+    it("handles an empty dataset without throwing", async () => {
       prisma.gymSession.findMany.mockResolvedValue([]);
       prisma.machineUsage.findMany.mockResolvedValue([]);
 
@@ -20,7 +20,7 @@ describe("InsightsService", () => {
       expect(result.machineUsage).toEqual({});
     });
 
-    it("calcula correctamente con un solo registro", async () => {
+    it("calculates correctly with a single record", async () => {
       const now = new Date();
       prisma.gymSession.findMany.mockResolvedValue([
         { checkInAt: now, durationMinutes: 45 },
@@ -36,7 +36,7 @@ describe("InsightsService", () => {
       expect(result.machineUsage).toEqual({ Treadmill: 1 });
     });
 
-    it("calcula correctamente con múltiples registros/outliers", async () => {
+    it("calculates correctly with multiple records/outliers", async () => {
       const now = new Date();
       const oldDate = new Date(now.getFullYear() - 1, 0, 1);
       prisma.gymSession.findMany.mockResolvedValue([
@@ -56,7 +56,7 @@ describe("InsightsService", () => {
   });
 
   describe("getGymAnalytics", () => {
-    it("retorna totales globales del gimnasio", async () => {
+    it("returns the gym's global totals", async () => {
       prisma.gymSession.count.mockResolvedValue(42);
       prisma.user.count.mockResolvedValue(10);
 

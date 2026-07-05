@@ -8,7 +8,7 @@ describe("ProgressService", () => {
   });
 
   describe("addProgressLog / createGoal", () => {
-    it("crea log/goal válido", async () => {
+    it("creates a valid log/goal", async () => {
       const mockLog = {
         id: "log-123",
         userId: "user-123",
@@ -38,7 +38,7 @@ describe("ProgressService", () => {
   });
 
   describe("metrics", () => {
-    it("previene métricas duplicadas el mismo día", async () => {
+    it("prevents duplicate metrics on the same day", async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -52,7 +52,7 @@ describe("ProgressService", () => {
       ).rejects.toThrow("Already logged today");
     });
 
-    it("permite actualizar si se fuerza", async () => {
+    it("allows updating if forced", async () => {
       const mockLog = {
         id: "log-123",
         userId: "user-123",
@@ -74,7 +74,7 @@ describe("ProgressService", () => {
   });
 
   describe("streak", () => {
-    it("calcula racha actual correctamente", async () => {
+    it("calculates the current streak correctly", async () => {
       const mockLogs = [
         { date: new Date() },
         { date: new Date(Date.now() - 86400000) },
@@ -88,7 +88,7 @@ describe("ProgressService", () => {
       expect(result).toBeGreaterThan(0);
     });
 
-    it("corta la racha si falta un día", async () => {
+    it("breaks the streak if a day is missed", async () => {
       const mockLogs = [
         { date: new Date() },
         { date: new Date(Date.now() - 2 * 86400000) }, // Missing yesterday
@@ -101,7 +101,7 @@ describe("ProgressService", () => {
       expect(result).toBe(1); // Only today
     });
 
-    it("calcula la racha más larga histórica", async () => {
+    it("calculates the longest historical streak", async () => {
       const mockStreaks = [
         { maxStreak: 30 },
       ];
@@ -115,7 +115,7 @@ describe("ProgressService", () => {
   });
 
   describe("getProgressHistory", () => {
-    it("filtra por rango de fechas y pagina", async () => {
+    it("filters by date range and paginates", async () => {
       const mockLogs = [
         { id: "log-1", metric: "weight", value: 75 },
         { id: "log-2", metric: "weight", value: 74.5 },

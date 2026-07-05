@@ -24,7 +24,7 @@ describe("runJobs", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    // Usar fake timers para poder alterar la fecha del sistema con libertad
+    // Use fake timers so the system date can be freely manipulated
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
@@ -32,8 +32,8 @@ describe("runJobs", () => {
     vi.useRealTimers();
   });
 
-  it("ejecuta los 4 jobs base siempre (con withRetry)", async () => {
-    // Configurar fecha común (15 de junio) para evitar el trigger de wrapped
+  it("always runs the 4 base jobs (with withRetry)", async () => {
+    // Set a common date (June 15) to avoid triggering the wrapped job
     vi.setSystemTime(new Date(2026, 5, 15));
 
     await runJobs();
@@ -46,10 +46,10 @@ describe("runJobs", () => {
     expect(generateAnnualWrapped).not.toHaveBeenCalled();
   });
 
-  it("reintenta hasta RETRY_ATTEMPTS antes de darse por vencido", async () => {
+  it("retries up to RETRY_ATTEMPTS before giving up", async () => {
     vi.setSystemTime(new Date(2026, 5, 15));
 
-    // Forzar fallos constantes en un job específico
+    // Force a specific job to consistently fail
     recalculatePoints.mockRejectedValue(new Error("Transient Error"));
 
     await runJobs();
@@ -61,7 +61,7 @@ describe("runJobs", () => {
     );
   });
 
-  it("un job fallido no impide que corran los demás", async () => {
+  it("a failing job does not prevent the others from running", async () => {
     vi.setSystemTime(new Date(2026, 5, 15));
 
     recalculatePoints.mockRejectedValue(new Error("Fatal error"));
@@ -70,10 +70,10 @@ describe("runJobs", () => {
     await runJobs();
 
     expect(recalculatePoints).toHaveBeenCalledTimes(2);
-    expect(runAnalyticsJob).toHaveBeenCalledTimes(1); // El siguiente corre igual
+    expect(runAnalyticsJob).toHaveBeenCalledTimes(1); // The next one still runs the same way
   });
 
-  it("NO corre generateAnnualWrapped si la fecha no es 1 de enero", async () => {
+  it("does NOT run generateAnnualWrapped if the date is not January 1st", async () => {
     vi.setSystemTime(new Date(2026, 11, 31)); // 31 de Diciembre
 
     await runJobs();
@@ -81,24 +81,24 @@ describe("runJobs", () => {
     expect(generateAnnualWrapped).not.toHaveBeenCalled();
   });
 
-  it("SÍ corre generateAnnualWrapped(año-1) si la fecha es 1 de enero", async () => {
+  it("DOES run generateAnnualWrapped(year-1) if the date is January 1st", async () => {
     vi.setSystemTime(new Date(2027, 0, 1)); // 1 de Enero de 2027
 
     await runJobs();
 
     expect(generateAnnualWrapped).toHaveBeenCalledTimes(1);
-    expect(generateAnnualWrapped).toHaveBeenCalledWith(2026); // Debe pasar el año anterior (2026)
+    expect(generateAnnualWrapped).toHaveBeenCalledWith(2026); // Must pass the previous year (2026)
   });
 });
 
 describe("runWrappedJob - Aislado", () => {
-  // Nota: Dado que el index.js no exporta de forma directa una función separada 'runWrappedJob' 
-  // sino que ejecuta el parámetro 'year' calculado matemáticamente en runJobs, 
-  // validamos la lógica del parámetro de año del job subyacente.
-  it("acepta year como parámetro, default = año actual", async () => {
+  // Note: since index.js doesn't directly export a separate 'runWrappedJob' function, 
+  // it instead runs the mathematically-computed 'year' parameter inside runJobs, 
+  // we validate the underlying job's year-parameter logic.
+  it("accepts year as a parameter, defaulting to the current year", async () => {
     generateAnnualWrapped.mockResolvedValue();
     
-    // Ejecución directa de la función importada para validar su firma y comportamiento por defecto
+    // Directly invoke the imported function to validate its signature and default behavior
     await generateAnnualWrapped(2025);
     expect(generateAnnualWrapped).toHaveBeenCalledWith(2025);
   });

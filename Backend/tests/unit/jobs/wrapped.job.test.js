@@ -22,7 +22,7 @@ describe("generateAnnualWrapped", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("procesa solo usuarios con isActive:true", async () => {
+  it("only processes users with isActive:true", async () => {
     prisma.user.findMany.mockResolvedValue([{ id: "user-active" }]);
     generateWrapped.mockResolvedValue();
 
@@ -35,7 +35,7 @@ describe("generateAnnualWrapped", () => {
     expect(generateWrapped).toHaveBeenCalledWith("user-active", 2025);
   });
 
-  it("un fallo en un usuario no aborta el resto del batch", async () => {
+  it("a failure for one user does not abort the rest of the batch", async () => {
     prisma.user.findMany.mockResolvedValue([{ id: "user-broken" }, { id: "user-ok" }]);
     
     generateWrapped

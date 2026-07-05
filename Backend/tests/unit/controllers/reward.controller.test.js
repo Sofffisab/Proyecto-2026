@@ -21,7 +21,7 @@ describe("RewardController", () => {
     vi.clearAllMocks();
   });
 
-  it("getAvailableRewards retorna 200 con lista de recompensas", async () => {
+  it("getAvailableRewards returns 200 with the list of rewards", async () => {
     const mockRewards = [
       { id: "reward-1", name: "T-Shirt", pointsCost: 100 },
       { id: "reward-2", name: "Gym Bag", pointsCost: 250 },
@@ -34,7 +34,7 @@ describe("RewardController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRewards });
   });
 
-  it("getUserRedemptions retorna 200 con las redemptions del usuario", async () => {
+  it("getUserRedemptions returns 200 with the user redemptions", async () => {
     const mockRedemptions = [
       { id: "redemption-1", userId: "user-1", rewardId: "reward-1", status: "PENDING" },
     ];
@@ -44,7 +44,7 @@ describe("RewardController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRedemptions });
   });
 
-  it("updateRedemptionStatus rechaza un status desconocido con 400", async () => {
+  it("updateRedemptionStatus rejects an unknown status with 400", async () => {
     req.params = { id: "redemption-1" };
     req.body = { status: "NOT_A_REAL_STATUS" };
 
@@ -53,7 +53,7 @@ describe("RewardController", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("updateRedemptionStatus con status APPROVED llama a approveReward", async () => {
+  it("updateRedemptionStatus with status APPROVED calls approveReward", async () => {
     req.params = { id: "redemption-1" };
     req.body = { status: "APPROVED" };
     req.user = { id: "admin-1", role: "ADMIN" };

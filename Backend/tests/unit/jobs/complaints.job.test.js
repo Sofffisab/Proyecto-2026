@@ -17,7 +17,7 @@ describe("processComplaints", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  it("no hace nada si no hay quejas PENDING de más de 30 días", async () => {
+  it("does nothing if there are no PENDING complaints older than 30 days", async () => {
     prisma.complaint.findMany.mockResolvedValue([]);
 
     await processComplaints();
@@ -26,7 +26,7 @@ describe("processComplaints", () => {
     expect(prisma.complaint.updateMany).not.toHaveBeenCalled();
   });
 
-  it("auto-cierra (REJECTED) quejas con createdAt < cutoff, reviewedBy null", async () => {
+  it("auto-closes (REJECTED) complaints with createdAt < cutoff and reviewedBy null", async () => {
     prisma.complaint.findMany.mockResolvedValue([{ id: "complaint-1" }, { id: "complaint-2" }]);
     prisma.complaint.updateMany.mockResolvedValue({ count: 2 });
 

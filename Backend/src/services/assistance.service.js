@@ -25,12 +25,24 @@ export async function requestAssistance(userId) {
 export async function assignAssistance(assistanceId, trainerId) {
   const trainer = await prisma.user.findUnique({
     where: { id: trainerId },
-    select: { id: true, role: true, isActive: true },
+    select: {
+      id: true,
+      role: true,
+      isActive: true,
+      trainerProfile: { select: { availability: true } },
+    },
   });
 
   if (!trainer) throw new Error("Trainer not found");
   if (trainer.role !== "TRAINER") throw new Error("User is not a trainer");
   if (!trainer.isActive) throw new Error("Trainer account is disabled");
+
+  // A trainer already dictating a class / helping another student must not
+  // be handed a second alert — the profile's availability flag is the source
+  // of truth for that. A trainer with no profile yet is treated as available.
+  if (trainer.trainerProfile?.availability === "BUSY") {
+    throw new Error("Trainer is currently busy and cannot be assigned new assistance");
+  }
 
   const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
   if (!assistance) throw new Error("Assistance request not found");
@@ -39,10 +51,41 @@ export async function assignAssistance(assistanceId, trainerId) {
     throw new Error(`Cannot assign a request with status: ${assistance.status}`);
   }
 
-  return prisma.assistance.update({
+  const updated = await prisma.assistance.update({
     where: { id: assistanceId },
     data: { status: "ASSIGNED", trainerId, assignedAt: new Date() },
   });
+
+  await setTrainerAvailability(trainerId, "BUSY");
+
+  return updated;
+}
+
+/**
+ * Sets a trainer's availability flag. Used automatically around assignment /
+ * completion / cancellation, and also usable by a trainer-facing endpoint so
+ * a trainer can manually mark themselves BUSY (e.g. dictating a class) even
+ * without an active Assistance record.
+ */
+export async function setTrainerAvailability(trainerId, availability) {
+  if (!["AVAILABLE", "BUSY"].includes(availability)) {
+    throw new Error("Invalid availability value");
+  }
+
+  return prisma.trainerProfile.upsert({
+    where: { userId: trainerId },
+    update: { availability, availabilityUpdatedAt: new Date() },
+    create: {
+      userId: trainerId,
+      availability,
+      specialties: ["GENERAL"],
+    },
+  });
+}
+
+export async function getTrainerAvailability(trainerId) {
+  const profile = await prisma.trainerProfile.findUnique({ where: { userId: trainerId } });
+  return profile?.availability ?? "AVAILABLE";
 }
 
 export async function completeAssistance(assistanceId, callerId, callerRole) {
@@ -64,6 +107,7 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
 
   if (updated.trainerId) {
     await updateTrainerMetrics(updated.trainerId);
+    await setTrainerAvailability(updated.trainerId, "AVAILABLE");
   }
 
   return updated;
@@ -82,10 +126,16 @@ export async function cancelAssistance(assistanceId, userId) {
     throw new Error(`Cannot cancel a request with status: ${assistance.status}`);
   }
 
-  return prisma.assistance.update({
+  const updated = await prisma.assistance.update({
     where: { id: assistanceId },
     data: { status: "CANCELLED" },
   });
+
+  if (assistance.status === "ASSIGNED" && assistance.trainerId) {
+    await setTrainerAvailability(assistance.trainerId, "AVAILABLE");
+  }
+
+  return updated;
 }
 
 export async function getPendingAssistance() {

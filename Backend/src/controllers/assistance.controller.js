@@ -43,6 +43,18 @@ export async function cancel(req, res, next) {
   }
 }
 
+export async function setAvailability(req, res, next) {
+  try {
+    const { availability } = req.body;
+    // ADMIN can only manage their own availability if they also hold a trainer
+    // profile; in practice this route is meant for the authenticated trainer.
+    const data = await assistanceService.setTrainerAvailability(req.user.id, availability);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getPending(req, res, next) {
   try {
     const data = await assistanceService.getPendingAssistance();

@@ -23,7 +23,7 @@ describe("AuthController", () => {
   });
 
   describe("register", () => {
-    it("devuelve 201 con usuario y tokens", async () => {
+    it("returns 201 with the user and tokens", async () => {
       req.validatedData = {
         email: "test@example.com",
         password: "password123",
@@ -63,7 +63,7 @@ describe("AuthController", () => {
   });
 
   describe("login", () => {
-    it("devuelve 200 con tokens", async () => {
+    it("returns 200 with tokens", async () => {
       req.validatedData = { email: "test@example.com", password: "password123" };
 
       const mockResult = {
@@ -79,7 +79,7 @@ describe("AuthController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
     });
 
-    it("llama next(err) con credenciales inválidas", async () => {
+    it("calls next(err) with invalid credentials", async () => {
       req.validatedData = { email: "wrong@example.com", password: "wrongpass" };
 
       const error = new Error("Invalid credentials");
@@ -92,7 +92,7 @@ describe("AuthController", () => {
   });
 
   describe("logout", () => {
-    it("devuelve 200 y limpia sesión", async () => {
+    it("returns 200 and clears the session", async () => {
       req.user = { id: "user-123" };
       req.headers.authorization = "Bearer access_token";
 
@@ -106,7 +106,7 @@ describe("AuthController", () => {
   });
 
   describe("refreshToken", () => {
-    it("devuelve nuevo accessToken", async () => {
+    it("returns a new accessToken", async () => {
       req.validatedData = { refreshToken: "refresh_token" };
 
       const mockResult = { accessToken: "new_access_token" };
@@ -118,7 +118,7 @@ describe("AuthController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
     });
 
-    it("llama next(err) con token inválido", async () => {
+    it("calls next(err) with an invalid token", async () => {
       req.validatedData = { refreshToken: "invalid_token" };
 
       const error = new Error("Invalid token");

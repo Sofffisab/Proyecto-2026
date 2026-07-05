@@ -27,7 +27,7 @@ describe("errorHandler middleware", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("default 500 si no hay statusCode", async () => {
+  it("defaults to 500 if there is no statusCode", async () => {
     const error = new Error("Generic error");
 
     await errorHandler(error, req, res, next);
@@ -35,7 +35,7 @@ describe("errorHandler middleware", () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  it("oculta el mensaje real en errores 5xx ('Internal server error')", async () => {
+  it("hides the real message on 5xx errors ('Internal server error')", async () => {
     const error = new AppError("Database connection failed", 500);
 
     await errorHandler(error, req, res, next);
@@ -47,7 +47,7 @@ describe("errorHandler middleware", () => {
     );
   });
 
-  it("conserva el mensaje real en errores 4xx", async () => {
+  it("keeps the real message on 4xx errors", async () => {
     const error = new AppError("Email already in use", 409);
 
     await errorHandler(error, req, res, next);
@@ -59,7 +59,7 @@ describe("errorHandler middleware", () => {
     );
   });
 
-  it("incluye stack solo si NODE_ENV !== 'production'", async () => {
+  it("includes the stack only if NODE_ENV !== 'production'", async () => {
     process.env.NODE_ENV = "development";
     const error = new AppError("Test error", 400);
 
@@ -69,7 +69,7 @@ describe("errorHandler middleware", () => {
     expect(call).toHaveProperty("stack");
   });
 
-  it("no incluye stack en production", async () => {
+  it("does not include the stack trace in production", async () => {
     process.env.NODE_ENV = "production";
     const error = new AppError("Test error", 400);
 
@@ -95,7 +95,7 @@ describe("notFoundHandler middleware", () => {
     };
   });
 
-  it("devuelve 404 con success:false", async () => {
+  it("returns 404 with success:false", async () => {
     await notFoundHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
@@ -107,7 +107,7 @@ describe("notFoundHandler middleware", () => {
     );
   });
 
-  it("incluye el método y path en el mensaje", async () => {
+  it("includes the method and path in the message", async () => {
     req.method = "GET";
     req.originalUrl = "/nonexistent";
 

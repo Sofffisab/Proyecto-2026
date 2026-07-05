@@ -7,7 +7,7 @@ import redis from "../../../src/config/redis.js";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../../../src/services/communication.service.js";
 import { AppError } from "../../../src/utils/errors.js";
 
-// Mock local explícito para asegurar el rastreo de llamadas de Redis en este entorno unitario
+// Explicit local mock to make sure Redis calls are tracked in this unit test environment
 vi.mock("../../../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),
@@ -26,7 +26,7 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
-    it("crea usuario con password hasheado (bcrypt)", async () => {
+    it("creates a user with a hashed password (bcrypt)", async () => {
       const mockUser = {
         id: "user-123",
         email: "test@example.com",
@@ -59,7 +59,7 @@ describe("AuthService", () => {
       );
     });
 
-    it("asigna rol USER por defecto", async () => {
+    it("assigns the USER role by default", async () => {
       const mockUser = { id: "user-123", role: "USER" };
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(mockUser);
@@ -77,7 +77,7 @@ describe("AuthService", () => {
       });
     });
 
-    it("lanza error si el email ya existe", async () => {
+    it("throws if the email already exists", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: "user-123", email: "test@example.com" });
 
       await expect(
@@ -92,7 +92,7 @@ describe("AuthService", () => {
   });
 
   describe("login", () => {
-    it("devuelve access+refresh token con credenciales válidas", async () => {
+    it("returns access+refresh tokens with valid credentials", async () => {
       const mockUser = {
         id: "user-123",
         email: "test@example.com",
@@ -114,7 +114,7 @@ describe("AuthService", () => {
       expect(jwt.decode(result.accessToken)).toHaveProperty("userId");
     });
 
-    it("lanza error con password incorrecto", async () => {
+    it("throws with an incorrect password", async () => {
       const mockUser = {
         id: "user-123",
         email: "test@example.com",
@@ -130,7 +130,7 @@ describe("AuthService", () => {
       ).rejects.toThrow("Invalid credentials");
     });
 
-    it("lanza error si el usuario no existe", async () => {
+    it("throws if the user does not exist", async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -138,7 +138,7 @@ describe("AuthService", () => {
       ).rejects.toThrow("Invalid credentials");
     });
 
-    it("lanza error si isActive=false", async () => {
+    it("throws if isActive=false", async () => {
       const mockUser = {
         id: "user-123",
         email: "test@example.com",
@@ -155,7 +155,7 @@ describe("AuthService", () => {
   });
 
   describe("refreshToken", () => {
-    it("genera nuevo access token con refresh token válido", async () => {
+    it("generates a new access token with a valid refresh token", async () => {
       const mockUser = { id: "user-123", role: "USER", isActive: true };
       const refreshToken = jwt.sign({ userId: "user-123" }, process.env.JWT_REFRESH_SECRET, {
         expiresIn: "7d",
@@ -170,7 +170,7 @@ describe("AuthService", () => {
       expect(jwt.decode(result.accessToken)).toHaveProperty("userId", "user-123");
     });
 
-    it("lanza error con refresh token inválido/expirado", async () => {
+    it("throws with an invalid/expired refresh token", async () => {
       vi.spyOn(jwt, "verify").mockImplementation(() => {
         throw new Error("Token expired");
       });
@@ -180,7 +180,7 @@ describe("AuthService", () => {
   });
 
   describe("logout", () => {
-    it("agrega el token a la blacklist de Redis", async () => {
+    it("adds the token to the Redis blacklist", async () => {
       const token = jwt.sign({ userId: "user-123" }, process.env.JWT_ACCESS_SECRET, {
         expiresIn: "15m",
       });
@@ -194,7 +194,7 @@ describe("AuthService", () => {
   });
 
   describe("forgotPassword / resetPassword", () => {
-    it("genera token de reset y no revela si el email no existe", async () => {
+    it("generates a reset token and does not reveal whether the email exists", async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       const result = await authService.forgotPassword("nonexistent@example.com");
@@ -203,7 +203,7 @@ describe("AuthService", () => {
       expect(sendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
-    it("resetea password con token válido", async () => {
+    it("resets the password with a valid token", async () => {
       const mockUser = { id: "user-123", email: "test@example.com" };
       prisma.user.findUnique.mockResolvedValue(mockUser);
       prisma.user.update.mockResolvedValue(mockUser);
@@ -218,7 +218,7 @@ describe("AuthService", () => {
       expect(prisma.user.update).toHaveBeenCalled();
     });
 
-    it("lanza error con token expirado o inválido", async () => {
+    it("throws with an expired or invalid token", async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(

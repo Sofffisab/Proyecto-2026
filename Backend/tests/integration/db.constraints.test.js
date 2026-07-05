@@ -7,7 +7,7 @@ describe("Database Constraints Integration", () => {
   });
 
   describe("unique constraints", () => {
-    it("email duplicado lanza error de constraint", async () => {
+    it("duplicate email throws a constraint error", async () => {
       const mockExistingUser = { id: "user-1", email: "test@example.com" };
       const mockDuplicateCreate = { email: "test@example.com" };
 
@@ -23,7 +23,7 @@ describe("Database Constraints Integration", () => {
       ).rejects.toThrow();
     });
 
-    it("no permite doble check-in (sesión abierta por usuario)", async () => {
+    it("does not allow a double check-in (session already open for user)", async () => {
       const mockSession = {
         id: "session-1",
         userId: "user-123",
@@ -41,7 +41,7 @@ describe("Database Constraints Integration", () => {
   });
 
   describe("cascades", () => {
-    it("borrar usuario limpia sus gymSessions", async () => {
+    it("deleting a user cleans up their gymSessions", async () => {
       const userId = "user-to-delete";
 
       prisma.gymSession.deleteMany.mockResolvedValue({ count: 3 });
@@ -52,7 +52,7 @@ describe("Database Constraints Integration", () => {
       expect(prisma.user.delete).toHaveBeenCalled();
     });
 
-    it("borrar usuario limpia sus pointTransactions", async () => {
+    it("deleting a user cleans up their pointTransactions", async () => {
       const userId = "user-to-delete";
 
       prisma.pointTransaction.deleteMany.mockResolvedValue({ count: 10 });
@@ -63,7 +63,7 @@ describe("Database Constraints Integration", () => {
       expect(prisma.user.delete).toHaveBeenCalled();
     });
 
-    it("borrar usuario limpia sus logros y achievements", async () => {
+    it("deleting a user cleans up their unlocked achievements", async () => {
       const userId = "user-to-delete";
 
       prisma.userAchievement.deleteMany.mockResolvedValue({ count: 5 });
@@ -76,7 +76,7 @@ describe("Database Constraints Integration", () => {
   });
 
   describe("foreign key constraints", () => {
-    it("rechaza pointTransaction con userId inexistente", async () => {
+    it("rejects a pointTransaction with a non-existent userId", async () => {
       const invalidData = {
         userId: "nonexistent-user",
         points: 50,
@@ -91,7 +91,7 @@ describe("Database Constraints Integration", () => {
       expect(result).toBeNull();
     });
 
-    it("rechaza gymSession con userId inexistente", async () => {
+    it("rejects a gymSession with a non-existent userId", async () => {
       const invalidData = {
         userId: "nonexistent-user",
         checkInAt: new Date(),
@@ -108,7 +108,7 @@ describe("Database Constraints Integration", () => {
   });
 
   describe("seed data", () => {
-    it("seed no falla si se corre dos veces", async () => {
+    it("the seed script does not fail if run twice", async () => {
       // Mock de seed idempotente
       prisma.role.findUnique.mockResolvedValue({ name: "ADMIN" });
 

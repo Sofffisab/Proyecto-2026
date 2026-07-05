@@ -9,7 +9,7 @@ import {
 
 describe('Auth Schemas', () => {
   describe('registerSchema', () => {
-    it('acepta payload válido', () => {
+    it('accepts a valid payload', () => {
       const valid = {
         email: 'test@example.com',
         password: 'SecurePass123!',
@@ -21,7 +21,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rechaza campos faltantes', () => {
+    it('rejects missing fields', () => {
       const invalid = {
         email: 'test@example.com',
         // falta password y name
@@ -31,7 +31,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rechaza email inválido', () => {
+    it('rejects an invalid email', () => {
       const invalid = {
         email: 'not-an-email',
         password: 'SecurePass123!',
@@ -42,10 +42,10 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rechaza password débil', () => {
+    it('rejects a weak password', () => {
       const invalid = {
         email: 'test@example.com',
-        password: '123', // muy corta
+        password: '123', // too short
         name: 'Test User',
       };
 
@@ -55,7 +55,7 @@ describe('Auth Schemas', () => {
   });
 
   describe('loginSchema', () => {
-    it('acepta email y password', () => {
+    it('accepts email and password', () => {
       const valid = {
         email: 'test@example.com',
         password: 'SecurePass123!',
@@ -65,7 +65,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rechaza email faltante', () => {
+    it('rejects a missing email', () => {
       const invalid = {
         password: 'SecurePass123!',
       };
@@ -76,7 +76,7 @@ describe('Auth Schemas', () => {
   });
 
   describe('refreshTokenSchema', () => {
-    it('acepta refreshToken válido', () => {
+    it('accepts a valid refreshToken', () => {
       const valid = {
         refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       };
@@ -85,7 +85,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rechaza refreshToken vacío', () => {
+    it('rejects an empty refreshToken', () => {
       const invalid = {
         refreshToken: '',
       };
@@ -96,7 +96,7 @@ describe('Auth Schemas', () => {
   });
 
   describe('forgotPasswordSchema', () => {
-    it('acepta email válido', () => {
+    it('accepts a valid email', () => {
       const valid = {
         email: 'test@example.com',
       };
@@ -105,7 +105,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rechaza email inválido', () => {
+    it('rejects an invalid email', () => {
       const invalid = {
         email: 'not-email',
       };
@@ -116,7 +116,7 @@ describe('Auth Schemas', () => {
   });
 
   describe('resetPasswordSchema', () => {
-    it('acepta token y password válidos', () => {
+    it('accepts a valid token and password', () => {
       const valid = {
         token: 'reset-token-123',
         password: 'NewSecurePass123!',
@@ -126,7 +126,7 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rechaza password faltante', () => {
+    it('rejects a missing password', () => {
       const invalid = {
         token: 'reset-token-123',
       };

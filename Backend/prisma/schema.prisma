@@ -74,6 +74,11 @@ enum TrainerNoteVisibility {
   PRIVATE
 }
 
+enum TrainerAvailabilityStatus {
+  AVAILABLE
+  BUSY
+}
+
 enum ComplaintStatus {
   PENDING
   APPROVED
@@ -103,6 +108,9 @@ model User {
   deliveryAddress      String?
   fcmToken             String?
   isActive             Boolean   @default(true)
+  // Throttles the "see a doctor/nutritionist" recommendation email so it is
+  // sent at most once per cooldown window, even though the check runs daily.
+  lastHealthEmailAt    DateTime?
   passwordResetToken   String?
   passwordResetExpires DateTime?
   createdAt            DateTime  @default(now())
@@ -156,13 +164,19 @@ model UserSettings {
 }
 
 model TrainerProfile {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  specialties   String[]
-  averageRating Float    @default(0)
-  totalRatings  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                   String                    @id @default(uuid())
+  userId               String                    @unique
+  specialties          String[]
+  averageRating        Float                     @default(0)
+  totalRatings         Int                       @default(0)
+  // Whether the trainer is currently free to be assigned new work (assistance
+  // alerts, etc). Set to BUSY while actively assisting/teaching, and back to
+  // AVAILABLE when that work finishes, so the backend never double-books a
+  // trainer who is already helping someone else.
+  availability         TrainerAvailabilityStatus @default(AVAILABLE)
+  availabilityUpdatedAt DateTime                 @default(now())
+  createdAt            DateTime                  @default(now())
+  updatedAt             DateTime                 @updatedAt
 
   user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

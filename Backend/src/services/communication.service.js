@@ -126,6 +126,25 @@ export async function sendProgressEmail(email, message) {
   return sendEmail(email, "Progress update", `<p>${message}</p>`);
 }
 
+/**
+ * In-app notification sent to a trainer when a student they haven't helped
+ * in a long time (or have never helped, despite being their preferred
+ * trainer) just checked into the gym. Includes where the student currently
+ * is so the trainer can go find them.
+ */
+export async function notifyTrainerOfReturningStudent(trainerId, student, { checkInAt, daysSinceLastAssistance }) {
+  const studentName = `${student.firstName} ${student.lastName}`.trim();
+  const location = "on the gym floor (just checked in)";
+
+  const title = "A student needs your attention";
+  const body =
+    daysSinceLastAssistance == null
+      ? `${studentName} just checked in and you haven't assisted them yet. They're ${location}.`
+      : `${studentName} just checked in — it's been ${daysSinceLastAssistance} day(s) since you last helped them. They're ${location}.`;
+
+  return createNotification(trainerId, title, body);
+}
+
 // ============================================
 // COMBINED — in-app + email
 // ============================================
@@ -151,4 +170,5 @@ export const communicationService = {
   sendPasswordResetEmail,
   sendProgressEmail,
   notify,
+  notifyTrainerOfReturningStudent,
 };

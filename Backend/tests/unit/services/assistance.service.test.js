@@ -9,7 +9,7 @@ describe('AssistanceService', () => {
   });
 
   describe('request', () => {
-    it('crea solicitud en estado PENDING', async () => {
+    it('creates a request in PENDING status', async () => {
       const mockAssistance = {
         id: 'assist-1',
         userId: 'user-1',
@@ -33,15 +33,15 @@ describe('AssistanceService', () => {
   });
 
   describe('assign', () => {
-    it('assign solo permitido para TRAINER/ADMIN', async () => {
+    it('assign only allowed for TRAINER/ADMIN', async () => {
       const normalUser = { id: 'user-1', role: 'USER' };
 
-      // Mock usuario sin permisos
+      // Mock a user without permissions
       const result = await assistanceService.canAssign(normalUser);
       expect(result).toBe(false);
     });
 
-    it('permite asignación por TRAINER', async () => {
+    it('allows assignment by TRAINER', async () => {
       const trainer = { id: 'trainer-1', role: 'TRAINER' };
       const result = await assistanceService.canAssign(trainer);
       expect(result).toBe(true);
@@ -49,7 +49,7 @@ describe('AssistanceService', () => {
   });
 
   describe('complete', () => {
-    it('complete cambia estado y setea completedAt', async () => {
+    it('complete changes the status and sets completedAt', async () => {
       const mockUpdated = {
         id: 'assist-1',
         status: 'COMPLETED',
@@ -71,7 +71,7 @@ describe('AssistanceService', () => {
   });
 
   describe('cancel', () => {
-    it('cancel rechaza si ya está completed', async () => {
+    it('cancel rejects if already completed', async () => {
       const mockAssistance = {
         id: 'assist-1',
         status: 'COMPLETED',

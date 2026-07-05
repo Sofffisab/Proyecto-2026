@@ -40,7 +40,7 @@ describe('Profile E2E', () => {
     userId = registerRes.body.data.user.id;
   });
 
-  it('GET /user/profile retorna perfil del usuario autenticado', async () => {
+  it('GET /user/profile returns the authenticated user profile', async () => {
     const response = await request(server)
       .get('/users/me')
       .set('Authorization', `Bearer ${token}`);
@@ -65,7 +65,7 @@ describe('Profile E2E', () => {
     expect(response.body.data.firstName).toBe('Updated');
   });
 
-  it('POST /user/change-password cambia contraseña', async () => {
+  it('POST /user/change-password changes the password', async () => {
     const response = await request(server)
       .patch('/users/me/password')
       .set('Authorization', `Bearer ${token}`)
@@ -77,7 +77,7 @@ describe('Profile E2E', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
 
-    // Intenta login con contraseña nueva
+    // Try logging in with the new password
     const loginRes = await request(server)
       .post('/auth/login')
       .send({
@@ -95,7 +95,7 @@ describe('Profile E2E', () => {
     expect(response.body.success).toBe(false);
   });
 
-  it('retorna 401 con token inválido', async () => {
+  it('returns 401 with an invalid token', async () => {
     const response = await request(server)
       .get('/users/me')
       .set('Authorization', 'Bearer invalid-token');

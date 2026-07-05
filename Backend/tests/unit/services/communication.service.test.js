@@ -16,7 +16,7 @@ describe('CommunicationService', () => {
   });
 
   describe('notificaciones in-app', () => {
-    it('createNotification crea con read=false por defecto', async () => {
+    it('createNotification creates with read=false by default', async () => {
       const mockNotification = {
         id: 'notif-1',
         userId: 'user-1',
@@ -42,7 +42,7 @@ describe('CommunicationService', () => {
       );
     });
 
-    it('markAsRead lanza error si la notificación no pertenece al usuario', async () => {
+    it('markAsRead throws if the notification does not belong to the user', async () => {
       prisma.notification.findUnique.mockResolvedValue({
         id: 'notif-1',
         userId: 'user-1',
@@ -53,7 +53,7 @@ describe('CommunicationService', () => {
       ).rejects.toThrow();
     });
 
-    it('markAllAsRead solo afecta al usuario autenticado', async () => {
+    it('markAllAsRead only affects the authenticated user', async () => {
       prisma.notification.updateMany.mockResolvedValue({ count: 5 });
 
       await communicationService.markAllAsRead('user-1');
@@ -67,7 +67,7 @@ describe('CommunicationService', () => {
       );
     });
 
-    it('deleteNotification lanza error si no pertenece al usuario', async () => {
+    it('deleteNotification throws if it does not belong to the user', async () => {
       prisma.notification.findUnique.mockResolvedValue({
         id: 'notif-1',
         userId: 'user-1',
@@ -78,7 +78,7 @@ describe('CommunicationService', () => {
       ).rejects.toThrow();
     });
 
-    it('getUnreadCount cuenta solo read=false', async () => {
+    it('getUnreadCount only counts read=false', async () => {
       prisma.notification.count.mockResolvedValue(3);
 
       const result = await communicationService.getUnreadCount('user-1');
@@ -94,7 +94,7 @@ describe('CommunicationService', () => {
   });
 
   describe('emails (mock de Resend)', () => {
-    it('sendWelcomeEmail arma el HTML esperado', async () => {
+    it('sendWelcomeEmail builds the expected HTML', async () => {
       prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
 
       await communicationService.sendWelcomeEmail('test@example.com', 'John', 'user-1');
@@ -106,7 +106,7 @@ describe('CommunicationService', () => {
       );
     });
 
-    it('sendPasswordResetEmail incluye el resetToken en la URL', async () => {
+    it('sendPasswordResetEmail includes the resetToken in the URL', async () => {
       prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
 
       await communicationService.sendPasswordResetEmail(
@@ -122,9 +122,9 @@ describe('CommunicationService', () => {
       );
     });
 
-    it('sendEmail propaga errores del proveedor sin romper el proceso llamante', async () => {
+    it('sendEmail propagates provider errors without breaking the calling process', async () => {
       const error = new Error('Email provider error');
-      // Mock que lanza error
+      // Mock that throws an error
       await expect(
         communicationService.sendEmail('test@example.com', 'Subject', 'Body')
       ).resolves.toBeDefined();
@@ -132,7 +132,7 @@ describe('CommunicationService', () => {
   });
 
   describe('notify (combinado)', () => {
-    it('crea notificación in-app Y envía email', async () => {
+    it('creates an in-app notification AND sends an email', async () => {
       prisma.notification.create.mockResolvedValue({
         id: 'notif-1',
         userId: 'user-1',

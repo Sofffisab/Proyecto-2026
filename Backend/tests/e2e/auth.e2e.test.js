@@ -41,7 +41,7 @@ describe('Auth E2E', () => {
   });
 
   describe('POST /auth/register', () => {
-    it('crea usuario nuevo y retorna tokens', async () => {
+    it('creates a new user and returns tokens', async () => {
       const response = await request(server)
         .post('/auth/register')
         .send({
@@ -61,7 +61,7 @@ describe('Auth E2E', () => {
       userId = response.body.data.user.id;
     });
 
-    it('rechaza email duplicado', async () => {
+    it('rejects a duplicate email', async () => {
       const email = `dup-${Date.now()}@example.com`;
 
       await request(server)
@@ -86,7 +86,7 @@ describe('Auth E2E', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('rechaza password débil', async () => {
+    it('rejects a weak password', async () => {
       const response = await request(server)
         .post('/auth/register')
         .send({
@@ -116,7 +116,7 @@ describe('Auth E2E', () => {
         });
     });
 
-    it('retorna tokens con credenciales válidas', async () => {
+    it('returns tokens with valid credentials', async () => {
       const response = await request(server)
         .post('/auth/login')
         .send({
@@ -132,7 +132,7 @@ describe('Auth E2E', () => {
       authToken = response.body.data.accessToken;
     });
 
-    it('rechaza password incorrecto', async () => {
+    it('rejects an incorrect password', async () => {
       const response = await request(server)
         .post('/auth/login')
         .send({
@@ -144,7 +144,7 @@ describe('Auth E2E', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('rechaza email inexistente', async () => {
+    it('rejects a non-existent email', async () => {
       const response = await request(server)
         .post('/auth/login')
         .send({
@@ -158,7 +158,7 @@ describe('Auth E2E', () => {
   });
 
   describe('POST /auth/refresh', () => {
-    it('genera nuevo access token con refresh token válido', async () => {
+    it('generates a new access token with a valid refresh token', async () => {
       const registerRes = await request(server)
         .post('/auth/register')
         .send({
@@ -179,7 +179,7 @@ describe('Auth E2E', () => {
       expect(response.body.data.accessToken).toBeDefined();
     });
 
-    it('rechaza refresh token inválido', async () => {
+    it('rejects an invalid refresh token', async () => {
       const response = await request(server)
         .post('/auth/refresh-token')
         .send({ refreshToken: 'invalid-token' });
@@ -209,7 +209,7 @@ describe('Auth E2E', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
 
-      // Token debe estar en blacklist ahora
+      // Token should now be on the blacklist
       const protectedRes = await request(server)
         .get('/user/profile')
         .set('Authorization', `Bearer ${token}`);

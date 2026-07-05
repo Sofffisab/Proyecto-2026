@@ -22,7 +22,7 @@ describe("GymService", () => {
   });
 
   describe("checkIn", () => {
-    it("crea sesión con checkOutAt null", async () => {
+    it("creates a session with checkOutAt null", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -43,7 +43,7 @@ describe("GymService", () => {
       });
     });
 
-    it("si ya hay una sesión abierta, la devuelve sin crear una nueva (tolerancia a doble escaneo)", async () => {
+    it("if a session is already open, returns it without creating a new one (double-scan tolerance)", async () => {
       const existingSession = {
         id: "session-123",
         checkOutAt: null,
@@ -56,7 +56,7 @@ describe("GymService", () => {
       expect(prisma.gymSession.create).not.toHaveBeenCalled();
     });
 
-    it("llama a addPoints(POINTS.CHECK_IN) sin bloquear el flujo si falla", async () => {
+    it("calls addPoints(POINTS.CHECK_IN) without blocking the flow if it fails", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -76,7 +76,7 @@ describe("GymService", () => {
   });
 
   describe("checkOut", () => {
-    it("calcula durationMinutes correctamente", async () => {
+    it("calculates durationMinutes correctly", async () => {
       const now = new Date();
       const checkInTime = new Date(now.getTime() - 60000); // 1 minute ago
 
@@ -105,7 +105,7 @@ describe("GymService", () => {
       });
     });
 
-    it("no lanza error si no hay sesión activa: devuelve noActiveSession sin contarlo como visita", async () => {
+    it("does not throw if there is no active session: returns noActiveSession without counting it as a visit", async () => {
       prisma.gymSession.findFirst.mockResolvedValue(null);
 
       const result = await gymService.checkOut("user-123");
@@ -116,7 +116,7 @@ describe("GymService", () => {
   });
 
   describe("getPresentUsers", () => {
-    it("enriquece con lastAssistanceAt sin N+1 queries", async () => {
+    it("enriches with lastAssistanceAt without N+1 queries", async () => {
       const mockSessions = [
         { id: "session-1", userId: "user-1", user: { id: "user-1", firstName: "John" } },
         { id: "session-2", userId: "user-2", user: { id: "user-2", firstName: "Jane" } },
@@ -139,7 +139,7 @@ describe("GymService", () => {
       );
     });
 
-    it("ordena por más urgente (más tiempo sin asistencia) y luego por trainerPreference", async () => {
+    it("sorts by most urgent (longest without assistance) and then by trainerPreference", async () => {
       const result = await gymService.getPresentUsers();
 
       expect(result).toBeDefined();
@@ -163,7 +163,7 @@ describe("GymService", () => {
       expect(emitUserNeedsAttention).toBeDefined();
     });
 
-    it("no emite el evento si está dentro del threshold", async () => {
+    it("does not emit the event if within the threshold", async () => {
       const recentTime = new Date();
       const mockSessions = [
         {
@@ -183,13 +183,13 @@ describe("GymService", () => {
   });
 
   describe("rateTrainer", () => {
-    it("rechaza rating fuera de 1-5", async () => {
+    it("rejects a rating outside of 1-5", async () => {
       await expect(
         gymService.rateTrainer("session-123", "user-123", "trainer-123", 6)
       ).rejects.toThrow("Rating must be between 1 and 5");
     });
 
-    it("rechaza si la sesión no pertenece al usuario", async () => {
+    it("rejects if the session does not belong to the user", async () => {
       prisma.gymSession.findUnique.mockResolvedValue({
         id: "session-123",
         userId: "other-user",
@@ -200,7 +200,7 @@ describe("GymService", () => {
       ).rejects.toThrow();
     });
 
-    it("rechaza si la sesión no está checkout-eada", async () => {
+    it("rejects if the session has not been checked out", async () => {
       prisma.gymSession.findUnique.mockResolvedValue({
         id: "session-123",
         userId: "user-123",
@@ -212,7 +212,7 @@ describe("GymService", () => {
       ).rejects.toThrow();
     });
 
-    it("rechaza doble rating para la misma sesión", async () => {
+    it("rejects a duplicate rating for the same session", async () => {
       prisma.gymSession.findUnique.mockResolvedValue({
         id: "session-123",
         userId: "user-123",
@@ -228,13 +228,13 @@ describe("GymService", () => {
         id: "rating-123",
       });
 
-      // CORRECCIÓN: Alineación con el texto exacto lanzado por tu servicio
+      // FIX: aligned with the exact text thrown by the service
       await expect(
         gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
       ).rejects.toThrow("You have already rated this trainer for this session");
     });
 
-    it("llama a updateTrainerMetrics tras crear el rating", async () => {
+    it("calls updateTrainerMetrics after creating the rating", async () => {
       prisma.gymSession.findUnique.mockResolvedValue({
         id: "session-123",
         userId: "user-123",
@@ -246,7 +246,7 @@ describe("GymService", () => {
         status: "COMPLETED",
       });
 
-      // CORRECCIÓN: Aquí simulamos que NO está calificado aún (null), para que no lance la excepción
+      // FIX: here we simulate that it is NOT rated yet (null), so it does not throw
       prisma.trainerRating.findFirst.mockResolvedValue(null);
       prisma.trainerRating.create.mockResolvedValue({
         id: "rating-123",
@@ -263,7 +263,7 @@ describe("GymService", () => {
   });
 
   describe("getCurrentSession", () => {
-    it("devuelve la sesión activa del usuario", async () => {
+    it("returns the user's active session", async () => {
       const mockSession = {
         id: "session-123",
         userId: "user-123",
@@ -279,7 +279,7 @@ describe("GymService", () => {
   });
 
   describe("getSessionHistory", () => {
-    it("devuelve historial ordenado por más reciente", async () => {
+    it("returns history sorted by most recent", async () => {
       const mockSessions = [
         { id: "session-1", checkInAt: new Date() },
         { id: "session-2", checkInAt: new Date(Date.now() - 86400000) },

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { recalculatePoints } from "../../../src/jobs/points.job.js";
 import prisma from "../../../src/config/prisma.js";
 
-// Mockear el cliente global de Prisma
+// Mock the global Prisma client
 vi.mock("../../../src/config/prisma.js", () => ({
   default: {
     user: {
@@ -19,7 +19,7 @@ describe("recalculatePoints", () => {
     vi.clearAllMocks();
   });
 
-  it("agrega points por usuario vía prisma.pointTransaction.aggregate", async () => {
+  it("aggregates points per user via prisma.pointTransaction.aggregate", async () => {
     prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
     prisma.pointTransaction.aggregate
       .mockResolvedValueOnce({ _sum: { points: 150 } })
@@ -42,10 +42,10 @@ describe("recalculatePoints", () => {
     consoleSpy.mockRestore();
   });
 
-  it("un error en un usuario no corta el loop (processed/failed correctos)", async () => {
+  it("an error for one user does not break the loop (processed/failed are correct)", async () => {
     prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
     
-    // El primero falla, el segundo tiene éxito
+    // The first one fails, the second one succeeds
     prisma.pointTransaction.aggregate
       .mockRejectedValueOnce(new Error("DB Timeout"))
       .mockResolvedValueOnce({ _sum: { points: 50 } });
@@ -62,7 +62,7 @@ describe("recalculatePoints", () => {
     errorSpy.mockRestore();
   });
 
-  it("propaga el error si falla el fetch inicial de usuarios", async () => {
+  it("propagates the error if the initial user fetch fails", async () => {
     prisma.user.findMany.mockRejectedValue(new Error("Connection error"));
 
     await expect(recalculatePoints()).rejects.toThrow("Connection error");

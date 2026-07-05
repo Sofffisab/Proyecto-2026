@@ -28,7 +28,7 @@ describe("runAnalyticsJob", () => {
     expect(runPatternAnalysisForAll).toHaveBeenCalledTimes(1);
   });
 
-  it("re-lanza el error si runPatternAnalysisForAll falla (para permitir retry)", async () => {
+  it("re-throws the error if runPatternAnalysisForAll fails (to allow retry)", async () => {
     getGymAnalytics.mockResolvedValue({ totalCheckins: 10 });
     runPatternAnalysisForAll.mockRejectedValue(new Error("Analysis Engine Failed"));
 

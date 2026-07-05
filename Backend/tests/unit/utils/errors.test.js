@@ -15,27 +15,27 @@ describe("AppError", () => {
     expect(error.statusCode).toBe(401);
   });
 
-  it("default statusCode es 500", () => {
+  it("default statusCode is 500", () => {
     const error = new AppError("Server error");
 
     expect(error.statusCode).toBe(500);
   });
 
-  it("captura el stack trace correctamente", () => {
+  it("captures the stack trace correctly", () => {
     const error = new AppError("Test error", 400);
 
     expect(error.stack).toBeDefined();
     expect(error.stack).toContain("AppError");
   });
 
-  it("permite crear error sin statusCode", () => {
+  it("allows creating an error without a statusCode", () => {
     const error = new AppError("Generic error");
 
     expect(error.message).toBe("Generic error");
     expect(error.statusCode).toBe(500);
   });
 
-  it("preserva el nombre de la clase en toString", () => {
+  it("preserves the class name in toString", () => {
     const error = new AppError("Test error", 400);
 
     expect(error.toString()).toContain("AppError");

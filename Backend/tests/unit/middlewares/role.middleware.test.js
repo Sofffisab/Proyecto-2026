@@ -16,7 +16,7 @@ describe("authorize middleware", () => {
     next = vi.fn();
   });
 
-  it("401 si no hay req.user", async () => {
+  it("401 if there is no req.user", async () => {
     const middleware = authorize(["ADMIN"]);
     req.user = null;
 
@@ -25,7 +25,7 @@ describe("authorize middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("403 si el rol del usuario no está en la lista permitida", async () => {
+  it("403 if the user's role is not in the allowed list", async () => {
     const middleware = authorize(["ADMIN", "TRAINER"]);
     req.user = { id: "user-123", role: "USER" };
 
@@ -34,7 +34,7 @@ describe("authorize middleware", () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  it("permite el paso si el rol está explícitamente en la lista", async () => {
+  it("allows the request through if the role is explicitly in the list", async () => {
     const middleware = authorize(["ADMIN", "TRAINER"]);
     req.user = { id: "user-123", role: "TRAINER" };
 
@@ -43,7 +43,7 @@ describe("authorize middleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("acepta arrays anidados gracias a .flat() — authorize(['ADMIN','TRAINER'])", async () => {
+  it("accepts nested arrays thanks to .flat() — authorize(['ADMIN','TRAINER'])", async () => {
     const middleware = authorize([["ADMIN"], ["TRAINER"]]);
     req.user = { id: "user-123", role: "TRAINER" };
 
@@ -52,7 +52,7 @@ describe("authorize middleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("rechaza si el rol es inválido (no en base de datos)", async () => {
+  it("rejects if the role is invalid (not in the database)", async () => {
     const middleware = authorize(["ADMIN"]);
     req.user = { id: "user-123", role: "SUPERADMIN" }; // Invalid role
 
@@ -61,7 +61,7 @@ describe("authorize middleware", () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  it("permite ADMIN cuando está en la lista", async () => {
+  it("allows ADMIN when it is in the list", async () => {
     const middleware = authorize(["ADMIN"]);
     req.user = { id: "user-123", role: "ADMIN" };
 

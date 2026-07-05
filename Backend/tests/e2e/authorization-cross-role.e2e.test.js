@@ -127,7 +127,7 @@ describe('Authorization Cross-Role E2E', () => {
   });
 
   describe('Reward redemption (ADMIN approval)', () => {
-    it('USER NO puede cambiar estado de redemption a APPROVED', async () => {
+    it('USER CANNOT change a redemption status to APPROVED', async () => {
       const response = await request(server)
         .patch('/rewards/redemptions/redemption-1')
         .set('Authorization', `Bearer ${userToken}`)
@@ -136,7 +136,7 @@ describe('Authorization Cross-Role E2E', () => {
       expect(response.status).toBe(403);
     });
 
-    it('ADMIN puede cambiar estado de redemption', async () => {
+    it('ADMIN can change a redemption status', async () => {
       const response = await request(server)
         .patch('/rewards/redemptions/redemption-1')
         .set('Authorization', `Bearer ${adminToken}`)
