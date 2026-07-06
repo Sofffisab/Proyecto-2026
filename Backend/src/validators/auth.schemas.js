@@ -31,5 +31,5 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8).max(100),
+  newPassword: z.string().min(8).max(100),
 });

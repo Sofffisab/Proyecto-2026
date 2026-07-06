@@ -109,7 +109,7 @@ export const resolveComplaintSchema = z.object({}).optional();
 
 export const rejectComplaintSchema = z.object({
   reason: z.string().max(500).optional(),
-});
+}).optional();
 
 // ── QR ───────────────────────────────────────────────────────────────────────
 

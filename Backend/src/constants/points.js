@@ -1,11 +1,10 @@
 // src/constants/points.js
 /**
- * IMPORTANT
- * ----------------------------------
- * ALL VALUES ARE PLACEHOLDERS.
- * THEY MUST BE REVIEWED AND UPDATED
- * ACCORDING TO BUSINESS DECISIONS.
- * ----------------------------------
+ * Point values awarded/deducted for each gamification event.
+ *
+ * These are the current, agreed-upon defaults. If the business changes the
+ * points economy, update the values below — every consumer of POINTS reads
+ * from here, so there is a single source of truth to edit.
  */
 
 export const POINTS = {

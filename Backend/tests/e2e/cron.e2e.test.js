@@ -15,7 +15,7 @@ describe('Cron E2E', () => {
 
   describe('POST /cron/jobs', () => {
     it('rejects requests without CRON_SECRET', async () => {
-      const response = await request(server).post('/cron/jobs');
+      const response = await request(server).post('/api/v1/cron/jobs');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -23,7 +23,7 @@ describe('Cron E2E', () => {
 
     it('rejects an invalid CRON_SECRET', async () => {
       const response = await request(server)
-        .post('/cron/jobs')
+        .post('/api/v1/cron/jobs')
         .set('Authorization', `Bearer wrong-secret`);
 
       expect(response.status).toBe(401);
@@ -34,7 +34,7 @@ describe('Cron E2E', () => {
       const cronSecret = process.env.CRON_SECRET || 'test-secret';
 
       const response = await request(server)
-        .post('/cron/jobs')
+        .post('/api/v1/cron/jobs')
         .set('Authorization', `Bearer ${cronSecret}`);
 
       expect(response.status).toBe(200);
@@ -48,7 +48,7 @@ describe('Cron E2E', () => {
       // This test needs vitest support for fake timers
 
       const response = await request(server)
-        .post('/cron/jobs')
+        .post('/api/v1/cron/jobs')
         .set('Authorization', `Bearer ${cronSecret}`);
 
       expect(response.status).toBe(200);

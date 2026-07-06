@@ -206,14 +206,14 @@ export async function getPatternSuggestion(userId) {
   if (machines.length === 0) {
     return {
       available: false,
-      reason: "Todavía no hay suficiente historial de entrenamiento para sugerir una rutina.",
+      reason: "Not enough workout history yet to suggest a routine.",
     };
   }
 
   const dayLabel = profile.frequentDays?.[0]?.name ?? null;
   const name = topRoutine
-    ? `Rutina sugerida${dayLabel ? ` de ${dayLabel}` : ""}`
-    : "Rutina sugerida (según tus máquinas más usadas)";
+    ? `Suggested Routine${dayLabel ? ` for ${dayLabel}` : ""}`
+    : "Suggested Routine (based on your most-used machines)";
 
   const content = {
     exercises: machines.map((machineName) => ({ machine: machineName })),
@@ -251,7 +251,7 @@ export async function acceptPatternSuggestion(userId, override = {}) {
   const routine = await prisma.routine.create({
     data: {
       userId,
-      name: name ?? "Rutina sugerida",
+      name: name ?? "Suggested Routine",
       content,
       isCustom: false,
       source: "AI_SUGGESTED",
@@ -269,8 +269,8 @@ export async function acceptPatternSuggestion(userId, override = {}) {
 export async function rejectPatternSuggestion(userId) {
   await createNotification(
     userId,
-    "Sugerencia descartada",
-    "Podés seguir usando tus rutinas guardadas o crear una nueva cuando quieras."
+    "Suggestion dismissed",
+    "You can keep using your saved routines or create a new one anytime."
   ).catch(() => {});
 
   return { rejected: true };

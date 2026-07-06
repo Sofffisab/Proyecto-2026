@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { logger } from "../utils/logger.js";
 
 // How long a gym session can stay open before the system closes it
 // automatically (user forgot to scan the exit QR).
@@ -32,7 +33,7 @@ async function autoCheckoutStaleGymSessions() {
   });
 
   if (stale.length === 0) {
-    console.log("[expiration.job] No stale gym sessions to auto-checkout.");
+    logger.info("[expiration.job] No stale gym sessions to auto-checkout.");
     return;
   }
 
@@ -45,7 +46,7 @@ async function autoCheckoutStaleGymSessions() {
     });
   }
 
-  console.log(`[expiration.job] Auto-checked-out ${stale.length} stale gym session(s).`);
+  logger.info(`[expiration.job] Auto-checked-out ${stale.length} stale gym session(s).`);
 }
 
 async function autoCloseAbandonedMachineUsages() {
@@ -57,7 +58,7 @@ async function autoCloseAbandonedMachineUsages() {
   });
 
   if (stale.length === 0) {
-    console.log("[expiration.job] No abandoned machine usages to close.");
+    logger.info("[expiration.job] No abandoned machine usages to close.");
     return;
   }
 
@@ -70,7 +71,7 @@ async function autoCloseAbandonedMachineUsages() {
     });
   }
 
-  console.log(`[expiration.job] Auto-closed ${stale.length} abandoned machine usage(s).`);
+  logger.info(`[expiration.job] Auto-closed ${stale.length} abandoned machine usage(s).`);
 }
 
 async function expireStaleSocialChallenges() {
@@ -85,7 +86,7 @@ async function expireStaleSocialChallenges() {
   });
 
   if (stale.length === 0) {
-    console.log("[expiration.job] No stale social challenges to expire.");
+    logger.info("[expiration.job] No stale social challenges to expire.");
     return;
   }
 
@@ -94,5 +95,5 @@ async function expireStaleSocialChallenges() {
     data: { status: "EXPIRED" },
   });
 
-  console.log(`[expiration.job] Expired ${stale.length} stale social challenge(s).`);
+  logger.info(`[expiration.job] Expired ${stale.length} stale social challenge(s).`);
 }

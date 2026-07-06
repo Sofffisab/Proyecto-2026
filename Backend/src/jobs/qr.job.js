@@ -1,4 +1,5 @@
 import { regenerateAllMachineQRCodes } from "../services/verification.service.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Runs at 12:00 (noon) every day (see vercel.json crons + routes/index.js
@@ -10,5 +11,5 @@ import { regenerateAllMachineQRCodes } from "../services/verification.service.js
  */
 export async function rotateMachineQRCodes() {
   const { regenerated } = await regenerateAllMachineQRCodes();
-  console.log(`[qr.job] Rotated QR codes for ${regenerated} active machine(s).`);
+  logger.info(`[qr.job] Rotated QR codes for ${regenerated} active machine(s).`);
 }

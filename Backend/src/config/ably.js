@@ -1,4 +1,5 @@
 import Ably from "ably";
+import { logger } from "../utils/logger.js";
 
 export const ABLY_CHANNELS = {
   PRESENCE: "presence",
@@ -16,9 +17,9 @@ try {
   }
 
   ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
-  console.log("[ably] REST client initialized");
+  logger.info("[ably] REST client initialized");
 } catch (err) {
-  console.warn("[ably] REST client unavailable:", err.message);
+  logger.warn("[ably] REST client unavailable:", err.message);
 }
 
 export { ably };

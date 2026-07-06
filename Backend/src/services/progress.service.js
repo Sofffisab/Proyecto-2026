@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
 import { computeProgressPoints } from "./scoringEngine.service.js";
+import { logger } from "../utils/logger.js";
 
 export async function addProgress(userId, goalId, value) {
   const goal = await prisma.goal.findUnique({ where: { id: goalId } });
@@ -40,7 +41,7 @@ export async function addProgress(userId, goalId, value) {
     userId,
     pointsToAward,
     `Progress update (${goal.type}/${goal.action}, difficulty x${breakdown.difficultyScore}, +${breakdown.deltaPercent}%)`
-  ).catch((err) => console.error("[progress] Failed to award points:", err.message));
+  ).catch((err) => logger.error("[progress] Failed to award points:", err.message));
 
   return entry;
 }

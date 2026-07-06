@@ -99,6 +99,20 @@ const RELATIONS = {
   rewardRedemption: {
     reward: { model: "reward", from: "rewardId", to: "id" },
   },
+  machineUsage: {
+    machine: { model: "machine", from: "machineId", to: "id" },
+  },
+  gymSession: {
+    user: { model: "user", from: "userId", to: "id" },
+    // Reverse (one-to-many) relation: all machine-usage rows for this session.
+    machineUsages: { model: "machineUsage", from: "id", to: "gymSessionId", many: true },
+  },
+  userAchievement: {
+    achievement: { model: "achievement", from: "achievementId", to: "id" },
+  },
+  pointReviewRequest: {
+    user: { model: "user", from: "userId", to: "id" },
+  },
 };
 
 function attachRelations(modelName, record, include) {
@@ -113,7 +127,23 @@ function attachRelations(modelName, record, include) {
     const targetStore = this.stores[rel.model];
     if (!targetStore) continue;
     const fromValue = record[rel.from];
-    enriched[relField] = targetStore.records.find((r) => r[rel.to] === fromValue) ?? null;
+
+    if (rel.many) {
+      enriched[relField] = targetStore.records
+        .filter((r) => r[rel.to] === fromValue)
+        .map((r) => {
+          // Support nested include, e.g. machineUsages: { include: { machine: true } }
+          const nestedInclude = include[relField]?.include;
+          return nestedInclude
+            ? attachRelations.call(this, rel.model, r, nestedInclude)
+            : { ...r };
+        });
+    } else {
+      const found = targetStore.records.find((r) => r[rel.to] === fromValue) ?? null;
+      const nestedInclude = include[relField]?.include;
+      enriched[relField] =
+        found && nestedInclude ? attachRelations.call(this, rel.model, found, nestedInclude) : found;
+    }
   }
   return enriched;
 }
@@ -229,6 +259,16 @@ class ModelStore {
     return this._withInclude(this.records[idx], args);
   }
 
+  async updateMany(args = {}) {
+    let count = 0;
+    this.records = this.records.map((r) => {
+      if (!matchesWhere(r, args.where)) return r;
+      count += 1;
+      return { ...r, ...args.data, updatedAt: new Date() };
+    });
+    return { count };
+  }
+
   async upsert(args = {}) {
     const idx = this.records.findIndex((r) => matchesWhere(r, args.where));
     if (idx === -1) {
@@ -291,7 +331,7 @@ class ModelStore {
       groups.get(key).records.push(record);
     }
 
-    return Array.from(groups.values()).map(({ base, records }) => {
+    let entries = Array.from(groups.values()).map(({ base, records }) => {
       const entry = { ...base };
       if (args._count) {
         entry._count = {};
@@ -299,8 +339,33 @@ class ModelStore {
           entry._count[field] = records.length;
         }
       }
+      if (args._sum) {
+        entry._sum = {};
+        for (const field of Object.keys(args._sum)) {
+          entry._sum[field] = records.reduce((acc, r) => acc + (r[field] ?? 0), 0);
+        }
+      }
+      if (args._avg) {
+        entry._avg = {};
+        for (const field of Object.keys(args._avg)) {
+          const vals = records.map((r) => r[field]).filter((v) => v !== undefined && v !== null);
+          entry._avg[field] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        }
+      }
       return entry;
     });
+
+    if (args.having) {
+      entries = entries.filter((entry) =>
+        Object.entries(args.having).every(([field, aggConditions]) =>
+          Object.entries(aggConditions).every(([aggFn, condition]) =>
+            matchesValue(entry[aggFn]?.[field], condition)
+          )
+        )
+      );
+    }
+
+    return entries;
   }
 }
 

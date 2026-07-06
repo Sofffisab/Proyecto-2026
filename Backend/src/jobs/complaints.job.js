@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { logger } from "../utils/logger.js";
 
 const AUTO_CLOSE_AFTER_DAYS = 30;
 
@@ -21,7 +22,7 @@ export async function processComplaints() {
   });
 
   if (stale.length === 0) {
-    console.log("[complaints.job] No stale complaints to process.");
+    logger.info("[complaints.job] No stale complaints to process.");
     return;
   }
 
@@ -37,5 +38,5 @@ export async function processComplaints() {
     },
   });
 
-  console.log(`[complaints.job] Auto-closed ${ids.length} stale complaint(s).`);
+  logger.info(`[complaints.job] Auto-closed ${ids.length} stale complaint(s).`);
 }

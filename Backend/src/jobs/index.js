@@ -4,6 +4,7 @@ import { generateAnnualWrapped } from './wrapped.job.js';
 import { checkInactiveProgress } from './progress.job.js';
 import { processComplaints } from './complaints.job.js';
 import { expireStaleEntities } from './expiration.job.js';
+import { logger } from "../utils/logger.js";
 
 const RETRY_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 2000;
@@ -17,16 +18,16 @@ async function withRetry(name, fn) {
   for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
     try {
       await fn();
-      console.log(`[jobs] ${name}: OK`);
+      logger.info(`[jobs] ${name}: OK`);
       return;
     } catch (err) {
-      console.error(`[jobs] ${name}: attempt ${attempt}/${RETRY_ATTEMPTS} FAILED — ${err.message}`);
+      logger.error(`[jobs] ${name}: attempt ${attempt}/${RETRY_ATTEMPTS} FAILED — ${err.message}`);
       if (attempt < RETRY_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
   }
-  console.error(`[jobs] ${name}: all attempts exhausted, skipping`);
+  logger.error(`[jobs] ${name}: all attempts exhausted, skipping`);
 }
 
 /**
@@ -34,7 +35,7 @@ async function withRetry(name, fn) {
  * Each job runs in isolation with retries — one failure does not stop the others.
  */
 export async function runJobs() {
-  console.log('[jobs] Starting job run...');
+  logger.info('[jobs] Starting job run...');
 
   await withRetry('recalculatePoints', recalculatePoints);
   await withRetry('runAnalyticsJob', runAnalyticsJob);
@@ -49,7 +50,7 @@ export async function runJobs() {
     await withRetry(`generateAnnualWrapped(${currentYear - 1})`, () => generateAnnualWrapped(currentYear - 1));
   }
 
-  console.log('[jobs] Job run complete.');
+  logger.info('[jobs] Job run complete.');
 }
 
 export async function runWrappedJob(year = new Date().getFullYear()) {

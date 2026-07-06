@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { createNotification } from "./communication.service.js";
+import { logger } from "../utils/logger.js";
 
 // Two sessions are considered "the same routine" when the sets of machines
 // they used overlap by at least this fraction (Jaccard-style similarity).
@@ -277,7 +278,7 @@ export async function runPatternAnalysisForAll() {
         );
       }
     } catch (err) {
-      console.error(`[behavior-analysis] Failed for user ${user.id}:`, err.message);
+      logger.error(`[behavior-analysis] Failed for user ${user.id}:`, err.message);
     }
   }
 }

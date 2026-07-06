@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { createNotification } from "./communication.service.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Analyzes a user's training patterns:
@@ -78,7 +79,7 @@ export async function runPatternAnalysisForAll() {
         );
       }
     } catch (err) {
-      console.error(`[pattern-analysis] Failed for user ${user.id}:`, err.message);
+      logger.error(`[pattern-analysis] Failed for user ${user.id}:`, err.message);
     }
   }
 }

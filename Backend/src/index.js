@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import app from "./server.js";
+import { logger } from "./utils/logger.js";
 
 const REQUIRED_ENV_VARS = [
   "DATABASE_URL",
@@ -16,17 +17,17 @@ const REQUIRED_ENV_VARS = [
 const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
-  console.error(
+  logger.error(
     `[startup] Missing required environment variables:\n  ${missing.join("\n  ")}`
   );
-  console.error("[startup] Server will not start. Add them to your .env file.");
+  logger.error("[startup] Server will not start. Add them to your .env file.");
   process.exit(1);
 }
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`
+  logger.info(`
 =================================
 GYM BACKEND RUNNING
 PORT: ${PORT}

@@ -1,4 +1,5 @@
 import Ably from "ably";
+import { logger } from "../utils/logger.js";
 
 let ably = null;
 
@@ -21,16 +22,16 @@ try {
   channels.social        = ably.channels.get("social");
   channels.notifications = ably.channels.get("notifications");
 
-  console.log("[ably] Rest client initialized for Serverless events");
+  logger.info("[ably] Rest client initialized for Serverless events");
 } catch (err) {
-  console.warn("[ably] Realtime/Rest unavailable — running without Ably:", err.message);
+  logger.warn("[ably] Realtime/Rest unavailable — running without Ably:", err.message);
 }
 
 export { channels };
 
 function safePublish(channel, event, data) {
   if (!channel) {
-    console.warn(`[ably] Skipping publish "${event}" — channel not available`);
+    logger.warn(`[ably] Skipping publish "${event}" — channel not available`);
     return;
   }
   channel.publish(event, data);

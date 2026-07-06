@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { createNotification, sendEmail } from "./communication.service.js";
+import { logger } from "../utils/logger.js";
 
 // How long a goal can go with no meaningful progress before we recommend the
 // user see a doctor or nutritionist, in addition to the regular in-app nudge.
@@ -160,7 +161,7 @@ export async function runSuggestionEngineForAll() {
     try {
       await evaluateUserProgress(user.id);
     } catch (err) {
-      console.error(`[suggestionEngine] Failed for user ${user.id}:`, err.message);
+      logger.error(`[suggestionEngine] Failed for user ${user.id}:`, err.message);
     }
   }
 }

@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import prisma from "../config/prisma.js";
+import { logger } from "../utils/logger.js";
 
 // Lazy singleton: avoids crashing at import time (e.g. in tests) when
 // RESEND_API_KEY isn't set. Only instantiated the first time an email is sent.
@@ -99,7 +100,7 @@ export async function sendEmail(to, subject, html) {
       html,
     });
   } catch (err) {
-    console.error("[communication.service] Failed to send email:", err.message);
+    logger.error("[communication.service] Failed to send email:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -175,7 +176,7 @@ export async function notifyTrainerOfReturningStudent(
       type: "STUDENT_ABANDONMENT_ALERT",
     });
   } catch (err) {
-    console.error("[communication.service] Failed to emit realtime notification:", err.message);
+    logger.error("[communication.service] Failed to emit realtime notification:", err.message);
   }
 
   return notification;

@@ -24,7 +24,7 @@ describe('Auth Schemas', () => {
     it('rejects missing fields', () => {
       const invalid = {
         email: 'test@example.com',
-        // falta password y name
+        // missing password and name
       };
 
       const result = registerSchema.safeParse(invalid);
@@ -116,17 +116,17 @@ describe('Auth Schemas', () => {
   });
 
   describe('resetPasswordSchema', () => {
-    it('accepts a valid token and password', () => {
+    it('accepts a valid token and newPassword', () => {
       const valid = {
         token: 'reset-token-123',
-        password: 'NewSecurePass123!',
+        newPassword: 'NewSecurePass123!',
       };
 
       const result = resetPasswordSchema.safeParse(valid);
       expect(result.success).toBe(true);
     });
 
-    it('rejects a missing password', () => {
+    it('rejects a missing newPassword', () => {
       const invalid = {
         token: 'reset-token-123',
       };

@@ -3,6 +3,7 @@ import redis from "../config/redis.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";
+import { logger } from "../utils/logger.js";
 
 export async function addPoints(userId, points, reason) {
   // Points can be negative (penalties, e.g. complaint.service.js#approveComplaint)
@@ -22,7 +23,7 @@ export async function addPoints(userId, points, reason) {
   try {
     await autoGrantRewards(userId);
   } catch (err) {
-    console.error("[gamification] Failed to auto-grant rewards:", err.message);
+    logger.error("[gamification] Failed to auto-grant rewards:", err.message);
   }
 
   return transaction;

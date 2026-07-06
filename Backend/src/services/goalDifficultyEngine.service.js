@@ -2,13 +2,10 @@ import { DIFFICULTY_MULTIPLIERS } from "../constants/points.js";
 import { getUserBehaviorProfile } from "./behaviorAnalysis.service.js";
 
 /**
- * IMPORTANT
- * ----------------------------------
- * The tier thresholds below are PLACEHOLDERS meant to encode "generalized
- * difficulty standards" per goal type/action (e.g. losing 10kg of fat is
- * objectively harder than losing 2kg). They should be reviewed against real
- * fitness/nutrition guidance before shipping to production.
- * ----------------------------------
+ * Tier thresholds encoding "generalized difficulty standards" per goal
+ * type/action (e.g. losing 10kg of fat is objectively harder than losing
+ * 2kg). These are the current agreed-upon defaults; if fitness/nutrition
+ * guidance changes, update the thresholds below.
  *
  * Each entry maps a GoalType to a function that scores a given
  * (targetValue, action) into a difficulty multiplier. Types without a

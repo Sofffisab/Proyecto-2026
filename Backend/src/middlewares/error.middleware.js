@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger.js";
 export const notFoundHandler = (req, res) => {
   return res.status(404).json({
     success: false,
@@ -10,10 +11,10 @@ export const errorHandler = (error, req, res, next) => {
 
   // Log full error details only in development
   if (process.env.NODE_ENV !== "production") {
-    console.error("[Error]", error);
+    logger.error("[Error]", error);
   } else {
     // In production, log minimal info (status and message without stack)
-    console.error("[Error]", { statusCode, message: error.message });
+    logger.error("[Error]", { statusCode, message: error.message });
   }
 
   // Determine the response message

@@ -4,13 +4,26 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import router from "./routes/index.js";
-import { runJobs } from "./jobs/index.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
+import { logger } from "./utils/logger.js";
 const app = express();
 
 app.use(helmet({
   contentSecurityPolicy: false, // mobile clients don't use CSP
 }));
+
+// NOTE: CORS only inspects the `Origin` header, which browsers attach but
+// arbitrary HTTP clients (curl, native mobile HTTP stacks) do not have to
+// send. Requests without an Origin header are always allowed below because
+// that's the normal case for this app's mobile clients — CORS is therefore
+// NOT a security boundary here. Actual access control must come from the
+// auth/role middlewares (see auth.middleware.js / role.middleware.js), never
+// from this origin check alone.
+if (process.env.NODE_ENV === "production" && !process.env.ALLOWED_ORIGINS) {
+  logger.warn(
+    "[server] ALLOWED_ORIGINS is not set in production — all requests without an Origin header will still be allowed (expected for mobile clients), but no browser origin will be trusted either. Set ALLOWED_ORIGINS if any browser-based client needs access."
+  );
+}
 
 app.use(cors({
   origin(origin, callback) {
@@ -41,22 +54,15 @@ if (process.env.NODE_ENV !== "test") {
   app.use(morgan("combined"));
 }
 
-// Root-level alias — some cron providers hit a bare path without the API prefix.
-// Vercel Cron Jobs invoke the configured path with GET; POST is also kept
-// so the job can still be triggered manually (e.g. for testing).
-const cronAuth = (req, res, next) => {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-  next();
-};
-app.get("/cron/jobs", cronAuth, runJobs);
-app.post("/cron/jobs", express.json({ limit: "2mb" }), cronAuth, runJobs);
-
+// Cron routes (including the CRON_SECRET auth check) live exclusively in
+// routes/index.js to avoid duplicating that logic in two places.
+//
+// Mounted at both the versioned prefix (what the Frontend/vercel.json crons
+// use) and at root (what the existing test suite — and Supertest calls in
+// general — use). Without the root mount every route 404s for any client
+// hitting an unprefixed path.
 app.use("/api/v1", router);
-app.use("/", router);
+app.use(router);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

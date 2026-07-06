@@ -1,5 +1,6 @@
 // src/jobs/progress.job.js
 import { runSuggestionEngineForAll } from "../services/suggestionEngine.service.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Triggers the suggestion engine for all active users.
@@ -13,5 +14,5 @@ import { runSuggestionEngineForAll } from "../services/suggestionEngine.service.
  */
 export async function checkInactiveProgress() {
   await runSuggestionEngineForAll();
-  console.log("[progressJob] Suggestion engine run complete.");
+  logger.info("[progressJob] Suggestion engine run complete.");
 }

@@ -1,5 +1,6 @@
 import { getGymAnalytics } from "../services/insights.service.js";
 import { runPatternAnalysisForAll } from "../services/behaviorAnalysis.service.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Runs the daily analytics snapshot.
@@ -14,15 +15,15 @@ import { runPatternAnalysisForAll } from "../services/behaviorAnalysis.service.j
  */
 export async function runAnalyticsJob() {
   const data = await getGymAnalytics();
-  console.log("[analyticsJob] Gym analytics snapshot:", data);
+  logger.info("[analyticsJob] Gym analytics snapshot:", data);
 
   try {
     await runPatternAnalysisForAll();
-    console.log("[analyticsJob] Pattern analysis complete.");
+    logger.info("[analyticsJob] Pattern analysis complete.");
   } catch (err) {
     // A top-level error here means the analysis failed before it could iterate
     // users (e.g. DB unreachable). Log it explicitly so ops can investigate.
-    console.error("[analyticsJob] Pattern analysis FAILED — results were NOT persisted:", err.message);
+    logger.error("[analyticsJob] Pattern analysis FAILED — results were NOT persisted:", err.message);
     throw err; // re-throw so the job runner's withRetry can attempt again
   }
 }

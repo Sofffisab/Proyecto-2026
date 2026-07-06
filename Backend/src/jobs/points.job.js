@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Recalculates total points for every user from their PointTransaction records
@@ -18,7 +19,7 @@ export async function recalculatePoints() {
   try {
     users = await prisma.user.findMany({ select: { id: true } });
   } catch (err) {
-    console.error("[points.job] Failed to fetch users:", err.message);
+    logger.error("[points.job] Failed to fetch users:", err.message);
     throw err;
   }
 
@@ -36,14 +37,14 @@ export async function recalculatePoints() {
 
       // Log the result. To persist this to a cache table, add the UserPoints
       // model to prisma/schema.prisma and replace this log with an upsert.
-      console.log(`[points.job] User ${user.id} total: ${total} pts`);
+      logger.info(`[points.job] User ${user.id} total: ${total} pts`);
 
       processed++;
     } catch (err) {
-      console.error(`[points.job] Failed to process user ${user.id}:`, err.message);
+      logger.error(`[points.job] Failed to process user ${user.id}:`, err.message);
       failed++;
     }
   }
 
-  console.log(`[points.job] Done — ${processed} processed, ${failed} failed`);
+  logger.info(`[points.job] Done — ${processed} processed, ${failed} failed`);
 }

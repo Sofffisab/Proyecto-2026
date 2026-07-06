@@ -5,6 +5,7 @@ import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
 import { sendPasswordResetEmail, sendWelcomeEmail, sendEmail } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
+import { logger } from "../utils/logger.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -28,7 +29,7 @@ export async function register(data) {
   });
 
   Promise.resolve(sendWelcomeEmail(user.email, user.firstName, user.id)).catch((err) =>
-    console.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
+    logger.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
   );
 
   // Fix #2: use `userId` consistently in JWT payload so middleware can read it
@@ -155,8 +156,7 @@ export async function forgotPassword(data) {
 }
 
 export async function resetPassword(data) {
-  const { token, password, newPassword } = data;
-  const newPass = newPassword ?? password;
+  const { token, newPassword } = data;
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await prisma.user.findUnique({
@@ -167,7 +167,7 @@ export async function resetPassword(data) {
     throw new AppError("Invalid or expired reset token", 400);
   }
 
-  const passwordHash = await bcrypt.hash(newPass, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
 
   await prisma.user.update({
     where: { id: user.id },

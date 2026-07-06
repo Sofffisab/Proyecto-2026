@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { generateWrapped } from "../services/wrapped.service.js";
+import { logger } from "../utils/logger.js";
 
 export async function generateAnnualWrapped(year) {
   const users = await prisma.user.findMany({
@@ -16,10 +17,10 @@ export async function generateAnnualWrapped(year) {
       processed++;
     } catch (err) {
       // A single user failure must not abort the rest of the batch
-      console.error(`[wrapped.job] Failed for user ${user.id}:`, err.message);
+      logger.error(`[wrapped.job] Failed for user ${user.id}:`, err.message);
       failed++;
     }
   }
 
-  console.log(`[wrapped.job] Done — ${processed} processed, ${failed} failed`);
+  logger.info(`[wrapped.job] Done — ${processed} processed, ${failed} failed`);
 }

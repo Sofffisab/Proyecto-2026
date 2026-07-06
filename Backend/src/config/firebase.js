@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { logger } from "../utils/logger.js";
 
 let firebase = null;
 
@@ -23,9 +24,9 @@ try {
     firebase = admin.app();
   }
 
-  console.log("[firebase] Initialized");
+  logger.info("[firebase] Initialized");
 } catch (err) {
-  console.warn("[firebase] Push notifications unavailable:", err.message);
+  logger.warn("[firebase] Push notifications unavailable:", err.message);
 }
 
 export { firebase };

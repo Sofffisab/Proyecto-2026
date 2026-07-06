@@ -5,6 +5,7 @@ import { POINTS } from "../constants/points.js";
 import { emitUserNeedsAttention } from "../realtime/ably.js";
 import { notifyTrainerOfReturningStudent } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
+import { logger } from "../utils/logger.js";
 
 // Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
 const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
@@ -43,7 +44,7 @@ export async function checkIn(userId, options = {}) {
 
   // Award check-in points (non-blocking)
   addPoints(userId, POINTS.CHECK_IN, "Gym check-in").catch((err) =>
-    console.error("[gym] Failed to award check-in points:", err.message)
+    logger.error("[gym] Failed to award check-in points:", err.message)
   );
 
   // Alert trainer(s) who haven't helped this student in a long time that
@@ -53,7 +54,7 @@ export async function checkIn(userId, options = {}) {
   // storage means the student may currently be on the floor right now.
   if (alertNow) {
     notifyAbandoningTrainersOnCheckIn(userId, new Date()).catch((err) =>
-      console.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
+      logger.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
     );
   }
 
@@ -182,7 +183,7 @@ export async function checkOut(userId) {
 
   // Award check-out points (non-blocking)
   addPoints(userId, POINTS.CHECK_OUT, "Gym check-out").catch((err) =>
-    console.error("[gym] Failed to award check-out points:", err.message)
+    logger.error("[gym] Failed to award check-out points:", err.message)
   );
 
   return updated;
