@@ -18,7 +18,10 @@ describe("checkInactiveProgress", () => {
     await checkInactiveProgress();
 
     expect(runSuggestionEngineForAll).toHaveBeenCalledTimes(1);
-    expect(consoleSpy).toHaveBeenCalledWith("[progressJob] Suggestion engine run complete.");
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[INFO]"),
+      "[progressJob] Suggestion engine run complete."
+    );
     
     consoleSpy.mockRestore();
   });

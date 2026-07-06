@@ -63,7 +63,9 @@ export async function rateTrainer(req, res, next) {
       req.params.id,
       req.user.id,
       req.validatedData.trainerId,
-      req.validatedData.rating
+      req.validatedData.rating,
+      req.validatedData.helped,
+      req.validatedData.comment
     );
     res.json({ success: true, data: result });
   } catch (err) {

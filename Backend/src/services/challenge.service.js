@@ -20,6 +20,15 @@ export async function assignChallenge(userIdA, userIdB, station) {
     throw new AppError("One or both users have social challenges disabled", 400);
   }
 
+  // Social challenges are station/machine-based (they're assigned at a
+  // machine and completed by scanning there). Users who opted out of
+  // machine tracking ("no usar la app para máquinas") are excluded from
+  // this matching entirely — they keep interacting with trainers, just not
+  // with other members at a machine.
+  if (settingsA?.machineTrackingOptOut || settingsB?.machineTrackingOptOut) {
+    throw new AppError("One or both users have machine tracking disabled and cannot be matched for a station challenge", 400);
+  }
+
   const [sessionA, sessionB] = await Promise.all([
     prisma.gymSession.findFirst({ where: { userId: userIdA, checkOutAt: null } }),
     prisma.gymSession.findFirst({ where: { userId: userIdB, checkOutAt: null } }),

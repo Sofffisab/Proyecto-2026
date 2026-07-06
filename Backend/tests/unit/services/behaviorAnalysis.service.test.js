@@ -95,4 +95,69 @@ describe("behaviorAnalysis.service", () => {
       expect(result.calculatedAt).toBeNull();
     });
   });
+
+  describe("awardConsistencyBonus", () => {
+    it("awards the bonus when both thresholds are met and it hasn't been given this week", async () => {
+      prisma.pointTransaction.findFirst.mockResolvedValue(null);
+      prisma.pointTransaction.create.mockResolvedValue({});
+      prisma.reward.findMany.mockResolvedValue([]);
+
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.9,
+        avgSessionsPerWeek: 3,
+      });
+
+      expect(result).not.toBeNull();
+      expect(prisma.pointTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: "user-1",
+            points: 25,
+          }),
+        })
+      );
+    });
+
+    it("does not award when consistency is below the threshold", async () => {
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.3,
+        avgSessionsPerWeek: 3,
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("does not award when sessions per week are below the threshold", async () => {
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.9,
+        avgSessionsPerWeek: 0.5,
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("does not award twice in the same week", async () => {
+      prisma.pointTransaction.findFirst.mockResolvedValue({ id: "existing-tx" });
+
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.9,
+        avgSessionsPerWeek: 3,
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("does not award when there isn't enough data yet (null values)", async () => {
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: null,
+        avgSessionsPerWeek: null,
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+  });
 });

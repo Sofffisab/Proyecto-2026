@@ -83,11 +83,13 @@ export async function generateWrapped(userId, year) {
     topTrainers,
   };
 
-  return prisma.wrapped.upsert({
+  await prisma.wrapped.upsert({
     where: { userId_year: { userId, year } },
     update: { payload },
     create: { userId, year, payload },
   });
+
+  return payload;
 }
 
 export async function getWrapped(userId) {

@@ -38,6 +38,23 @@ export const POINTS = {
 
   ROUTINE_DAY_COMPLETED: 10,
 
+  // Student engaged with a trainer and the help session actually happened —
+  // a real-world, staff-facilitated interaction the gym wants to encourage.
+  ASSISTANCE_COMPLETED: 15,
+
+  // Rewards giving feedback on a trainer (helps the gym improve its
+  // service) — small, so it can't be farmed, but non-zero because it's a
+  // genuinely useful signal for the business.
+  TRAINER_RATED: 10,
+
+  // Weekly bonus for being frequent AND consistent — awarded at most once
+  // per calendar week per user by behaviorAnalysis.service.js, based on the
+  // learned UserBehaviorProfile (consistencyScore + avgSessionsPerWeek).
+  // This is the "reward loyalty/attendance" lever the gym cares about most:
+  // simply coming in often isn't enough on its own (a burst of visits in one
+  // week shouldn't count), the cadence has to actually be regular.
+  CONSISTENCY_WEEKLY_BONUS: 25,
+
   APPROVED_COMPLAINT_PENALTY: -50,
 
   SUSPICIOUS_ACTIVITY_PENALTY: -100,
@@ -51,7 +68,16 @@ export const DIFFICULTY_MULTIPLIERS = {
   HARD: 1.5,
 };
 
+// Minimum learned consistencyScore (0..1) and avgSessionsPerWeek a user's
+// UserBehaviorProfile must show to qualify for POINTS.CONSISTENCY_WEEKLY_BONUS.
+// See behaviorAnalysis.service.js#awardConsistencyBonus.
+export const CONSISTENCY_BONUS_THRESHOLDS = {
+  MIN_CONSISTENCY_SCORE: 0.7,
+  MIN_SESSIONS_PER_WEEK: 2,
+};
+
 export default {
   POINTS,
   DIFFICULTY_MULTIPLIERS,
+  CONSISTENCY_BONUS_THRESHOLDS,
 };

@@ -8,6 +8,67 @@ describe("UserService", () => {
     vi.clearAllMocks();
   });
 
+  describe("update", () => {
+    it("marks isProfileComplete true once birthday, medicalConditions and deliveryAddress are all present", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        birthday: null,
+        medicalConditions: null,
+        deliveryAddress: null,
+      });
+      prisma.user.update.mockResolvedValue({ id: "user-123", isProfileComplete: true });
+
+      await userService.update("user-123", {
+        birthday: "1990-01-01T00:00:00.000Z",
+        medicalConditions: [],
+        deliveryAddress: "Main St 123",
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: "user-123" },
+        data: expect.objectContaining({ isProfileComplete: true }),
+      });
+    });
+
+    it("keeps isProfileComplete false when a required field is still missing", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        birthday: new Date("1990-01-01"),
+        medicalConditions: null,
+        deliveryAddress: null,
+      });
+      prisma.user.update.mockResolvedValue({ id: "user-123", isProfileComplete: false });
+
+      await userService.update("user-123", { firstName: "Ana" });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: "user-123" },
+        data: expect.objectContaining({ isProfileComplete: false }),
+      });
+    });
+
+    it("strips role/isActive/passwordHash/isProfileComplete from the payload to prevent privilege escalation", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        birthday: new Date(),
+        medicalConditions: [],
+        deliveryAddress: "x",
+      });
+      prisma.user.update.mockResolvedValue({});
+
+      await userService.update("user-123", {
+        firstName: "Ana",
+        role: "ADMIN",
+        isActive: false,
+        passwordHash: "hacked",
+        isProfileComplete: false,
+      });
+
+      const callArgs = prisma.user.update.mock.calls[0][0];
+      expect(callArgs.data).not.toHaveProperty("role");
+      expect(callArgs.data).not.toHaveProperty("isActive");
+      expect(callArgs.data).not.toHaveProperty("passwordHash");
+      expect(callArgs.data.firstName).toBe("Ana");
+    });
+  });
+
   describe("updateRole", () => {
     it("updates the role correctly", async () => {
       const mockUser = { id: "user-123", role: "TRAINER" };

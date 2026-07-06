@@ -59,3 +59,17 @@ export async function getEngagementMetrics(req, res, next) {
     next(err);
   }
 }
+
+// Admin-only: full user history export, passed through the privacy/
+// pseudonymization layer (see utils/privacy.js + insights.service.js).
+// ?identified=true attaches real name/email, but only for users who have
+// not withdrawn analytics consent — enforced server-side, not by this flag.
+export async function getFullHistoryAdmin(req, res, next) {
+  try {
+    const includeIdentifiers = req.query.identified === "true";
+    const data = await insightsService.getFullHistoryAdmin({ includeIdentifiers });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}

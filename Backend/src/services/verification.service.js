@@ -153,6 +153,25 @@ export async function processScan(scannerId, rawPayload) {
       }
     }
 
+    // "No usar la app para máquinas": the user only wants entry/exit
+    // scanned. Don't create/update any MachineUsage record — the scan is
+    // accepted (so a stray tap doesn't error out) but nothing machine-level
+    // is stored. Presence is still reaffirmed so a pending auto-checkout is
+    // cancelled, same as a normal machine scan would do.
+    const scannerSettings = await prisma.userSettings.findUnique({
+      where: { userId: scannerId },
+      select: { machineTrackingOptOut: true },
+    });
+
+    if (scannerSettings?.machineTrackingOptOut) {
+      await reopenSessionIfAutoClosed(scannerId).catch(() => {});
+      return {
+        success: true,
+        tracked: false,
+        message: "Machine tracking is disabled for this user by preference",
+      };
+    }
+
     // Any machine scan proves the user is still physically in the gym —
     // cancel a pending auto-checkout if one was scheduled/applied.
     await reopenSessionIfAutoClosed(scannerId).catch(() => {});

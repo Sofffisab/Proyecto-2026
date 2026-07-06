@@ -1,6 +1,9 @@
 import prisma from "../config/prisma.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { emitAssistanceEvent } from "../realtime/ably.js";
+import { addPoints } from "./gamification.service.js";
+import { POINTS } from "../constants/points.js";
+import { logger } from "../utils/logger.js";
 
 export async function requestAssistance(userId) {
   const settings = await prisma.userSettings.findUnique({ where: { userId } });
@@ -119,6 +122,15 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
     await updateTrainerMetrics(updated.trainerId);
     await setTrainerAvailability(updated.trainerId, "AVAILABLE");
   }
+
+  // Reward the student for the interaction actually happening — a real,
+  // staff-facilitated engagement is exactly the kind of behavior the gym
+  // wants to encourage (as opposed to just showing up and never asking
+  // for help). Non-blocking: never let a points failure break the
+  // assistance completion itself.
+  addPoints(updated.userId, POINTS.ASSISTANCE_COMPLETED, "Trainer assistance completed").catch(
+    (err) => logger.error("[assistance] Failed to award assistance points:", err.message)
+  );
 
   return updated;
 }

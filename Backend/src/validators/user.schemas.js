@@ -17,6 +17,14 @@ export const updateSettingsSchema = z.object({
   disableAssistance: z.boolean().optional(),
   disableSocial: z.boolean().optional(),
   trainerPreference: z.string().nullable().optional(),
+  // "No usar la app para máquinas": only entry/exit is scanned, no machine
+  // QR is recorded, and the user is dropped from machine-based social
+  // matching. They stay in the trainer's help list, just without any
+  // machine/zone info attached.
+  machineTrackingOptOut: z.boolean().optional(),
+  // Consent to be included (even pseudonymized) in the admin full
+  // analytics/history export. Defaults to true; users can withdraw it.
+  analyticsConsent: z.boolean().optional(),
 });
 
 export const notificationPreferencesSchema = updateSettingsSchema;

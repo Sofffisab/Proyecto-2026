@@ -85,12 +85,15 @@ enum ComplaintStatus {
   REJECTED
 }
 
+enum ComplaintSource {
+  USER            // Reported by another member
+  TRAINER_REPORT  // Reported by a trainer against a member (equipment damage, misconduct, etc.)
+  AUTO_NO_HELP    // Auto-generated when a member marks "No me ayudaron" on the rate-trainer popup
+}
+
 enum RewardRedemptionStatus {
-  PENDING
-  APPROVED
   SHIPPED
   DELIVERED
-  REJECTED
 }
 
 model User {
@@ -108,6 +111,10 @@ model User {
   deliveryAddress      String?
   fcmToken             String?
   isActive             Boolean   @default(true)
+  // Set once birthday, medicalConditions and deliveryAddress are all filled in.
+  // Regular members are blocked from the rest of the API until this is true —
+  // see requireCompleteProfile middleware.
+  isProfileComplete    Boolean   @default(false)
   // Throttles the "see a doctor/nutritionist" recommendation email so it is
   // sent at most once per cooldown window, even though the check runs daily.
   lastHealthEmailAt    DateTime?
@@ -189,6 +196,20 @@ model UserSettings {
   disableAssistance Boolean  @default(false)
   disableSocial     Boolean  @default(false)
   trainerPreference String?
+  // "No usar la app para máquinas": when true, the app only scans gym
+  // entry/exit (ENTRY_EXIT QR). Machine QR scans are not recorded — no
+  // MachineUsage rows are created, and the user's current machine/station
+  // is never resolved or shown. This also removes the user from
+  // machine-station-based social challenge matching (see challenge.service.js),
+  // but they remain visible in the trainer's assistance/help list — just
+  // without any machine/zone info attached (see gym.service.js#getUserCurrentLocation).
+  machineTrackingOptOut Boolean @default(false)
+  // Whether this user's activity may be included (even pseudonymized) in the
+  // admin-facing full analytics/history export. See insights.service.js
+  // #getFullHistoryAdmin and utils/privacy.js. Defaults to true (opt-out model),
+  // but users who withdraw consent are always shown pseudonymized, never with
+  // their real name/email.
+  analyticsConsent  Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -225,6 +246,7 @@ model GymSession {
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   machineUsages   MachineUsage[]
   ratings         TrainerRating[]
+  complaints      Complaint[]
 
   @@index([userId])
   @@index([checkInAt])
@@ -419,21 +441,27 @@ model Reward {
   description String?
   pointsCost  Int      @default(0)
   active      Boolean  @default(true)
+  // Admin-only fields — never exposed on the user-facing /rewards endpoint.
+  // Rewards are granted automatically at random among what is currently in
+  // stock (see reward.service.js#autoGrantRewards), so users never see or
+  // choose stock levels ahead of time.
+  stock            Int     @default(0)
+  // Marketing/merchandising prize (sponsored brand items, e.g. towels) as
+  // opposed to a purely gym-funded reward. Admin-only classification, used
+  // for reporting/reordering — not shown to users.
+  isMarketingItem  Boolean @default(false)
   createdAt   DateTime @default(now())
 
   redemptions RewardRedemption[]
+
+  @@index([active])
 }
 
 model RewardRedemption {
   id          String                 @id @default(uuid())
   userId      String
   rewardId    String
-  status      RewardRedemptionStatus @default(PENDING)
-  approvedBy  String?   // ID of the admin who approved (null on rejections)
-  reviewedBy  String?   // ID of the admin who rejected (null on approvals)
-  reviewedAt  DateTime? // Timestamp of the rejection action
-  approvedAt  DateTime?
-  shippedAt   DateTime?
+  status      RewardRedemptionStatus @default(SHIPPED)
   deliveredAt DateTime?
   createdAt   DateTime               @default(now())
 
@@ -483,17 +511,23 @@ model Complaint {
   reason         String
   message        String?
   status         ComplaintStatus @default(PENDING)
+  source         ComplaintSource @default(USER)
+  // Session the complaint is tied to, when relevant (e.g. the auto "no me
+  // ayudaron" complaint generated from the rate-trainer popup).
+  gymSessionId   String?
   reviewedBy     String?
   reviewedAt     DateTime?
   resolution     String?         // Auto-close message or admin note on resolution
   createdAt      DateTime        @default(now())
 
-  reporter       User  @relation("ComplaintReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
-  reported       User  @relation("ComplaintReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
-  reviewer       User? @relation("ComplaintReviewer", fields: [reviewedBy],     references: [id])
+  reporter       User        @relation("ComplaintReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
+  reported       User        @relation("ComplaintReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reviewer       User?       @relation("ComplaintReviewer", fields: [reviewedBy],     references: [id])
+  gymSession     GymSession? @relation(fields: [gymSessionId], references: [id])
 
   @@index([reportedUserId])
   @@index([status])
+  @@index([gymSessionId])
 }
 
 model PointReviewRequest {

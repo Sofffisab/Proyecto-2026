@@ -56,6 +56,7 @@ describe("recalculatePoints", () => {
 
     expect(prisma.pointTransaction.aggregate).toHaveBeenCalledTimes(2);
     expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[ERROR]"),
       expect.stringContaining("[points.job] Failed to process user user-1:"),
       expect.any(String)
     );

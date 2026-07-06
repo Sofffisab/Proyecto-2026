@@ -27,6 +27,71 @@ export async function createComplaint(data) {
   });
 }
 
+// Auto-generated complaint from the rate-trainer popup when the member
+// marks "No me ayudaron". One per (user, trainer, session) — if it already
+// exists (e.g. duplicate submit), just return the existing one instead of
+// throwing, since this path is triggered by the UI, not typed in by hand.
+export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gymSessionId, comment }) {
+  if (reporterId === reportedUserId) {
+    throw new Error("Cannot report yourself");
+  }
+
+  const existing = await prisma.complaint.findFirst({
+    where: {
+      reporterId,
+      reportedUserId,
+      gymSessionId: gymSessionId ?? null,
+      source: "AUTO_NO_HELP",
+    },
+  });
+  if (existing) return existing;
+
+  const reportedUser = await prisma.user.findUnique({ where: { id: reportedUserId } });
+  if (!reportedUser) {
+    throw new Error("Reported user not found");
+  }
+
+  return prisma.complaint.create({
+    data: {
+      reporterId,
+      reportedUserId,
+      gymSessionId: gymSessionId ?? null,
+      reason: "El entrenador no brindó la ayuda solicitada",
+      message: comment ?? null,
+      status: "PENDING",
+      source: "AUTO_NO_HELP",
+    },
+  });
+}
+
+// Trainer/Admin reporting a member (e.g. broke a machine, misbehaved).
+// Reported user must be a regular member — trainers report members here,
+// not other staff.
+export async function createTrainerComplaint({ reporterId, reportedUserId, reason, message }) {
+  if (reporterId === reportedUserId) {
+    throw new Error("Cannot report yourself");
+  }
+
+  const reportedUser = await prisma.user.findUnique({ where: { id: reportedUserId } });
+  if (!reportedUser) {
+    throw new Error("Reported user not found");
+  }
+  if (reportedUser.role !== "USER") {
+    throw new Error("Trainers can only report regular members through this endpoint");
+  }
+
+  return prisma.complaint.create({
+    data: {
+      reporterId,
+      reportedUserId,
+      reason,
+      message: message ?? null,
+      status: "PENDING",
+      source: "TRAINER_REPORT",
+    },
+  });
+}
+
 export async function getUserComplaints(userId) {
   return prisma.complaint.findMany({
     where: { reporterId: userId },

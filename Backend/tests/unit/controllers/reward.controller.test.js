@@ -36,7 +36,7 @@ describe("RewardController", () => {
 
   it("getUserRedemptions returns 200 with the user redemptions", async () => {
     const mockRedemptions = [
-      { id: "redemption-1", userId: "user-1", rewardId: "reward-1", status: "PENDING" },
+      { id: "redemption-1", userId: "user-1", rewardId: "reward-1", status: "SHIPPED" },
     ];
     vi.spyOn(rewardService, "getUserRedemptions").mockResolvedValue(mockRedemptions);
     await rewardController.getUserRedemptions(req, res, next);
@@ -53,17 +53,17 @@ describe("RewardController", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("updateRedemptionStatus with status APPROVED calls approveReward", async () => {
+  it("updateRedemptionStatus with status DELIVERED calls deliverReward", async () => {
     req.params = { id: "redemption-1" };
-    req.body = { status: "APPROVED" };
+    req.body = { status: "DELIVERED" };
     req.user = { id: "admin-1", role: "ADMIN" };
 
-    const mockUpdated = { id: "redemption-1", status: "APPROVED" };
-    vi.spyOn(rewardService, "approveReward").mockResolvedValue(mockUpdated);
+    const mockUpdated = { id: "redemption-1", status: "DELIVERED" };
+    vi.spyOn(rewardService, "deliverReward").mockResolvedValue(mockUpdated);
 
     await rewardController.updateRedemptionStatus(req, res, next);
 
-    expect(rewardService.approveReward).toHaveBeenCalledWith("redemption-1", "admin-1");
+    expect(rewardService.deliverReward).toHaveBeenCalledWith("redemption-1");
     expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUpdated });
   });
 });

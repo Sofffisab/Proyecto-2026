@@ -30,6 +30,16 @@ export async function getRewardById(req, res, next) {
   }
 }
 
+// Admin-only: full catalog including stock levels and marketing/merchandising flag.
+export async function getAllRewardsAdmin(req, res, next) {
+  try {
+    const data = await rewardService.getAllRewardsAdmin();
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createReward(req, res, next) {
   try {
     const data = await rewardService.createReward(req.validatedData);
@@ -48,33 +58,6 @@ export async function updateReward(req, res, next) {
   }
 }
 
-export async function approveRedemption(req, res, next) {
-  try {
-    const data = await rewardService.approveReward(req.params.id, req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function rejectRedemption(req, res, next) {
-  try {
-    const data = await rewardService.rejectReward(req.params.id, req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function ship(req, res, next) {
-  try {
-    const data = await rewardService.shipReward(req.params.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function deliver(req, res, next) {
   try {
     const data = await rewardService.deliverReward(req.params.id);
@@ -83,7 +66,8 @@ export async function deliver(req, res, next) {
     next(err);
   }
 }
-// Fix #14: list all redemptions for admin view
+
+// Admin view of every automatic reward grant (already shipped).
 export async function getAllRedemptions(req, res, next) {
   try {
     const data = await rewardService.getAllRedemptions();
@@ -93,30 +77,21 @@ export async function getAllRedemptions(req, res, next) {
   }
 }
 
-// Fix #14: unified status-transition endpoint for admin (approve/reject/ship/deliver)
+// Rewards are granted and shipped automatically — the only admin-driven
+// transition left is marking a shipped reward as physically DELIVERED.
 export async function updateRedemptionStatus(req, res, next) {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    let data;
-    switch (status) {
-      case "APPROVED":
-        data = await rewardService.approveReward(id, req.user.id);
-        break;
-      case "REJECTED":
-        data = await rewardService.rejectReward(id, req.user.id);
-        break;
-      case "SHIPPED":
-        data = await rewardService.shipReward(id);
-        break;
-      case "DELIVERED":
-        data = await rewardService.deliverReward(id);
-        break;
-      default:
-        return res.status(400).json({ success: false, message: `Invalid status: ${status}. Allowed: APPROVED, REJECTED, SHIPPED, DELIVERED` });
+    if (status !== "DELIVERED") {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status: ${status}. Allowed: DELIVERED`,
+      });
     }
 
+    const data = await rewardService.deliverReward(id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

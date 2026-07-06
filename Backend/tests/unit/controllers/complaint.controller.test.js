@@ -39,6 +39,28 @@ describe("ComplaintController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: created });
   });
 
+  it("createTrainerComplaint lets a trainer report a member and returns 201", async () => {
+    req.user = { id: "trainer-1", role: "TRAINER" };
+    req.validatedData = {
+      reportedUserId: "user-2",
+      reason: "DAÑO_DE_MAQUINA",
+      message: "Rompió la cinta",
+    };
+    const created = { id: "complaint-9", ...req.validatedData, reporterId: "trainer-1", source: "TRAINER_REPORT" };
+    complaintService.createTrainerComplaint.mockResolvedValue(created);
+
+    await complaintController.createTrainerComplaint(req, res, next);
+
+    expect(complaintService.createTrainerComplaint).toHaveBeenCalledWith({
+      reporterId: "trainer-1",
+      reportedUserId: "user-2",
+      reason: "DAÑO_DE_MAQUINA",
+      message: "Rompió la cinta",
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: created });
+  });
+
   it("getMyComplaints returns only the caller's complaints", async () => {
     const complaints = [{ id: "complaint-1", reporterId: "user-1" }];
     complaintService.getUserComplaints.mockResolvedValue(complaints);

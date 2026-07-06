@@ -12,7 +12,8 @@ export const goalSchema = z.object({
   targetValue: z.number(),
   currentValue: z.number().optional(),
   unit: z.string().max(50).optional(),
-  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
+  // Difficulty is NOT chosen by the user/trainer — it is computed automatically
+  // from the goal type/action/target magnitude by goalDifficultyEngine.service.js.
 });
 
 export const createProgressSchema = z.object({
@@ -50,11 +51,15 @@ export const acceptRoutineSuggestionSchema = z.object({
 
 // ── Rewards ──────────────────────────────────────────────────────────────────
 
+// stock and isMarketingItem are admin-only fields: managed here, but never
+// returned by the public /rewards endpoint (see reward.service.js).
 export const createRewardSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(1000).optional(),
   pointsCost: z.number().int().min(0),
   active: z.boolean().optional(),
+  stock: z.number().int().min(0).optional(),
+  isMarketingItem: z.boolean().optional(),
 });
 
 export const updateRewardSchema = z.object({
@@ -62,6 +67,8 @@ export const updateRewardSchema = z.object({
   description: z.string().max(1000).optional(),
   pointsCost: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
+  stock: z.number().int().min(0).optional(),
+  isMarketingItem: z.boolean().optional(),
 });
 
 export const approveRedemptionSchema = z.object({}).optional();
@@ -171,6 +178,22 @@ export const pointReviewRequestSchema = z.object({
 export const rateTrainerSchema = z.object({
   trainerId: z.string().uuid(),
   rating: z.number().int().min(1).max(5),
+  // "No me ayudaron" toggle on the rate-trainer popup. When false, an
+  // automatic complaint is filed against the trainer alongside the rating.
+  helped: z.boolean().optional().default(true),
+  // Optional detail the member adds when marking helped = false.
+  comment: z.string().trim().max(1000).optional(),
+});
+
+export const createTrainerComplaintSchema = z.object({
+  reportedUserId: z.string().uuid(),
+  reason: z.enum([
+    "DAÑO_DE_MAQUINA",
+    "MAL_COMPORTAMIENTO",
+    "INCUMPLIMIENTO_DE_NORMAS",
+    "OTRO",
+  ]),
+  message: z.string().trim().max(2000).optional(),
 });
 
 

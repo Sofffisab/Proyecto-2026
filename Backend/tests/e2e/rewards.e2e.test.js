@@ -82,10 +82,10 @@ describe('Rewards E2E', () => {
       data: { name: 'Protein shake', pointsCost: 100, active: true },
     });
     await prisma.rewardRedemption.create({
-      data: { userId, rewardId: reward.id, status: 'PENDING' },
+      data: { userId, rewardId: reward.id, status: 'SHIPPED' },
     });
     await prisma.rewardRedemption.create({
-      data: { userId: 'some-other-user', rewardId: reward.id, status: 'PENDING' },
+      data: { userId: 'some-other-user', rewardId: reward.id, status: 'SHIPPED' },
     });
 
     const response = await request(server)
@@ -102,32 +102,32 @@ describe('Rewards E2E', () => {
       data: { name: 'Gym towel', pointsCost: 30, active: true },
     });
     const redemption = await prisma.rewardRedemption.create({
-      data: { userId, rewardId: reward.id, status: 'PENDING' },
+      data: { userId, rewardId: reward.id, status: 'SHIPPED' },
     });
 
     const response = await request(server)
       .patch(`/rewards/redemptions/${redemption.id}`)
       .set('Authorization', `Bearer ${userToken}`)
-      .send({ status: 'APPROVED' });
+      .send({ status: 'DELIVERED' });
 
     expect(response.status).toBe(403);
   });
 
-  it('an ADMIN can approve a PENDING redemption', async () => {
+  it('an ADMIN can mark a SHIPPED redemption as DELIVERED', async () => {
     const reward = await prisma.reward.create({
       data: { name: 'Gym bag', pointsCost: 80, active: true },
     });
     const redemption = await prisma.rewardRedemption.create({
-      data: { userId, rewardId: reward.id, status: 'PENDING' },
+      data: { userId, rewardId: reward.id, status: 'SHIPPED' },
     });
 
     const response = await request(server)
       .patch(`/rewards/redemptions/${redemption.id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'APPROVED' });
+      .send({ status: 'DELIVERED' });
 
     expect(response.status).toBe(200);
-    expect(response.body.data.status).toBe('APPROVED');
+    expect(response.body.data.status).toBe('DELIVERED');
   });
 
   it('rejects an invalid status transition value', async () => {
@@ -135,7 +135,7 @@ describe('Rewards E2E', () => {
       data: { name: 'Cap', pointsCost: 20, active: true },
     });
     const redemption = await prisma.rewardRedemption.create({
-      data: { userId, rewardId: reward.id, status: 'PENDING' },
+      data: { userId, rewardId: reward.id, status: 'SHIPPED' },
     });
 
     const response = await request(server)
@@ -152,7 +152,7 @@ describe('Rewards E2E', () => {
       data: { name: 'Shaker', pointsCost: 40, active: true },
     });
     await prisma.rewardRedemption.create({
-      data: { userId, rewardId: reward.id, status: 'PENDING' },
+      data: { userId, rewardId: reward.id, status: 'SHIPPED' },
     });
 
     const response = await request(server)

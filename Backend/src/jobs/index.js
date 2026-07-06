@@ -4,6 +4,7 @@ import { generateAnnualWrapped } from './wrapped.job.js';
 import { checkInactiveProgress } from './progress.job.js';
 import { processComplaints } from './complaints.job.js';
 import { expireStaleEntities } from './expiration.job.js';
+import { assignRandomChallenges } from './challenge.job.js';
 import { logger } from "../utils/logger.js";
 
 const RETRY_ATTEMPTS = 2;
@@ -42,6 +43,7 @@ export async function runJobs() {
   await withRetry('checkInactiveProgress', checkInactiveProgress);
   await withRetry('processComplaints', processComplaints);
   await withRetry('expireStaleEntities', expireStaleEntities);
+  await withRetry('assignRandomChallenges', assignRandomChallenges);
 
   // Run wrapped job on January 1st (only once per year)
   const today = new Date();

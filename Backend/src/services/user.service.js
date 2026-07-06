@@ -76,8 +76,20 @@ export async function getTrainerById(id) {
 
 export async function update(id, data) {
   // Prevent privilege escalation via update
-  const { passwordHash, role, isActive, ...safeData } = data;
-  return prisma.user.update({ where: { id }, data: safeData });
+  const { passwordHash, role, isActive, isProfileComplete, ...safeData } = data;
+
+  const current = await prisma.user.findUnique({
+    where: { id },
+    select: { birthday: true, medicalConditions: true, deliveryAddress: true },
+  });
+
+  const merged = { ...current, ...safeData };
+  const profileComplete = Boolean(merged.birthday) && merged.medicalConditions != null && Boolean(merged.deliveryAddress);
+
+  return prisma.user.update({
+    where: { id },
+    data: { ...safeData, isProfileComplete: profileComplete },
+  });
 }
 
 export async function updateFcmToken(id, fcmToken) {
@@ -107,11 +119,19 @@ export async function changePassword(id, { currentPassword, newPassword }) {
 }
 
 export async function updateNotificationPreferences(id, data) {
-  const { disableAssistance, disableSocial, trainerPreference } = data;
+  const {
+    disableAssistance,
+    disableSocial,
+    trainerPreference,
+    machineTrackingOptOut,
+    analyticsConsent,
+  } = data;
   const safeData = {};
   if (disableAssistance !== undefined) safeData.disableAssistance = disableAssistance;
   if (disableSocial !== undefined) safeData.disableSocial = disableSocial;
   if (trainerPreference !== undefined) safeData.trainerPreference = trainerPreference;
+  if (machineTrackingOptOut !== undefined) safeData.machineTrackingOptOut = machineTrackingOptOut;
+  if (analyticsConsent !== undefined) safeData.analyticsConsent = analyticsConsent;
 
   return prisma.userSettings.upsert({
     where: { userId: id },

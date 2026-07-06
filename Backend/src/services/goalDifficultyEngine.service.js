@@ -1,4 +1,3 @@
-import { DIFFICULTY_MULTIPLIERS } from "../constants/points.js";
 import { getUserBehaviorProfile } from "./behaviorAnalysis.service.js";
 
 /**
@@ -49,15 +48,16 @@ function tierByMagnitude(target, thresholds, scores) {
 /**
  * Standardized difficulty: a generalized score based on goal type, action,
  * and target magnitude — the same for every user attempting a similar goal.
- * Blended 50/50 with the trainer/user-chosen GoalDifficulty enum, since that
- * still carries real signal (e.g. medical constraints the formula can't see).
+ *
+ * This is computed entirely by the app/backend. The user/trainer does NOT
+ * choose a difficulty level (no "easy/medium/hard" picker) — the goal's
+ * `difficulty` enum column still exists on the schema only as a legacy/
+ * informational field and is intentionally ignored here so it can't skew
+ * the score away from the standardized, intelligent estimate.
  */
 export function computeStandardDifficulty(goal) {
   const tierFn = STANDARD_DIFFICULTY_TIERS[goal.type] ?? (() => 1.0);
-  const magnitudeScore = tierFn(goal.targetValue, goal.action);
-  const enumScore = DIFFICULTY_MULTIPLIERS[goal.difficulty] ?? 1.0;
-
-  return Number(((magnitudeScore + enumScore) / 2).toFixed(2));
+  return Number(tierFn(goal.targetValue, goal.action).toFixed(2));
 }
 
 /**

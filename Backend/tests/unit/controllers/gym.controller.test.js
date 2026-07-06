@@ -92,11 +92,11 @@ describe("GymController", () => {
   describe("rateTrainer", () => {
     it("returns the created rating", async () => {
       req.params = { id: "session-123" };
-      req.validatedData = { trainerId: "trainer-123", rating: 4 };
+      req.validatedData = { trainerId: "trainer-123", rating: 4, helped: true, comment: undefined };
 
-      const mockRating = { id: "rating-123", rating: 4, createdAt: new Date() };
+      const mockResult = { rating: { id: "rating-123", rating: 4, createdAt: new Date() }, complaint: null };
 
-      vi.spyOn(gymService, "rateTrainer").mockResolvedValue(mockRating);
+      vi.spyOn(gymService, "rateTrainer").mockResolvedValue(mockResult);
 
       await gymController.rateTrainer(req, res, next);
 
@@ -104,9 +104,35 @@ describe("GymController", () => {
         "session-123",
         "user-123",
         "trainer-123",
-        4
+        4,
+        true,
+        undefined
       );
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockRating });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
+    });
+
+    it("passes helped=false and comment through when the member marks 'No me ayudaron'", async () => {
+      req.params = { id: "session-123" };
+      req.validatedData = { trainerId: "trainer-123", rating: 2, helped: false, comment: "Nunca se acercó" };
+
+      const mockResult = {
+        rating: { id: "rating-123", rating: 2 },
+        complaint: { id: "complaint-123", source: "AUTO_NO_HELP" },
+      };
+
+      vi.spyOn(gymService, "rateTrainer").mockResolvedValue(mockResult);
+
+      await gymController.rateTrainer(req, res, next);
+
+      expect(gymService.rateTrainer).toHaveBeenCalledWith(
+        "session-123",
+        "user-123",
+        "trainer-123",
+        2,
+        false,
+        "Nunca se acercó"
+      );
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
     });
 
     it("calls next(err) with an invalid rating", async () => {

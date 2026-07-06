@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
+import { requireCompleteProfile } from "../middlewares/profileCompletion.middleware.js";
 import { authRateLimiter, apiRateLimiter } from "../middlewares/rateLimiter.js";
 import { cacheResponse } from "../middlewares/cache.middleware.js";
 import { runJobs } from "../jobs/index.js";
@@ -74,6 +75,12 @@ const PROTECTED_PREFIXES = [
   "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
+// First-time-login lock: blocks regular members from the rest of the API
+// until they've filled in the mandatory profile data (medical, birthday,
+// address). Runs after authenticate (needs req.user) and before the rest
+// of the protected routes; exempt paths (auth, own profile, notifications)
+// are whitelisted inside the middleware itself.
+router.use(PROTECTED_PREFIXES, requireCompleteProfile);
 router.use(PROTECTED_PREFIXES, apiRateLimiter);
 
 router.post("/auth/logout", authController.logout);
@@ -143,6 +150,13 @@ router.get("/rewards/redemptions/me",       rewardController.getUserRedemptions)
 router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardController.getAllRedemptions);
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
 
+// Admin-only catalog management: includes stock and isMarketingItem, never
+// exposed on the public GET /rewards above.
+router.get("/rewards/admin",                authorize(["ADMIN"]), rewardController.getAllRewardsAdmin);
+router.post("/rewards",                     authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
+router.patch("/rewards/:id",                authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
+router.get("/rewards/:id",                  authorize(["ADMIN"]), rewardController.getRewardById);
+
 // ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
@@ -150,7 +164,9 @@ router.get("/gamification/badges",          gamificationController.getUserBadges
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
-router.post("/challenges",                  validateSchema(challengeSchemas.createChallengeSchema), challengeController.create);
+// Challenges are assigned automatically by the app (popup-style) via the
+// scheduled challenge job — there is intentionally no POST /challenges
+// endpoint for users to request one.
 router.get("/challenges",                   challengeController.getAll);
 router.get("/challenges/active",            challengeController.getActive);
 router.get("/challenges/:id",               challengeController.getById);
@@ -169,6 +185,9 @@ router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"])
 
 // ── COMPLAINTS ROUTES ─────────────────────────────────────────────────────────
 router.post("/complaints",                  validateSchema(progressSchemas.createComplaintSchema), complaintController.createComplaint);
+// Trainer -> member reports (equipment damage, misconduct, etc.), separate
+// from the generic member-to-member complaint above.
+router.post("/complaints/trainer",          authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.createTrainerComplaintSchema), complaintController.createTrainerComplaint);
 router.get("/complaints/me",                complaintController.getMyComplaints);
 router.get("/complaints",                   authorize(["ADMIN"]), complaintController.getAdminComplaints);
 router.patch("/complaints/:id/resolve",     authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
@@ -197,6 +216,9 @@ router.get("/analytics/wrapped",     gamificationController.getWrapped);
 router.get("/analytics/me/rank",     analyticsController.getUserRank);
 router.get("/analytics/patterns",    analyticsController.getUserPatterns);
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
+// Full cross-user history/analytics export, run through the privacy/
+// pseudonymization layer — see insights.service.js#getFullHistoryAdmin.
+router.get("/analytics/admin/history", authorize(["ADMIN"]), analyticsController.getFullHistoryAdmin);
 
 // ── TRAINER NOTES ROUTES ──────────────────────────────────────────────────────
 router.get("/users/:id/notes",             authorize(["TRAINER", "ADMIN"]), noteController.getNotes);

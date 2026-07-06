@@ -21,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
 });
 
 const app = (await import('../../src/server.js')).default;
+const prisma = (await import('../../src/config/prisma.js')).default;
 
 describe('Challenges E2E', () => {
   let server;
@@ -61,45 +62,25 @@ describe('Challenges E2E', () => {
     userId2 = user2Res.body.data.user.id;
   });
 
-  it('POST /challenges creates a 1:1 challenge between two users', async () => {
+  // Challenges are never created on user request — the app assigns them
+  // automatically (popup-style, see jobs/challenge.job.js). There is no
+  // POST /challenges endpoint for users to call.
+  it('does not expose a POST /challenges endpoint', async () => {
     const response = await request(server)
       .post('/challenges')
       .set('Authorization', `Bearer ${token1}`)
-      .send({
-        userIdA: userId1,
-        userIdB: userId2,
-        station: 'Treadmill',
-      });
+      .send({ userIdA: userId1, userIdB: userId2, station: 'Treadmill' });
 
-    expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
+    expect(response.status).toBe(404);
   });
 
-  it('rejects creating a challenge the caller is not a participant of', async () => {
-    const response = await request(server)
-      .post('/challenges')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({
-        userIdA: userId2,
-        userIdB: userId1,
-      });
-
-    // The caller (userId1) must be one of userIdA/userIdB — here it is
-    // (userIdB), so this should actually succeed; a true "not a participant"
-    // case needs a third, uninvolved user.
-    expect(response.status).toBe(201);
-  });
-
-  it('PATCH /challenges/:id/join the recipient accepts the challenge', async () => {
-    const createRes = await request(server)
-      .post('/challenges')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ userIdA: userId1, userIdB: userId2 });
-
-    const challengeId = createRes.body.data.id;
+  it('PATCH /challenges/:id/join the recipient accepts a system-assigned challenge', async () => {
+    const challenge = await prisma.socialChallenge.create({
+      data: { userId: userId1, partnerUserId: userId2, station: 'Treadmill', status: 'ASSIGNED' },
+    });
 
     const joinRes = await request(server)
-      .patch(`/challenges/${challengeId}/join`)
+      .patch(`/challenges/${challenge.id}/join`)
       .set('Authorization', `Bearer ${token2}`);
 
     expect(joinRes.status).toBe(200);
@@ -107,22 +88,32 @@ describe('Challenges E2E', () => {
   });
 
   it('rejects accepting the same challenge twice', async () => {
-    const createRes = await request(server)
-      .post('/challenges')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ userIdA: userId1, userIdB: userId2 });
-
-    const challengeId = createRes.body.data.id;
+    const challenge = await prisma.socialChallenge.create({
+      data: { userId: userId1, partnerUserId: userId2, station: 'Treadmill', status: 'ASSIGNED' },
+    });
 
     await request(server)
-      .patch(`/challenges/${challengeId}/join`)
+      .patch(`/challenges/${challenge.id}/join`)
       .set('Authorization', `Bearer ${token2}`);
 
     const response = await request(server)
-      .patch(`/challenges/${challengeId}/join`)
+      .patch(`/challenges/${challenge.id}/join`)
       .set('Authorization', `Bearer ${token2}`);
 
     expect(response.status).not.toBe(200);
     expect(response.body.success).toBe(false);
+  });
+
+  it('GET /challenges/active lists the system-assigned challenge for a participant', async () => {
+    await prisma.socialChallenge.create({
+      data: { userId: userId1, partnerUserId: userId2, station: 'Treadmill', status: 'ASSIGNED' },
+    });
+
+    const response = await request(server)
+      .get('/challenges/active')
+      .set('Authorization', `Bearer ${token1}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThan(0);
   });
 });

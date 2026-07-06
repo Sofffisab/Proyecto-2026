@@ -77,6 +77,42 @@ describe('AssistanceService', () => {
       expect(result.status).toBe('COMPLETED');
       expect(result.completedAt).toBeDefined();
     });
+
+    it('awards the student ASSISTANCE_COMPLETED points (non-blocking)', async () => {
+      const mockAssigned = {
+        id: 'assist-2',
+        status: 'ASSIGNED',
+        trainerId: 'trainer-1',
+        userId: 'student-1',
+      };
+      const mockUpdated = {
+        id: 'assist-2',
+        status: 'COMPLETED',
+        trainerId: 'trainer-1',
+        userId: 'student-1',
+        completedAt: new Date(),
+      };
+
+      prisma.assistance.findUnique.mockResolvedValue(mockAssigned);
+      prisma.assistance.update.mockResolvedValue(mockUpdated);
+      prisma.assistance.count.mockResolvedValue(1);
+      prisma.trainerRating.aggregate.mockResolvedValue({
+        _avg: { rating: 4.5 },
+        _count: { rating: 2 },
+      });
+      prisma.trainerProfile.upsert.mockResolvedValue({});
+      prisma.pointTransaction.create.mockResolvedValue({});
+
+      await assistanceService.completeAssistance('assist-2', 'trainer-1', 'TRAINER');
+      // addPoints is fired non-blocking (.catch), flush microtasks before asserting.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.pointTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'student-1', points: 15 }),
+        })
+      );
+    });
   });
 
   describe('cancelAssistance', () => {

@@ -17,6 +17,24 @@ export async function createComplaint(req, res, next) {
   }
 }
 
+// POST /complaints/trainer  (TRAINER, ADMIN)
+// Lets a trainer report a member directly from their interface
+// (e.g. broke a machine, misbehaved), instead of only member-to-member reports.
+export async function createTrainerComplaint(req, res, next) {
+  try {
+    const { reportedUserId, reason, message } = req.validatedData;
+    const data = await complaintService.createTrainerComplaint({
+      reporterId: req.user.id,
+      reportedUserId,
+      reason,
+      message,
+    });
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /complaints/me
 export async function getMyComplaints(req, res, next) {
   try {

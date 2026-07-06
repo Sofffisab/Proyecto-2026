@@ -6,6 +6,7 @@ import { emitUserNeedsAttention } from "../realtime/ably.js";
 import { notifyTrainerOfReturningStudent } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
+import { createAutoNoHelpComplaint } from "./complaint.service.js";
 
 // Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
 const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
@@ -68,16 +69,26 @@ export async function checkIn(userId, options = {}) {
  * "just checked in" location if they haven't started using a machine yet.
  */
 export async function getUserCurrentLocation(userId) {
-  const activeUsage = await prisma.machineUsage.findFirst({
-    where: { userId, endedAt: null },
-    orderBy: { startedAt: "desc" },
-    include: { machine: true },
+  // "No usar la app para máquinas": these users are never tracked at
+  // machine/zone granularity — trainers still see them on the help list,
+  // just without any machine info, only that they're present in the gym.
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { machineTrackingOptOut: true },
   });
 
-  if (activeUsage?.machine) {
-    return activeUsage.machine.zone
-      ? `${activeUsage.machine.zone} (${activeUsage.machine.name})`
-      : activeUsage.machine.name;
+  if (!settings?.machineTrackingOptOut) {
+    const activeUsage = await prisma.machineUsage.findFirst({
+      where: { userId, endedAt: null },
+      orderBy: { startedAt: "desc" },
+      include: { machine: true },
+    });
+
+    if (activeUsage?.machine) {
+      return activeUsage.machine.zone
+        ? `${activeUsage.machine.zone} (${activeUsage.machine.name})`
+        : activeUsage.machine.name;
+    }
   }
 
   const activeSession = await prisma.gymSession.findFirst({
@@ -85,7 +96,11 @@ export async function getUserCurrentLocation(userId) {
     orderBy: { checkInAt: "desc" },
   });
 
-  return activeSession ? "entrada del gimnasio (recién ingresó)" : "ubicación desconocida";
+  if (!activeSession) return "ubicación desconocida";
+
+  return settings?.machineTrackingOptOut
+    ? "en el gimnasio (máquina no rastreada por preferencia del usuario)"
+    : "entrada del gimnasio (recién ingresó)";
 }
 
 /**
@@ -396,7 +411,7 @@ export async function getPriorityAssistanceList(trainerId) {
   return enriched;
 }
 
-export async function rateTrainer(sessionId, userId, trainerId, rating) {
+export async function rateTrainer(sessionId, userId, trainerId, rating, helped = true, comment) {
   if (rating < 1 || rating > 5) {
     throw new AppError("Rating must be between 1 and 5", 422);
   }
@@ -442,5 +457,24 @@ export async function rateTrainer(sessionId, userId, trainerId, rating) {
 
   await updateTrainerMetrics(trainerId);
 
-  return trainerRating;
+  // Feedback is useful to the gym (trainer quality signal) — small reward
+  // for actually using this feature. Non-blocking, like other point awards.
+  addPoints(userId, POINTS.TRAINER_RATED, "Rated a trainer").catch((err) =>
+    logger.error("[gym] Failed to award trainer-rating points:", err.message)
+  );
+
+  // "No me ayudaron": the member marked, on the rate-trainer popup, that the
+  // trainer didn't actually help them. This automatically becomes a
+  // complaint against the trainer, on top of the numeric rating above.
+  let complaint = null;
+  if (helped === false) {
+    complaint = await createAutoNoHelpComplaint({
+      reporterId: userId,
+      reportedUserId: trainerId,
+      gymSessionId: sessionId,
+      comment,
+    });
+  }
+
+  return { rating: trainerRating, complaint };
 }

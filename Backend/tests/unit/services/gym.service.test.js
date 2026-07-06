@@ -260,6 +260,102 @@ describe("GymService", () => {
 
       expect(trainerMetricsService.updateTrainerMetrics).toHaveBeenCalledWith("trainer-123");
     });
+
+    it("awards TRAINER_RATED points to the rating user (non-blocking)", async () => {
+      prisma.gymSession.findUnique.mockResolvedValue({
+        id: "session-123",
+        userId: "user-123",
+        checkOutAt: new Date(),
+      });
+
+      prisma.assistance.findFirst.mockResolvedValue({
+        id: "assistance-123",
+        status: "COMPLETED",
+      });
+
+      prisma.trainerRating.findFirst.mockResolvedValue(null);
+      prisma.trainerRating.create.mockResolvedValue({
+        id: "rating-123",
+        trainerId: "trainer-123",
+        rating: 4,
+      });
+      gamificationService.addPoints.mockResolvedValue({});
+
+      vi.spyOn(trainerMetricsService, "updateTrainerMetrics").mockResolvedValue(undefined);
+
+      await gymService.rateTrainer("session-123", "user-123", "trainer-123", 4);
+
+      expect(gamificationService.addPoints).toHaveBeenCalledWith(
+        "user-123",
+        10,
+        "Rated a trainer"
+      );
+    });
+
+    it("returns { rating, complaint: null } when helped is true (default)", async () => {
+      prisma.gymSession.findUnique.mockResolvedValue({
+        id: "session-123",
+        userId: "user-123",
+        checkOutAt: new Date(),
+      });
+      prisma.assistance.findFirst.mockResolvedValue({ id: "assistance-123", status: "COMPLETED" });
+      prisma.trainerRating.findFirst.mockResolvedValue(null);
+      prisma.trainerRating.create.mockResolvedValue({ id: "rating-123", trainerId: "trainer-123", rating: 4 });
+      vi.spyOn(trainerMetricsService, "updateTrainerMetrics").mockResolvedValue(undefined);
+
+      const result = await gymService.rateTrainer("session-123", "user-123", "trainer-123", 4);
+
+      expect(result.rating).toEqual({ id: "rating-123", trainerId: "trainer-123", rating: 4 });
+      expect(result.complaint).toBeNull();
+      expect(prisma.complaint.create).not.toHaveBeenCalled();
+    });
+
+    it("auto-files a complaint against the trainer when helped is false", async () => {
+      prisma.gymSession.findUnique.mockResolvedValue({
+        id: "session-123",
+        userId: "user-123",
+        checkOutAt: new Date(),
+      });
+      prisma.assistance.findFirst.mockResolvedValue({ id: "assistance-123", status: "COMPLETED" });
+      prisma.trainerRating.findFirst.mockResolvedValue(null);
+      prisma.trainerRating.create.mockResolvedValue({ id: "rating-123", trainerId: "trainer-123", rating: 1 });
+      vi.spyOn(trainerMetricsService, "updateTrainerMetrics").mockResolvedValue(undefined);
+
+      // No prior auto-no-help complaint for this session/trainer/user
+      prisma.complaint.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue({ id: "trainer-123", role: "TRAINER" });
+      prisma.complaint.create.mockResolvedValue({
+        id: "complaint-123",
+        reporterId: "user-123",
+        reportedUserId: "trainer-123",
+        gymSessionId: "session-123",
+        source: "AUTO_NO_HELP",
+        status: "PENDING",
+      });
+
+      const result = await gymService.rateTrainer(
+        "session-123",
+        "user-123",
+        "trainer-123",
+        1,
+        false,
+        "No se acercó en ningún momento"
+      );
+
+      expect(prisma.complaint.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reporterId: "user-123",
+          reportedUserId: "trainer-123",
+          gymSessionId: "session-123",
+          source: "AUTO_NO_HELP",
+          status: "PENDING",
+          message: "No se acercó en ningún momento",
+        }),
+      });
+      expect(result.complaint).toEqual(
+        expect.objectContaining({ id: "complaint-123", source: "AUTO_NO_HELP" })
+      );
+    });
   });
 
   describe("getCurrentSession", () => {

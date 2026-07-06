@@ -1,5 +1,7 @@
 import prisma from "../config/prisma.js";
 import { createNotification } from "./communication.service.js";
+import { addPoints } from "./gamification.service.js";
+import { POINTS, CONSISTENCY_BONUS_THRESHOLDS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
 
 // Two sessions are considered "the same routine" when the sets of machines
@@ -196,6 +198,52 @@ function computeConsistency(checkInDates) {
 }
 
 /**
+ * ISO-week identifier (e.g. "2026-W27") for the given date, used to dedupe
+ * the weekly consistency bonus so it can only be granted once per week per
+ * user regardless of how many times the analytics job runs that week.
+ */
+function isoWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+/**
+ * Rewards attendance that is both FREQUENT and REGULAR — the behavior the
+ * gym actually cares about (a single burst of visits doesn't count, and
+ * neither does a barely-there but perfectly spaced pattern). Uses the just
+ * -recomputed UserBehaviorProfile thresholds (see constants/points.js).
+ * Awarded at most once per ISO week per user; safe to call every time the
+ * analytics job runs since it checks for an existing transaction first.
+ */
+export async function awardConsistencyBonus(userId, patterns) {
+  const { consistencyScore, avgSessionsPerWeek } = patterns;
+  const { MIN_CONSISTENCY_SCORE, MIN_SESSIONS_PER_WEEK } = CONSISTENCY_BONUS_THRESHOLDS;
+
+  if (
+    consistencyScore == null ||
+    avgSessionsPerWeek == null ||
+    consistencyScore < MIN_CONSISTENCY_SCORE ||
+    avgSessionsPerWeek < MIN_SESSIONS_PER_WEEK
+  ) {
+    return null;
+  }
+
+  const weekKey = isoWeekKey(new Date());
+  const reason = `Consistent attendance bonus (${weekKey})`;
+
+  const alreadyAwarded = await prisma.pointTransaction.findFirst({
+    where: { userId, reason },
+  });
+  if (alreadyAwarded) return null;
+
+  return addPoints(userId, POINTS.CONSISTENCY_WEEKLY_BONUS, reason);
+}
+
+/**
  * Recomputes and persists the behavior profile for a single user.
  */
 export async function refreshUserBehaviorProfile(userId) {
@@ -256,6 +304,10 @@ export async function runPatternAnalysisForAll() {
       if (patterns.sessionCount === 0) continue;
 
       await refreshUserBehaviorProfile(user.id);
+
+      awardConsistencyBonus(user.id, patterns).catch((err) =>
+        logger.error(`[behavior-analysis] Failed to award consistency bonus for user ${user.id}:`, err.message)
+      );
 
       const topDay = patterns.frequentDays[0];
       const topMachine = patterns.topMachines[0];

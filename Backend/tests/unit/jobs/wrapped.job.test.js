@@ -46,6 +46,7 @@ describe("generateAnnualWrapped", () => {
 
     expect(generateWrapped).toHaveBeenCalledTimes(2);
     expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[ERROR]"),
       expect.stringContaining("[wrapped.job] Failed for user user-broken:"),
       expect.any(String)
     );

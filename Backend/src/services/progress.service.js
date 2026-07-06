@@ -210,15 +210,17 @@ export async function getProgressStats(userId) {
 // --- Goal Management Functions ---
 
 export async function createGoal(userId, data) {
-  const { objectiveType, objectiveAction, targetValue, difficulty, unit } = data;
+  const { objectiveType, objectiveAction, targetValue, unit } = data;
 
+  // Difficulty is never chosen by the user — it's computed automatically
+  // (see goalDifficultyEngine.service.js) from the goal type/action/target
+  // magnitude, so it's left at the schema default here.
   return prisma.goal.create({
     data: {
       userId,
       targetValue,
       currentValue: 0,
       unit,
-      difficulty,
       type: objectiveType,
       action: objectiveAction,
       active: true,
