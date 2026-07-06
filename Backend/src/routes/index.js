@@ -31,32 +31,31 @@ import * as challengeSchemas from "../validators/challenge.schemas.js";
 const router = express.Router();
 
 // ── CRON / JOB TRIGGER ROUTE ─────────────────────────────────────────────────
-router.post("/cron/jobs", (req, res, next) => {
+// Vercel Cron Jobs invoke the configured path with GET (see vercel.json);
+// POST is also kept so the job can still be triggered manually/for testing.
+const cronAuth = (req, res, next) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization;
   if (!secret || authHeader !== `Bearer ${secret}`) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
   next();
-}, runJobs);
+};
+router.get("/cron/jobs", cronAuth, runJobs);
+router.post("/cron/jobs", cronAuth, runJobs);
 
 // Separate cron trigger because it runs on its own schedule (noon) instead
 // of the main nightly job batch — see vercel.json "crons".
-router.post("/cron/qr-rotate", (req, res, next) => {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-  next();
-}, async (req, res, next) => {
+const qrRotateHandler = async (req, res, next) => {
   try {
     await rotateMachineQRCodes();
     res.json({ success: true });
   } catch (err) {
     next(err);
   }
-});
+};
+router.get("/cron/qr-rotate", cronAuth, qrRotateHandler);
+router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 
 // ── PUBLIC / AUTH ROUTES ──────────────────────────────────────────────────────
 router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema), authController.register);

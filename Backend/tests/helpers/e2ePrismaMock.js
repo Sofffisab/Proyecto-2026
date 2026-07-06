@@ -113,7 +113,7 @@ function attachRelations(modelName, record, include) {
     const targetStore = this.stores[rel.model];
     if (!targetStore) continue;
     const fromValue = record[rel.from];
-    enriched[relField] = targetStore.find((r) => r[rel.to] === fromValue) ?? null;
+    enriched[relField] = targetStore.records.find((r) => r[rel.to] === fromValue) ?? null;
   }
   return enriched;
 }
@@ -208,6 +208,10 @@ class ModelStore {
     if (this.name === "gymSession") {
       data.checkOutAt = data.checkOutAt ?? null;
       data.durationMinutes = data.durationMinutes ?? null;
+    }
+
+    if (this.name === "reward" || this.name === "machine") {
+      data.active = data.active ?? true;
     }
 
     this.records.push(data);

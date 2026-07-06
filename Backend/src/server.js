@@ -42,14 +42,18 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 // Root-level alias — some cron providers hit a bare path without the API prefix.
-app.post("/cron/jobs", express.json({ limit: "2mb" }), (req, res, next) => {
+// Vercel Cron Jobs invoke the configured path with GET; POST is also kept
+// so the job can still be triggered manually (e.g. for testing).
+const cronAuth = (req, res, next) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization;
   if (!secret || authHeader !== `Bearer ${secret}`) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
   next();
-}, runJobs);
+};
+app.get("/cron/jobs", cronAuth, runJobs);
+app.post("/cron/jobs", express.json({ limit: "2mb" }), cronAuth, runJobs);
 
 app.use("/api/v1", router);
 app.use("/", router);

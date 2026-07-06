@@ -105,12 +105,12 @@ describe("GymService", () => {
       });
     });
 
-    it("does not throw if there is no active session: returns noActiveSession without counting it as a visit", async () => {
+    it("throws a 400 AppError if there is no active session", async () => {
       prisma.gymSession.findFirst.mockResolvedValue(null);
 
-      const result = await gymService.checkOut("user-123");
-
-      expect(result).toEqual({ noActiveSession: true });
+      await expect(gymService.checkOut("user-123")).rejects.toThrow(
+        "No active check-in session"
+      );
       expect(prisma.gymSession.update).not.toHaveBeenCalled();
     });
   });

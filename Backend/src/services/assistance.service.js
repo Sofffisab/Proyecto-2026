@@ -22,6 +22,16 @@ export async function requestAssistance(userId) {
   return assistance;
 }
 
+/**
+ * Pure permission check: only TRAINER accounts can be assigned an
+ * assistance request. Extracted so callers (routes, other services, tests)
+ * can check eligibility without going through the full assignAssistance
+ * side-effecting flow.
+ */
+export function canAssign(user) {
+  return !!user && user.role === "TRAINER";
+}
+
 export async function assignAssistance(assistanceId, trainerId) {
   const trainer = await prisma.user.findUnique({
     where: { id: trainerId },
@@ -34,7 +44,7 @@ export async function assignAssistance(assistanceId, trainerId) {
   });
 
   if (!trainer) throw new Error("Trainer not found");
-  if (trainer.role !== "TRAINER") throw new Error("User is not a trainer");
+  if (!canAssign(trainer)) throw new Error("User is not a trainer");
   if (!trainer.isActive) throw new Error("Trainer account is disabled");
 
   // A trainer already dictating a class / helping another student must not

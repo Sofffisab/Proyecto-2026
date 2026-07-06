@@ -40,9 +40,21 @@ describe("GamificationService", () => {
       });
     });
 
-    it("does not allow negative points", async () => {
-      await expect(gamificationService.addPoints("user-123", -10, "Invalid")).rejects.toThrow(
-        "Points must be positive"
+    it("allows negative points (penalties)", async () => {
+      prisma.pointTransaction.create.mockResolvedValue({
+        id: "txn-124",
+        userId: "user-123",
+        points: -10,
+        reason: "Penalty",
+      });
+
+      const result = await gamificationService.addPoints("user-123", -10, "Penalty");
+      expect(result.points).toBe(-10);
+    });
+
+    it("does not allow zero points", async () => {
+      await expect(gamificationService.addPoints("user-123", 0, "Invalid")).rejects.toThrow(
+        "Points must be a non-zero number"
       );
     });
 
@@ -116,43 +128,6 @@ describe("GamificationService", () => {
 
       expect(result).toHaveLength(2);
       expect(result.some((a) => a.unlockedAt === null)).toBe(true);
-    });
-  });
-
-  describe("getLeaderboard", () => {
-    it("pagina y cachea resultados", async () => {
-      const mockLeaderboard = [
-        { userId: "user-1", totalPoints: 5000, rank: 1 },
-        { userId: "user-2", totalPoints: 4500, rank: 2 },
-        { userId: "user-3", totalPoints: 4000, rank: 3 },
-      ];
-
-      prisma.user.findMany.mockResolvedValue(mockLeaderboard);
-
-      const result = await gamificationService.getLeaderboard({ limit: 10, offset: 0 });
-
-      expect(result).toHaveLength(3);
-      expect(result[0].rank).toBe(1);
-      expect(prisma.user.findMany).toHaveBeenCalledWith({
-        select: expect.objectContaining({
-          totalPoints: true,
-        }),
-        orderBy: { totalPoints: "desc" },
-        take: 10,
-        skip: 0,
-      });
-    });
-
-    it("usa cache en Redis si existe", async () => {
-      redis.get.mockResolvedValue(
-        JSON.stringify([
-          { userId: "user-1", totalPoints: 5000 },
-        ])
-      );
-
-      const result = await gamificationService.getLeaderboard({ limit: 10, offset: 0 });
-
-      expect(result).toBeDefined();
     });
   });
 });

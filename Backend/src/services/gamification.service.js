@@ -5,8 +5,10 @@ import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";
 
 export async function addPoints(userId, points, reason) {
-  if (!points || points <= 0) {
-    throw new Error("Points must be positive");
+  // Points can be negative (penalties, e.g. complaint.service.js#approveComplaint)
+  // or positive (rewards); only reject missing/zero/non-numeric values.
+  if (typeof points !== "number" || Number.isNaN(points) || points === 0) {
+    throw new Error("Points must be a non-zero number");
   }
 
   const transaction = await prisma.pointTransaction.create({
@@ -136,24 +138,8 @@ export async function getAchievements(userId) {
   });
 }
 
-export async function getLeaderboard({ limit = 10, offset = 0 } = {}) {
-  const cacheKey = `leaderboard:${limit}:${offset}`;
-
-  if (redis) {
-    const cached = await redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
-  }
-
-  const users = await prisma.user.findMany({
-    select: { id: true, firstName: true, lastName: true, totalPoints: true },
-    orderBy: { totalPoints: "desc" },
-    take: limit,
-    skip: offset,
-  });
-
-  const ranked = users.map((u, i) => ({ ...u, rank: offset + i + 1 }));
-
-  if (redis) await redis.set(cacheKey, JSON.stringify(ranked));
-
-  return ranked;
-}
+// NOTE: getLeaderboard was removed — it referenced a `User.totalPoints`
+// field that doesn't exist in schema.prisma and was never wired to any
+// route (public/global leaderboards were intentionally dropped from the
+// product; see routes/index.js). Use engagement.service.js#getLeaderboard
+// (backed by PointTransaction aggregation) for the admin-only equivalent.

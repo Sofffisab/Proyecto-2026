@@ -54,12 +54,16 @@ describe("QR Utils", () => {
     });
 
     it("the signature is reproducible with the same data", () => {
-      const data = { userId: '123', timestamp: 1767225600000 };
-      // FIX: both payloads are generated from the same static data to compare signatures
+      vi.useFakeTimers();
+      vi.setSystemTime(1767225600000);
+
+      const data = { userId: '123' };
       const payload1 = generateQRPayload("USER", data);
       const payload2 = generateQRPayload("USER", data);
 
       expect(payload1.signature).toBe(payload2.signature);
+
+      vi.useRealTimers();
     });
 
     it("signature differs if the userId changes", () => {

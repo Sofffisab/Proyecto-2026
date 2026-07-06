@@ -153,9 +153,8 @@ async function notifyAbandoningTrainersOnCheckIn(userId, checkInAt) {
 }
 
 export async function checkOut(userId) {
-  // Real-world tolerance: if the user never checked in (forgot to scan on
-  // the way in, or only used a machine), don't trap them — let them "exit"
-  // without it counting as a real gym visit rather than throwing an error.
+  // If there's no open session, this is a genuine client error (nothing to
+  // check out of) — reject it with 400 rather than silently succeeding.
   //
   // Also treat an auto-closed session (closed by the expiration cron job
   // because the user forgot to scan out) as still "current": if the user
@@ -170,7 +169,7 @@ export async function checkOut(userId) {
   });
 
   if (!session) {
-    return { noActiveSession: true };
+    throw new AppError("No active check-in session", 400);
   }
 
   const checkOutAt = new Date();

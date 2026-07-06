@@ -6,7 +6,15 @@ import prisma from "../config/prisma.js";
 let _resend = null;
 function getResendClient() {
   if (!_resend) {
-    _resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_for_tests");
+    // RESEND_API_KEY is enforced as required at startup (see src/index.js) for
+    // every real environment, so the dummy fallback only ever applies in tests.
+    const apiKey =
+      process.env.RESEND_API_KEY ??
+      (process.env.NODE_ENV === "test" ? "re_dummy_key_for_tests" : undefined);
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+    _resend = new Resend(apiKey);
   }
   return _resend;
 }

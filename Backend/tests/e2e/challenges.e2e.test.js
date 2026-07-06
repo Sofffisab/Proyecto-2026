@@ -125,20 +125,4 @@ describe('Challenges E2E', () => {
     expect(response.status).not.toBe(200);
     expect(response.body.success).toBe(false);
   });
-
-  it('GET /challenges/:id/leaderboard returns the challenge data', async () => {
-    const createRes = await request(server)
-      .post('/challenges')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ userIdA: userId1, userIdB: userId2 });
-
-    const challengeId = createRes.body.data.id;
-
-    const response = await request(server)
-      .get(`/challenges/${challengeId}/leaderboard`)
-      .set('Authorization', `Bearer ${token1}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-  });
 });

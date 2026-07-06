@@ -33,7 +33,18 @@ export const authenticate = async (req, res, next) => {
     }
 
     if (!user) {
-      user = await prisma.user.findUnique({ where: { id: payload.userId } });
+      // Never cache/propagate password or reset-token fields on req.user.
+      user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          isActive: true,
+        },
+      });
 
       if (user && redis) {
         await redis.setex(cacheKey, 60, JSON.stringify(user));
