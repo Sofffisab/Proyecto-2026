@@ -81,41 +81,6 @@ describe("GamificationService", () => {
   });
 
   describe("achievements", () => {
-    it("unlocks an achievement and grants points", async () => {
-      const mockAchievement = {
-        id: "ach-123",
-        userId: "user-123",
-        achievementType: "FIRST_CHECK_IN",
-        unlockedAt: new Date(),
-      };
-
-      prisma.userAchievement.findUnique.mockResolvedValue(null);
-      prisma.userAchievement.create.mockResolvedValue(mockAchievement);
-      prisma.pointTransaction.create.mockResolvedValue({
-        id: "txn-123",
-        points: 100,
-      });
-
-      const result = await gamificationService.unlockAchievement(
-        "user-123",
-        "FIRST_CHECK_IN"
-      );
-
-      expect(result.unlockedAt).toBeDefined();
-      expect(prisma.userAchievement.create).toHaveBeenCalled();
-    });
-
-    it("does not allow unlocking the same achievement twice", async () => {
-      prisma.userAchievement.findUnique.mockResolvedValue({
-        id: "ach-123",
-        unlockedAt: new Date(),
-      });
-
-      await expect(
-        gamificationService.unlockAchievement("user-123", "FIRST_CHECK_IN")
-      ).rejects.toThrow("already unlocked");
-    });
-
     it("incluye progreso de achievements bloqueados", async () => {
       const mockAchievements = [
         { id: "ach-1", type: "FIRST_CHECK_IN", unlockedAt: new Date() },

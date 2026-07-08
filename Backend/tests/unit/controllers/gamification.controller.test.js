@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as gamificationController from "../../../src/controllers/gamification.controller.js";
 import * as gamificationService from "../../../src/services/gamification.service.js";
-import * as engagementService from "../../../src/services/engagement.service.js";
 import * as wrappedService from "../../../src/services/wrapped.service.js";
 import prisma from "../../../src/config/prisma.js";
 
 vi.mock("../../../src/services/gamification.service.js");
-vi.mock("../../../src/services/engagement.service.js");
 vi.mock("../../../src/services/wrapped.service.js");
 
 describe("GamificationController", () => {
@@ -41,26 +39,6 @@ describe("GamificationController", () => {
 
     expect(gamificationService.getAchievements).toHaveBeenCalledWith("user-1");
     expect(res.json).toHaveBeenCalledWith({ success: true, data: badges });
-  });
-
-  it("getAllAchievements returns the full achievements catalog", async () => {
-    const all = [{ id: "achv-1" }, { id: "achv-2" }];
-    engagementService.getAllAchievements.mockResolvedValue(all);
-
-    await gamificationController.getAllAchievements(req, res, next);
-
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: all });
-  });
-
-  it("claimBadge unlocks the requested achievement for the caller", async () => {
-    req.params.id = "achv-1";
-    const unlocked = { id: "achv-1", unlockedAt: new Date() };
-    gamificationService.unlockAchievement.mockResolvedValue(unlocked);
-
-    await gamificationController.claimBadge(req, res, next);
-
-    expect(gamificationService.unlockAchievement).toHaveBeenCalledWith("user-1", "achv-1");
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: unlocked });
   });
 
   it("getWrapped defaults to the current year when none is given", async () => {

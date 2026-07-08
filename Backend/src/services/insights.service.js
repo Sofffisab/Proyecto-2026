@@ -1,6 +1,18 @@
 import prisma from "../config/prisma.js";
 import { shapeUserForAnalytics } from "../utils/privacy.js";
 
+// Midpoint (in days/week) used to compare actual attendance against the
+// fixed TrainingFrequency bucket the user picked in pantalla U (perfil
+// mínimo). SEVEN has no upper bound to average against, so it maps to 7.
+const TRAINING_FREQUENCY_TARGET_DAYS = {
+  ONE_TO_TWO: 1.5,
+  THREE: 3,
+  FOUR: 4,
+  FIVE: 5,
+  SIX: 6,
+  SEVEN: 7,
+};
+
 // ============================================
 // USER ANALYTICS (daily / weekly / monthly)
 // ============================================
@@ -24,7 +36,7 @@ export async function getUserAnalytics(userId) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   // Single query for all user sessions + machine usage, filter in memory
-  const [allSessions, machineUsage] = await Promise.all([
+  const [allSessions, machineUsage, profile] = await Promise.all([
     prisma.gymSession.findMany({ 
       where: { userId },
       orderBy: { checkInAt: "desc" }
@@ -32,6 +44,11 @@ export async function getUserAnalytics(userId) {
     prisma.machineUsage.findMany({ 
       where: { userId }, 
       include: { machine: true }
+    }),
+    // Perfil mínimo (pantalla U) — feeds the goal-adherence comparison below.
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { objectives: true, trainingLevel: true, weeklyTrainingDays: true, trainingType: true },
     }),
   ]);
 
@@ -49,12 +66,30 @@ export async function getUserAnalytics(userId) {
     return acc;
   }, {});
 
+  // Compares the user's declared weekly frequency goal (pantalla U) against
+  // this week's actual check-ins. null when the user hasn't set a goal yet.
+  const targetDaysPerWeek = profile?.weeklyTrainingDays
+    ? TRAINING_FREQUENCY_TARGET_DAYS[profile.weeklyTrainingDays]
+    : null;
+  const goalProgress = targetDaysPerWeek
+    ? {
+        mainGoal: profile.objectives,
+        trainingLevel: profile.trainingLevel,
+        trainingType: profile.trainingType,
+        weeklyTrainingDaysGoal: profile.weeklyTrainingDays,
+        targetDaysPerWeek,
+        actualDaysThisWeek: weeklySessions.length,
+        onTrack: weeklySessions.length >= targetDaysPerWeek,
+      }
+    : null;
+
   return {
     total:   { sessions: allSessions.length,    minutes: totalMinutes(allSessions) },
     daily:   { sessions: dailySessions.length,   minutes: totalMinutes(dailySessions) },
     weekly:  { sessions: weeklySessions.length,  minutes: totalMinutes(weeklySessions) },
     monthly: { sessions: monthlySessions.length, minutes: totalMinutes(monthlySessions) },
     machineUsage: machinesCount,
+    goalProgress,
   };
 }
 

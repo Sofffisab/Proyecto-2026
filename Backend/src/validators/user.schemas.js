@@ -1,13 +1,25 @@
 import { z } from "zod";
 
+// ── Pantalla U: perfil mínimo — opciones fijas ────────────────────────────────
+export const MAIN_GOAL_OPTIONS = ["LOSE_WEIGHT", "GAIN_MUSCLE", "IMPROVE_HEALTH", "INCREASE_ENDURANCE"];
+export const EXPERIENCE_LEVEL_OPTIONS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
+export const TRAINING_FREQUENCY_OPTIONS = ["ONE_TO_TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN"];
+export const TRAINING_TYPE_OPTIONS = ["STRENGTH", "CARDIO", "FUNCTIONAL", "MIXED"];
+
 export const updateUserSchema = z.object({
   firstName: z.string().trim().min(1).max(100).optional(),
   lastName: z.string().trim().min(1).max(100).optional(),
   birthday: z.string().datetime().optional(),
   gender: z.string().max(50).optional(),
-  trainingLevel: z.string().max(50).optional(),
+  // Nivel actual — 3 opciones fijas.
+  trainingLevel: z.enum(EXPERIENCE_LEVEL_OPTIONS).optional(),
   medicalConditions: z.array(z.string()).optional(),
-  objectives: z.array(z.string()).optional(),
+  // Objetivo principal — 4 opciones fijas, multi-select.
+  objectives: z.array(z.enum(MAIN_GOAL_OPTIONS)).optional(),
+  // Días que entrena por semana — 6 opciones fijas.
+  weeklyTrainingDays: z.enum(TRAINING_FREQUENCY_OPTIONS).optional(),
+  // Tipo de entrenamiento buscado — 4 opciones fijas.
+  trainingType: z.enum(TRAINING_TYPE_OPTIONS).optional(),
   deliveryAddress: z.string().max(500).optional(),
 });
 

@@ -102,14 +102,5 @@ export async function cancel(req, res, next) {
   }
 }
 
-export async function getChallengeLeaderboard(req, res, next) {
-  try {
-    const data = await challengeService.getChallengeLeaderboard(req.params.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 // Legacy aliases kept for controllers that still reference the old names internally.
 export { getActive as getActiveChallenges, getAll as getAllChallenges };

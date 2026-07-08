@@ -136,28 +136,9 @@ export async function checkAndUnlockAchievements(userId) {
   }
 }
 
-export async function unlockAchievement(userId, achievementId) {
-  const existing = await prisma.userAchievement.findUnique({
-    where: { userId_achievementId: { userId, achievementId } },
-  });
-
-  if (existing) throw new Error("Achievement already unlocked");
-
-  const userAchievement = await prisma.userAchievement.create({
-    data: { userId, achievementId, unlockedAt: new Date() },
-  });
-
-  await prisma.pointTransaction.create({
-    data: {
-      userId,
-      points: POINTS.ACHIEVEMENT_UNLOCKED,
-      reason: `Achievement unlocked: ${achievementId}`,
-    },
-  });
-
-  return userAchievement;
-}
-
+// Badges are never claimed manually — only checkAndUnlockAchievements above
+// grants them, so there is no way for a user to self-award one without
+// actually meeting its threshold.
 export async function getAchievements(userId) {
   return prisma.userAchievement.findMany({
     where: { userId },
@@ -165,8 +146,6 @@ export async function getAchievements(userId) {
   });
 }
 
-// NOTE: getLeaderboard was removed — it referenced a `User.totalPoints`
-// field that doesn't exist in schema.prisma and was never wired to any
-// route (public/global leaderboards were intentionally dropped from the
-// product; see routes/index.js). Use engagement.service.js#getLeaderboard
-// (backed by PointTransaction aggregation) for the admin-only equivalent.
+// No leaderboard/ranking of any kind, public or private — not wanted by
+// the product. Engagement is measured entirely through personal achievement
+// badges (see checkAndUnlockAchievements above), not by comparing users.

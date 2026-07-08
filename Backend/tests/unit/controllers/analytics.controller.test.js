@@ -37,34 +37,6 @@ describe("AnalyticsController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data });
   });
 
-  it("getGlobalLeaderboard defaults limit to 20 when not provided", async () => {
-    engagementService.getLeaderboardWithNames.mockResolvedValue([]);
-
-    await analyticsController.getGlobalLeaderboard(req, res, next);
-
-    expect(engagementService.getLeaderboardWithNames).toHaveBeenCalledWith(20);
-  });
-
-  it("getGlobalLeaderboard caps the requested limit at 100", async () => {
-    req.query.limit = "500";
-    engagementService.getLeaderboardWithNames.mockResolvedValue([]);
-
-    await analyticsController.getGlobalLeaderboard(req, res, next);
-
-    expect(engagementService.getLeaderboardWithNames).toHaveBeenCalledWith(100);
-  });
-
-  it("getUserRank returns the caller's rank and total points", async () => {
-    engagementService.getUserRank.mockResolvedValue({ rank: 3, totalPoints: 900 });
-
-    await analyticsController.getUserRank(req, res, next);
-
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      data: { rank: 3, totalPoints: 900 },
-    });
-  });
-
   it("getUserPatterns returns the caller's behavior profile", async () => {
     const profile = { frequentDays: [], topMachines: [] };
     behaviorAnalysisService.getUserBehaviorProfile.mockResolvedValue(profile);

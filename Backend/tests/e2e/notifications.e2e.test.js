@@ -30,7 +30,7 @@ describe('Notifications E2E', () => {
   let otherUserId;
 
   beforeAll(() => {
-    server = app.listen(3011);
+    server = app.listen(3014);
   });
 
   afterAll(async () => {

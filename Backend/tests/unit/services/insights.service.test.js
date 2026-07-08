@@ -53,6 +53,48 @@ describe("InsightsService", () => {
       // The outdated session shouldn't be counted in the monthly bucket
       expect(result.monthly.sessions).toBeLessThan(3);
     });
+    it("returns goalProgress=null when the user hasn't set a weekly frequency goal", async () => {
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.machineUsage.findMany.mockResolvedValue([]);
+      prisma.user.findUnique.mockResolvedValue({
+        objectives: [],
+        trainingLevel: null,
+        weeklyTrainingDays: null,
+        trainingType: null,
+      });
+
+      const result = await insightsService.getUserAnalytics("user-123");
+
+      expect(result.goalProgress).toBeNull();
+    });
+
+    it("compares actual weekly check-ins against the declared frequency goal", async () => {
+      const now = new Date();
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: now, durationMinutes: 30 },
+        { checkInAt: now, durationMinutes: 30 },
+        { checkInAt: now, durationMinutes: 30 },
+      ]);
+      prisma.machineUsage.findMany.mockResolvedValue([]);
+      prisma.user.findUnique.mockResolvedValue({
+        objectives: ["GAIN_MUSCLE"],
+        trainingLevel: "INTERMEDIATE",
+        weeklyTrainingDays: "FOUR",
+        trainingType: "STRENGTH",
+      });
+
+      const result = await insightsService.getUserAnalytics("user-123");
+
+      expect(result.goalProgress).toEqual({
+        mainGoal: ["GAIN_MUSCLE"],
+        trainingLevel: "INTERMEDIATE",
+        trainingType: "STRENGTH",
+        weeklyTrainingDaysGoal: "FOUR",
+        targetDaysPerWeek: 4,
+        actualDaysThisWeek: 3,
+        onTrack: false,
+      });
+    });
   });
 
   describe("getGymAnalytics", () => {

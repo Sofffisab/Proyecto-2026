@@ -166,9 +166,11 @@ router.get("/rewards/:id",                  authorize(["ADMIN"]), rewardControll
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
 // Personal badges (above) are auto-unlocked from activity — see
-// gamification.service.js#checkAndUnlockAchievements. There is still no
-// browsable achievement catalog or leaderboard route; those remain
-// intentionally excluded — not wanted by the product.
+// gamification.service.js#checkAndUnlockAchievements. There is no manual
+// claim endpoint, no browsable catalog, and no leaderboard/ranking route
+// (public, private, or per-challenge) — none of that is wanted by the
+// product. Badges are earned purely from attendance frequency/consistency,
+// social interactions, and machine usage.
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
@@ -184,7 +186,7 @@ router.get("/challenges/:id",               challengeController.getById);
 router.patch("/challenges/:id/join",        challengeController.joinChallenge);
 router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.completeChallengeSchema), challengeController.complete);
 router.patch("/challenges/:id/cancel",      challengeController.cancel);
-// Public/challenge leaderboards intentionally removed — not wanted by the product.
+// No per-challenge leaderboard route — no rankings anywhere in the product.
 
 // ── ASSISTANCE ROUTES ─────────────────────────────────────────────────────────
 router.post("/assistance/request",          assistanceController.request);
@@ -223,8 +225,7 @@ router.delete("/notifications/:id",        notificationController.deleteNotifica
 router.get("/analytics/me",          analyticsController.getUserAnalytics);
 router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.getGymAnalytics);
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
-// Global leaderboard intentionally removed — not wanted by the product.
-router.get("/analytics/me/rank",     analyticsController.getUserRank);
+// No global leaderboard or personal-rank route — no rankings, public or private.
 router.get("/analytics/patterns",    analyticsController.getUserPatterns);
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);
 // Full cross-user history/analytics export, run through the privacy/

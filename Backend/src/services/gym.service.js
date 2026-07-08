@@ -381,8 +381,11 @@ export async function getPriorityAssistanceList(trainerId) {
   }, {});
 
   // A student's objectives are matched against the trainer's specialties.
-  // objectives is a flexible JSON field: accept either an array of strings,
-  // or an array of objects with a `type`/`goal` field.
+  // objectives is now MainGoal[] (fixed enum, from pantalla U) — still a
+  // plain array of strings at the JS level, so this keeps working unchanged.
+  // The `o?.type ?? o?.goal` branch is dead weight from when this was a
+  // free-form JSON field; kept only so any still-unmigrated legacy rows
+  // (pre-migration snapshots) don't crash.
   function studentGoalTypes(objectives) {
     if (!Array.isArray(objectives)) return [];
     return objectives.map((o) => (typeof o === "string" ? o : o?.type ?? o?.goal)).filter(Boolean);

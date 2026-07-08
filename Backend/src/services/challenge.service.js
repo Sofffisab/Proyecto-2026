@@ -217,33 +217,6 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
   return updated;
 }
 
-export async function getChallengeLeaderboard(challengeId) {
-  const completions = await prisma.socialChallenge.groupBy({
-    by: ["userId", "partnerUserId"],
-    where: {
-      status: "COMPLETED",
-    },
-    _count: { id: true },
-  });
-
-  const countMap = {};
-  completions.forEach((c) => {
-    countMap[c.userId] = (countMap[c.userId] || 0) + c._count.id;
-    countMap[c.partnerUserId] = (countMap[c.partnerUserId] || 0) + c._count.id;
-  });
-
-  const userIds = Object.keys(countMap);
-
-  const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: { id: true, firstName: true, lastName: true },
-  });
-
-  return users
-    .map((u) => ({ ...u, completedChallenges: countMap[u.id] ?? 0 }))
-    .sort((a, b) => b.completedChallenges - a.completedChallenges);
-}
-
 export async function getActiveChallenges(userId) {
   return prisma.socialChallenge.findMany({
     where: {

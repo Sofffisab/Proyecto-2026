@@ -30,7 +30,7 @@ describe('Complaints E2E', () => {
   let adminToken;
 
   beforeAll(() => {
-    server = app.listen(3012);
+    server = app.listen(3015);
   });
 
   afterAll(async () => {

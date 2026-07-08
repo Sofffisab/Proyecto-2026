@@ -108,19 +108,6 @@ describe('Analytics E2E', () => {
     expect(after.body.data.totalSessions).toBe(before.body.data.totalSessions + 1);
   });
 
-  it('GET /analytics/me/rank returns the caller rank and total points', async () => {
-    const response = await request(server)
-      .get('/analytics/me/rank')
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    // A brand new user with no point transactions has 0 points and no one
-    // ranked strictly above them can push their rank below 1.
-    expect(response.body.data.totalPoints).toBe(0);
-    expect(response.body.data.rank).toBeGreaterThanOrEqual(1);
-  });
-
   it('GET /analytics/patterns returns an empty behavior profile for a user with no sessions', async () => {
     const response = await request(server)
       .get('/analytics/patterns')

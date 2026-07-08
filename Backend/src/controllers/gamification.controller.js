@@ -1,5 +1,4 @@
 import * as gamificationService from "../services/gamification.service.js";
-import * as engagementService from "../services/engagement.service.js";
 import * as wrappedService from "../services/wrapped.service.js";
 import { AppError } from "../utils/errors.js";
 import prisma from "../config/prisma.js";
@@ -17,26 +16,6 @@ export async function getUserPoints(req, res, next) {
 export async function getUserBadges(req, res, next) {
   try {
     const data = await gamificationService.getAchievements(req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// GET /gamification/achievements
-export async function getAllAchievements(req, res, next) {
-  try {
-    // The underlying service call was already correctly named
-    const data = await engagementService.getAllAchievements();
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function claimBadge(req, res, next) {
-  try {
-    const data = await gamificationService.unlockAchievement(req.user.id, req.params.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
