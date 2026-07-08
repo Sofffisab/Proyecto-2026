@@ -164,11 +164,14 @@ router.get("/gamification/badges",          gamificationController.getUserBadges
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
-// Challenges are assigned automatically by the app (popup-style) via the
-// scheduled challenge job — there is intentionally no POST /challenges
-// endpoint for users to request one.
+// Challenges are never created from a form/searcher. They come to exist in
+// one of two ways: assigned automatically by the app (popup-style) via the
+// scheduled challenge job, or paired instantly through a physical QR
+// exchange (POST /challenges/scan-user, below).
 router.get("/challenges",                   challengeController.getAll);
 router.get("/challenges/active",            challengeController.getActive);
+// Instant pairing via QR exchange — no form/searcher. See scanUser controller.
+router.post("/challenges/scan-user",        validateSchema(challengeSchemas.scanUserChallengeSchema), challengeController.scanUser);
 router.get("/challenges/:id",               challengeController.getById);
 router.patch("/challenges/:id/join",        challengeController.joinChallenge);
 router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.completeChallengeSchema), challengeController.complete);

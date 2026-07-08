@@ -55,9 +55,37 @@ export const POINTS = {
   // week shouldn't count), the cadence has to actually be regular.
   CONSISTENCY_WEEKLY_BONUS: 25,
 
+  // Kept for backwards-compatibility / reference. Approved-complaint
+  // penalties are no longer a flat value — see COMPLAINT_PENALTY below for
+  // the progressive schedule applied in complaint.service.js#approveComplaint.
   APPROVED_COMPLAINT_PENALTY: -50,
 
   SUSPICIOUS_ACTIVITY_PENALTY: -100,
+};
+
+// Progressive penalty schedule for APPROVED complaints against a user.
+// The first FREE_STRIKES approved complaints are "evaluated" but cost no
+// points (a first offense shouldn't tank someone's score). Starting on the
+// next one, a penalty kicks in and grows with every additional approved
+// complaint, so repeat offenders lose more each time. Once a user racks up
+// ALERT_THRESHOLD approved complaints total, an admin review alert is
+// raised (PointReviewRequest) so a human looks at the pattern instead of
+// the system silently continuing to dock points forever.
+export const COMPLAINT_PENALTY = {
+  // Approved complaints #1 and #2: no points deducted.
+  FREE_STRIKES: 2,
+
+  // Penalty grows by this amount for every approved complaint past the
+  // free strikes: #3 = -25, #4 = -50, #5 = -75, #6 = -100, ...
+  STEP: 25,
+
+  // Penalty never exceeds this per single approval, no matter how far into
+  // the progression the user is.
+  MAX_PENALTY: 150,
+
+  // Total approved complaints (against the same user) that trigger an
+  // admin review alert, on top of the point deduction.
+  ALERT_THRESHOLD: 5,
 };
 
 // Multiplier applied to POINTS.PROGRESS_UPDATE based on the difficulty of
@@ -80,4 +108,5 @@ export default {
   POINTS,
   DIFFICULTY_MULTIPLIERS,
   CONSISTENCY_BONUS_THRESHOLDS,
+  COMPLAINT_PENALTY,
 };

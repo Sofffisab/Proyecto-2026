@@ -88,6 +88,14 @@ export const createChallengeSchema = z.object({
   path: ["userIdB"],
 });
 
+// Instant pairing via QR exchange: one phone shows its personal QR (GET
+// /qr/me), the other scans it and posts the raw payload here. No searcher/
+// form — `payload` is the exact string the scanner's camera read.
+export const scanUserChallengeSchema = z.object({
+  payload: z.string().min(1),
+  station: z.string().max(200).optional(),
+});
+
 export const completeChallengeSchema = z.object({
   partnerId: z.string().uuid(),
 });

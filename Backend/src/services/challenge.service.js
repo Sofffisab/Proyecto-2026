@@ -6,7 +6,10 @@ import { AppError } from "../utils/errors.js";
 // Social challenges expire after this long if nobody responds/completes them.
 const CHALLENGE_TTL_HOURS = parseInt(process.env.SOCIAL_CHALLENGE_TTL_HOURS ?? "24", 10);
 
-export async function assignChallenge(userIdA, userIdB, station) {
+// Shared eligibility guard used both by the scheduled auto-matching job
+// (assignChallenge) and the instant QR-pairing endpoint (pairFromScan) —
+// the two ways a SocialChallenge can come into existence.
+async function assertChallengeEligibility(userIdA, userIdB) {
   if (userIdA === userIdB) {
     throw new AppError("A user cannot challenge themselves", 400);
   }
@@ -46,8 +49,10 @@ export async function assignChallenge(userIdA, userIdB, station) {
 
   if (usageA) throw new AppError("The first user is mid-exercise and cannot be assigned a challenge right now", 400);
   if (usageB) throw new AppError("The second user is mid-exercise and cannot be assigned a challenge right now", 400);
+}
 
-  const existing = await prisma.socialChallenge.findFirst({
+function findActiveChallengeBetween(userIdA, userIdB) {
+  return prisma.socialChallenge.findFirst({
     where: {
       OR: [
         { userId: userIdA, partnerUserId: userIdB },
@@ -56,6 +61,12 @@ export async function assignChallenge(userIdA, userIdB, station) {
       status: { in: ["ASSIGNED", "ACCEPTED"] },
     },
   });
+}
+
+export async function assignChallenge(userIdA, userIdB, station) {
+  await assertChallengeEligibility(userIdA, userIdB);
+
+  const existing = await findActiveChallengeBetween(userIdA, userIdB);
 
   if (existing) {
     throw new AppError("An active challenge already exists between these users", 409);
@@ -67,6 +78,43 @@ export async function assignChallenge(userIdA, userIdB, station) {
       partnerUserId: userIdB,
       station,
       status: "ASSIGNED",
+      expiresAt: new Date(Date.now() + CHALLENGE_TTL_HOURS * 60 * 60 * 1000),
+    },
+  });
+}
+
+// Instant pairing via physical QR exchange: one member's screen shows their
+// personal QR (GET /qr/me), the other scans it with their camera and this
+// is called with the scanned userId. There is no search form — the two
+// phones being next to each other, screen-to-camera, at the same moment
+// *is* the mutual consent, so (unlike assignChallenge, which waits for a
+// separate accept step) the challenge starts life already ACCEPTED.
+export async function pairFromScan(scannerId, targetUserId, station) {
+  await assertChallengeEligibility(scannerId, targetUserId);
+
+  const existing = await findActiveChallengeBetween(scannerId, targetUserId);
+
+  if (existing) {
+    if (existing.status === "ACCEPTED") {
+      // Duplicate scan (e.g. camera fired twice) — idempotent, just return it.
+      return existing;
+    }
+    // An ASSIGNED challenge already exists between these two (e.g. from the
+    // scheduled auto-matching job). Scanning each other in person is a
+    // stronger signal than that async assignment — upgrade it instead of
+    // erroring out.
+    return prisma.socialChallenge.update({
+      where: { id: existing.id },
+      data: { status: "ACCEPTED" },
+    });
+  }
+
+  return prisma.socialChallenge.create({
+    data: {
+      userId: scannerId,
+      partnerUserId: targetUserId,
+      station: station ?? null,
+      status: "ACCEPTED",
       expiresAt: new Date(Date.now() + CHALLENGE_TTL_HOURS * 60 * 60 * 1000),
     },
   });

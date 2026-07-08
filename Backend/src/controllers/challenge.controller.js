@@ -1,8 +1,11 @@
 import * as challengeService from "../services/challenge.service.js";
+import { validateQRPayload } from "../services/verification.service.js";
+import { AppError } from "../utils/errors.js";
 
-// Challenges are never created on user request — they are assigned
-// automatically by the app (see jobs/challenge.job.js) and surfaced to the
-// user as a popup/notification. There is no POST /challenges endpoint.
+// Challenges are never created from a form/searcher. There are two ways a
+// SocialChallenge comes to exist: assigned automatically by the app (see
+// jobs/challenge.job.js), or paired instantly below when two members
+// physically exchange QR codes (one shows their QR, the other scans it).
 
 export async function getAll(req, res, next) {
   try {
@@ -38,6 +41,29 @@ export async function getById(req, res, next) {
       return res.status(404).json({ success: false, message: "Challenge not found" });
     }
     res.json({ success: true, data: challenge });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /challenges/scan-user — instant pairing via a physical QR exchange.
+// The scanner's phone reads the other member's personal QR (GET /qr/me)
+// and posts the raw payload here; no user search, no machine picker. The
+// scan itself pairs the two users right away.
+export async function scanUser(req, res, next) {
+  try {
+    const { payload, station } = req.validatedData;
+    const parsed = validateQRPayload(payload);
+
+    if (parsed.type !== "USER") {
+      throw new AppError("This QR code does not belong to a user", 400);
+    }
+    if (!parsed.userId) {
+      throw new AppError("Missing userId in QR payload", 400);
+    }
+
+    const data = await challengeService.pairFromScan(req.user.id, parsed.userId, station);
+    res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
   }

@@ -155,4 +155,68 @@ describe("ChallengeService", () => {
       expect(prisma.socialInteraction.create).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe("pairFromScan", () => {
+    it("rejects a user scanning their own QR", async () => {
+      await expect(
+        challengeService.pairFromScan("user-1", "user-1", "STATION_A")
+      ).rejects.toThrow("A user cannot challenge themselves");
+    });
+
+    it("creates an ACCEPTED challenge immediately when both users are eligible", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.socialChallenge.findFirst.mockResolvedValue(null);
+      prisma.socialChallenge.create.mockResolvedValue({ id: "challenge-1", status: "ACCEPTED" });
+
+      const result = await challengeService.pairFromScan("user-1", "user-2", "STATION_A");
+
+      expect(result.status).toBe("ACCEPTED");
+      expect(prisma.socialChallenge.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: "user-1",
+            partnerUserId: "user-2",
+            status: "ACCEPTED",
+          }),
+        })
+      );
+    });
+
+    it("upgrades an existing ASSIGNED challenge to ACCEPTED instead of erroring", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.socialChallenge.findFirst.mockResolvedValue({
+        id: "challenge-1",
+        userId: "user-2",
+        partnerUserId: "user-1",
+        status: "ASSIGNED",
+      });
+      prisma.socialChallenge.update.mockResolvedValue({ id: "challenge-1", status: "ACCEPTED" });
+
+      const result = await challengeService.pairFromScan("user-1", "user-2");
+
+      expect(prisma.socialChallenge.update).toHaveBeenCalledWith({
+        where: { id: "challenge-1" },
+        data: { status: "ACCEPTED" },
+      });
+      expect(result.status).toBe("ACCEPTED");
+    });
+
+    it("is idempotent: a duplicate scan of an already-ACCEPTED pair just returns it", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      const existing = { id: "challenge-1", userId: "user-1", partnerUserId: "user-2", status: "ACCEPTED" };
+      prisma.socialChallenge.findFirst.mockResolvedValue(existing);
+
+      const result = await challengeService.pairFromScan("user-1", "user-2");
+
+      expect(prisma.socialChallenge.update).not.toHaveBeenCalled();
+      expect(prisma.socialChallenge.create).not.toHaveBeenCalled();
+      expect(result).toBe(existing);
+    });
+  });
 });

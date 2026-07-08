@@ -4,6 +4,7 @@ import { emitAssistanceEvent } from "../realtime/ably.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
+import { sendTrainerAlert } from "./pushNotification.service.js";
 
 export async function requestAssistance(userId) {
   const settings = await prisma.userSettings.findUnique({ where: { userId } });
@@ -12,17 +13,60 @@ export async function requestAssistance(userId) {
     throw new Error("Assistance requests are disabled for this user");
   }
 
+  const requester = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true },
+  });
+
   const assistance = await prisma.assistance.create({
     data: { userId, status: "PENDING" },
   });
 
+  // Realtime event for trainers who already have the app open in
+  // foreground (dashboard list, etc).
   emitAssistanceEvent("ASSISTANCE_REQUESTED", {
     assistanceId: assistance.id,
     userId,
     requestedAt: assistance.requestedAt,
   });
 
+  // Call-style push so a trainer who does NOT have the app open right now
+  // still gets woken up with the full-screen blocking alert. Broadcast to
+  // every AVAILABLE trainer (first one to hit "Ayudar" wins the assignment
+  // — assignAssistance already guards against double-assignment/BUSY).
+  // Never let a push failure break the assistance request itself.
+  notifyAvailableTrainers(assistance, requester).catch((err) =>
+    logger.error("[assistance] Failed to push trainer alert:", err.message)
+  );
+
   return assistance;
+}
+
+async function notifyAvailableTrainers(assistance, requester) {
+  const availableTrainers = await prisma.user.findMany({
+    where: {
+      role: "TRAINER",
+      isActive: true,
+      OR: [
+        { trainerProfile: null },
+        { trainerProfile: { availability: "AVAILABLE" } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (availableTrainers.length === 0) return;
+
+  await sendTrainerAlert({
+    trainerIds: availableTrainers.map((t) => t.id),
+    type: "SOS_ENTRENADOR",
+    payload: {
+      assistanceId: assistance.id,
+      userId: assistance.userId,
+      userName: requester ? `${requester.firstName} ${requester.lastName}` : "Un socio",
+      requestedAt: assistance.requestedAt.toISOString(),
+    },
+  });
 }
 
 /**

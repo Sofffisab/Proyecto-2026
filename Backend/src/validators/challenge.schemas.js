@@ -4,4 +4,5 @@ export {
   createChallengeSchema,
   completeChallengeSchema,
   cancelChallengeSchema,
+  scanUserChallengeSchema,
 } from "./progress.schemas.js";

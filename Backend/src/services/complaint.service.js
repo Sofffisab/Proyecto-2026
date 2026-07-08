@@ -1,7 +1,20 @@
 import prisma from "../config/prisma.js";
 import { addPoints } from "./gamification.service.js";
-import { POINTS } from "../constants/points.js";
+import { POINTS, COMPLAINT_PENALTY } from "../constants/points.js";
 import { createNotification } from "./communication.service.js";
+import { logger } from "../utils/logger.js";
+
+// Given the count of APPROVED complaints a user has (including the one
+// currently being approved), returns the penalty to apply for *this*
+// approval. Returns 0 for the free strikes; otherwise grows by STEP for
+// every complaint past the free threshold, capped at MAX_PENALTY.
+function calculateComplaintPenalty(approvedCount) {
+  const strikesPastFree = approvedCount - COMPLAINT_PENALTY.FREE_STRIKES;
+  if (strikesPastFree <= 0) return 0;
+
+  const penalty = Math.min(strikesPastFree * COMPLAINT_PENALTY.STEP, COMPLAINT_PENALTY.MAX_PENALTY);
+  return -penalty;
+}
 
 export async function createComplaint(data) {
   if (data.reporterId === data.reportedUserId) {
@@ -119,22 +132,63 @@ export async function approveComplaint(id, reviewerId) {
     },
   });
 
-  // Deduct points from the reported user.
-  // Force the value to be negative regardless of how the constant is configured,
-  // so a misconfigured positive value can never accidentally award points.
-  const penalty = -Math.abs(POINTS.APPROVED_COMPLAINT_PENALTY);
-  await addPoints(
-    complaint.reportedUserId,
-    penalty,
-    "Complaint approved against user"
-  );
+  // Progressive penalty: count how many complaints against this user are
+  // now APPROVED (this one included, since we just updated it above).
+  const approvedCount = await prisma.complaint.count({
+    where: { reportedUserId: complaint.reportedUserId, status: "APPROVED" },
+  });
 
-  // Notify the reported user that points were deducted
-  await createNotification(
-    complaint.reportedUserId,
-    "Penalty applied",
-    `A complaint against you was approved. ${Math.abs(penalty)} points have been deducted from your account.`
-  );
+  const penalty = calculateComplaintPenalty(approvedCount);
+
+  if (penalty === 0) {
+    // Strikes #1 and #2: evaluated, but no points deducted yet.
+    await createNotification(
+      complaint.reportedUserId,
+      "Complaint reviewed",
+      "A complaint against you was approved. No points were deducted this time, " +
+        "but further approved complaints will start reducing your points."
+    );
+  } else {
+    await addPoints(
+      complaint.reportedUserId,
+      penalty,
+      `Complaint approved against user (strike #${approvedCount})`
+    );
+
+    await createNotification(
+      complaint.reportedUserId,
+      "Penalty applied",
+      `A complaint against you was approved. ${Math.abs(penalty)} points have been deducted from your account.`
+    );
+  }
+
+  // Too many approved complaints against the same user: raise an admin
+  // review alert instead of letting the penalty grow forever unnoticed.
+  if (approvedCount >= COMPLAINT_PENALTY.ALERT_THRESHOLD) {
+    const alreadyFlagged = await prisma.pointReviewRequest.findFirst({
+      where: {
+        userId: complaint.reportedUserId,
+        resolved: false,
+        reason: { startsWith: "REPEAT_COMPLAINTS" },
+      },
+    });
+
+    if (!alreadyFlagged) {
+      try {
+        await prisma.pointReviewRequest.create({
+          data: {
+            userId: complaint.reportedUserId,
+            reason:
+              `REPEAT_COMPLAINTS: user has ${approvedCount} approved complaints against them ` +
+              `(threshold: ${COMPLAINT_PENALTY.ALERT_THRESHOLD}). Needs admin review.`,
+            resolved: false,
+          },
+        });
+      } catch (err) {
+        logger.error("[complaint.service] Failed to create review-request alert:", err.message);
+      }
+    }
+  }
 
   return complaint;
 }

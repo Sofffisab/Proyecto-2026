@@ -37,6 +37,10 @@ describe('ComplaintService', () => {
     };
 
     prisma.complaint.update.mockResolvedValue(mockResolved);
+    // 3rd approved complaint against this user -> past the 2 free strikes,
+    // so a penalty should be applied.
+    prisma.complaint.count.mockResolvedValue(3);
+    prisma.pointReviewRequest.findFirst.mockResolvedValue(null);
     prisma.pointTransaction.create.mockResolvedValue({});
     prisma.notification.create.mockResolvedValue({});
 
@@ -44,6 +48,54 @@ describe('ComplaintService', () => {
 
     expect(result.status).toBe('APPROVED');
     expect(result.reviewedAt).toBeDefined();
+    expect(prisma.pointTransaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ points: -25 }) })
+    );
+  });
+
+  it('approveComplaint: first two approved complaints are free (no penalty)', async () => {
+    const mockResolved = {
+      id: 'complaint-1',
+      status: 'APPROVED',
+      reportedUserId: 'user-2',
+      reviewedAt: new Date(),
+    };
+
+    prisma.complaint.update.mockResolvedValue(mockResolved);
+    prisma.complaint.count.mockResolvedValue(1);
+    prisma.notification.create.mockResolvedValue({});
+
+    await complaintService.approveComplaint('complaint-1', 'admin-1');
+
+    expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: 'Complaint reviewed' }),
+      })
+    );
+  });
+
+  it('approveComplaint: raises an admin review alert past the alert threshold', async () => {
+    const mockResolved = {
+      id: 'complaint-1',
+      status: 'APPROVED',
+      reportedUserId: 'user-2',
+      reviewedAt: new Date(),
+    };
+
+    prisma.complaint.update.mockResolvedValue(mockResolved);
+    prisma.complaint.count.mockResolvedValue(5); // ALERT_THRESHOLD
+    prisma.pointReviewRequest.findFirst.mockResolvedValue(null);
+    prisma.pointTransaction.create.mockResolvedValue({});
+    prisma.notification.create.mockResolvedValue({});
+
+    await complaintService.approveComplaint('complaint-1', 'admin-1');
+
+    expect(prisma.pointReviewRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: 'user-2', resolved: false }),
+      })
+    );
   });
 
   it('rejectComplaint setea reviewedAt sin resolution positiva', async () => {
