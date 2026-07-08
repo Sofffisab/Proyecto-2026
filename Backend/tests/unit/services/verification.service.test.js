@@ -38,6 +38,62 @@ describe("VerificationService", () => {
     });
   });
 
+  describe("regenerateMachineQR", () => {
+    it("stashes the outgoing token as previousQrToken with a future validUntil", async () => {
+      prisma.machine.findUnique.mockResolvedValue({
+        id: "machine-123",
+        qrToken: "old_token",
+      });
+      prisma.machine.update.mockResolvedValue({});
+
+      await verificationService.regenerateMachineQR("machine-123");
+
+      expect(prisma.machine.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "machine-123" },
+          data: expect.objectContaining({
+            previousQrToken: "old_token",
+            previousQrTokenValidUntil: expect.any(Date),
+          }),
+        })
+      );
+    });
+
+    it("throws if the machine does not exist", async () => {
+      prisma.machine.findUnique.mockResolvedValue(null);
+
+      await expect(
+        verificationService.regenerateMachineQR("missing-machine")
+      ).rejects.toThrow("Machine not found");
+    });
+  });
+
+  describe("regenerateAllMachineQRCodes", () => {
+    it("carries each machine's outgoing token into previousQrToken", async () => {
+      prisma.machine.findMany.mockResolvedValue([
+        { id: "m1", qrToken: "token-1" },
+        { id: "m2", qrToken: "token-2" },
+      ]);
+      prisma.machine.update.mockResolvedValue({});
+
+      const result = await verificationService.regenerateAllMachineQRCodes();
+
+      expect(result).toEqual({ regenerated: 2 });
+      expect(prisma.machine.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "m1" },
+          data: expect.objectContaining({ previousQrToken: "token-1" }),
+        })
+      );
+      expect(prisma.machine.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "m2" },
+          data: expect.objectContaining({ previousQrToken: "token-2" }),
+        })
+      );
+    });
+  });
+
   describe("validateQRPayload", () => {
     it("rejects a payload without a type", () => {
       const payload = { userId: "user-123", ts: Date.now() };
@@ -126,6 +182,43 @@ describe("VerificationService", () => {
       expect(result).not.toHaveProperty("endedAt");
     });
 
+    it("type MACHINE: opens a gym session (check-in) when the user has none active, and links it", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        ts: Date.now(),
+      };
+
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      // No active gym session for this user.
+      prisma.gymSession.findFirst.mockResolvedValue(null);
+      // What gymCheckIn's internal prisma.gymSession.create call returns.
+      prisma.gymSession.create.mockResolvedValue({
+        id: "session-auto-1",
+        userId: "user-123",
+        checkInAt: new Date(),
+        checkOutAt: null,
+      });
+
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-123",
+        machineId: "machine-123",
+        gymSessionId: "session-auto-1",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(prisma.gymSession.create).toHaveBeenCalled();
+      expect(prisma.machineUsage.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ gymSessionId: "session-auto-1" }),
+      });
+      expect(result.gymSessionId).toBe("session-auto-1");
+      expect(result.gymSessionOpened).toBe(true);
+      expect(result.gymSession).toMatchObject({ id: "session-auto-1" });
+    });
+
     it("type MACHINE: closes the open usage and calculates durationMinutes", async () => {
       const startTime = new Date(Date.now() - 30 * 60000); // 30 minutes ago
       const payload = {
@@ -163,6 +256,54 @@ describe("VerificationService", () => {
 
       prisma.machine.findUnique.mockResolvedValue({
         qrToken: "correct_token",
+        previousQrToken: null,
+        previousQrTokenValidUntil: null,
+      });
+
+      await expect(
+        verificationService.processScan("user-123", payload)
+      ).rejects.toThrow("Invalid machine token");
+    });
+
+    it("type MACHINE: accepts the previous token if still within its grace window", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        qrToken: "old_token",
+        ts: Date.now(),
+      };
+
+      prisma.machine.findUnique.mockResolvedValue({
+        qrToken: "new_token",
+        previousQrToken: "old_token",
+        previousQrTokenValidUntil: new Date(Date.now() + 60000),
+      });
+
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-123",
+        machineId: "machine-123",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(result).toHaveProperty("startedAt");
+    });
+
+    it("type MACHINE: rejects the previous token once its grace window has expired", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        qrToken: "old_token",
+        ts: Date.now(),
+      };
+
+      prisma.machine.findUnique.mockResolvedValue({
+        qrToken: "new_token",
+        previousQrToken: "old_token",
+        previousQrTokenValidUntil: new Date(Date.now() - 1000),
       });
 
       await expect(

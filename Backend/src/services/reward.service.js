@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { createNotification, sendEmail } from "./communication.service.js";
+import { logger } from "../utils/logger.js";
 
 // Public/user-facing: never expose stock or isMarketingItem. Users don't
 // pick a reward and shouldn't be able to infer availability/marketing
@@ -60,10 +61,21 @@ export async function updateReward(id, data) {
   if (!reward) throw new Error("Reward not found");
 
   const { name, description, pointsCost, active, stock, isMarketingItem } = data;
-  return prisma.reward.update({
+  const updated = await prisma.reward.update({
     where: { id },
     data: { name, description, pointsCost, active, stock, isMarketingItem },
   });
+
+  // Restocking (or newly activating) a reward can unblock users who were
+  // sitting in the pending-shipment queue — try to fulfill it now. This is
+  // best-effort/non-blocking so an admin edit is never slowed down by it.
+  if (typeof stock === "number" && stock > reward.stock) {
+    fulfillPendingGrants().catch((err) =>
+      logger.error("[reward] Failed to fulfill pending grants after restock:", err.message)
+    );
+  }
+
+  return updated;
 }
 
 // Rewards are NOT chosen by the user, and there is no "pending redemption"
@@ -79,6 +91,11 @@ export async function updateReward(id, data) {
 // intended behavior, not a fallback. Stock is decremented atomically inside
 // the same transaction that resets points, so two users hitting the
 // threshold at once can't both be granted the last unit.
+//
+// If the user qualifies by points but nothing is currently in stock, they
+// are queued in RewardPendingGrant instead of just being silently skipped —
+// see getPendingGrants (admin-facing "people waiting for shipment" list)
+// and fulfillPendingGrants (retried automatically once stock frees up).
 export async function autoGrantRewards(userId) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
@@ -92,7 +109,18 @@ export async function autoGrantRewards(userId) {
     where: { active: true, stock: { gt: 0 }, pointsCost: { lte: totalPoints } },
   });
 
-  if (eligibleRewards.length === 0) return null;
+  if (eligibleRewards.length === 0) {
+    // Only queue if the user actually qualifies for *some* active reward by
+    // points — just having stockless rewards below their threshold doesn't
+    // count as "waiting on stock".
+    const qualifiesByPoints = await prisma.reward.findFirst({
+      where: { active: true, pointsCost: { lte: totalPoints } },
+    });
+    if (qualifiesByPoints) {
+      await queuePendingGrant(userId, totalPoints);
+    }
+    return null;
+  }
 
   const reward = eligibleRewards[Math.floor(Math.random() * eligibleRewards.length)];
 
@@ -118,9 +146,27 @@ export async function autoGrantRewards(userId) {
       },
     });
 
-    return tx.rewardRedemption.create({
+    const created = await tx.rewardRedemption.create({
       data: { userId, rewardId: reward.id, status: "SHIPPED" },
     });
+
+    // If this user had an open pending-grant entry (queued from an earlier
+    // attempt that found no stock), close it out and link it to the
+    // redemption that finally fulfilled it.
+    if (tx.rewardPendingGrant) {
+      const openPending = await tx.rewardPendingGrant.findFirst({
+        where: { userId, fulfilledAt: null },
+        orderBy: { createdAt: "asc" },
+      });
+      if (openPending) {
+        await tx.rewardPendingGrant.update({
+          where: { id: openPending.id },
+          data: { fulfilledAt: new Date(), fulfilledRedemptionId: created.id },
+        });
+      }
+    }
+
+    return created;
   });
 
   if (!redemption) return null;
@@ -146,6 +192,65 @@ export async function autoGrantRewards(userId) {
   }
 
   return redemption;
+}
+
+// Adds the user to the pending-shipment queue, unless they're already in it
+// (one open entry per user — repeated addPoints calls while still waiting
+// on stock shouldn't pile up duplicate rows). The points snapshot is
+// refreshed to the latest value so the admin queue shows current standing.
+async function queuePendingGrant(userId, totalPoints) {
+  const existing = await prisma.rewardPendingGrant.findFirst({
+    where: { userId, fulfilledAt: null },
+  });
+
+  if (existing) {
+    if (existing.pointsAtQueueTime !== totalPoints) {
+      await prisma.rewardPendingGrant.update({
+        where: { id: existing.id },
+        data: { pointsAtQueueTime: totalPoints },
+      });
+    }
+    return existing;
+  }
+
+  return prisma.rewardPendingGrant.create({
+    data: { userId, pointsAtQueueTime: totalPoints },
+  });
+}
+
+// Admin-facing: users currently waiting for a reward to be restocked,
+// oldest first. Each entry shows the points balance at the moment they
+// qualified (a live re-check happens automatically via fulfillPendingGrants
+// whenever stock is added — see updateReward above).
+export async function getPendingGrants() {
+  return prisma.rewardPendingGrant.findMany({
+    where: { fulfilledAt: null },
+    include: {
+      user: { select: { id: true, firstName: true, lastName: true, email: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+// Retries autoGrantRewards for everyone still waiting in the queue, oldest
+// first, so restocking a reward drains the backlog in first-come order
+// rather than leaving it to the next time each user happens to earn a
+// point. Each attempt re-reads the user's live point balance (via
+// autoGrantRewards), so someone who kept earning points while queued is
+// evaluated fairly, not against a stale snapshot.
+export async function fulfillPendingGrants() {
+  const pending = await prisma.rewardPendingGrant.findMany({
+    where: { fulfilledAt: null },
+    orderBy: { createdAt: "asc" },
+  });
+
+  let fulfilled = 0;
+  for (const entry of pending) {
+    const redemption = await autoGrantRewards(entry.userId);
+    if (redemption) fulfilled++;
+  }
+
+  return { checked: pending.length, fulfilled };
 }
 
 // Admin-facing: mark a shipped reward as physically received by the user.

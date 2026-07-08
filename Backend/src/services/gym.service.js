@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
-import { addPoints } from "./gamification.service.js";
+import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { emitUserNeedsAttention } from "../realtime/ably.js";
 import { notifyTrainerOfReturningStudent } from "./communication.service.js";
@@ -46,6 +46,12 @@ export async function checkIn(userId, options = {}) {
   // Award check-in points (non-blocking)
   addPoints(userId, POINTS.CHECK_IN, "Gym check-in").catch((err) =>
     logger.error("[gym] Failed to award check-in points:", err.message)
+  );
+
+  // A new check-in can push a consistency streak (days/weeks/months) past a
+  // badge threshold — evaluate personal achievements (non-blocking).
+  Promise.resolve(checkAndUnlockAchievements(userId)).catch((err) =>
+    logger.error("[gym] Failed to check achievements on check-in:", err.message)
   );
 
   // Alert trainer(s) who haven't helped this student in a long time that
@@ -199,6 +205,10 @@ export async function checkOut(userId) {
   // Award check-out points (non-blocking)
   addPoints(userId, POINTS.CHECK_OUT, "Gym check-out").catch((err) =>
     logger.error("[gym] Failed to award check-out points:", err.message)
+  );
+
+  Promise.resolve(checkAndUnlockAchievements(userId)).catch((err) =>
+    logger.error("[gym] Failed to check achievements on check-out:", err.message)
   );
 
   return updated;

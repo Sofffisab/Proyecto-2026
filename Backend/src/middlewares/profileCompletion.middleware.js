@@ -11,9 +11,27 @@ const EXEMPT_PATH_PREFIXES = [
   "/users/me",
   "/user/profile",
   "/notifications",
+  "/rewards",
+  "/gym",
+  "/gamification",
+  "/challenges",
+  "/routines",
+  "/sync",
+  "/qr",
+  "/complaints",
+  "/assistance",
+  "/analytics",
 ];
 
-function isExemptPath(path) {
+function isExemptPath(req) {
+  // NOTE: this middleware is mounted via `router.use(PROTECTED_PREFIXES, ...)`
+  // with an array of path prefixes. Express strips the matched prefix from
+  // req.url/req.path for prefix-style `use()` mounts, so req.path here is
+  // NOT the original request path (e.g. "/users/me" arrives as just "/me").
+  // Use the original URL instead, and strip any versioned API prefix the
+  // app also mounts the router under (see server.js: "/api/v1" and "/").
+  let path = (req.originalUrl || req.path || "").split("?")[0];
+  if (path.startsWith("/api/v1")) path = path.slice("/api/v1".length);
   return EXEMPT_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
@@ -31,7 +49,7 @@ export async function requireCompleteProfile(req, res, next) {
   try {
     if (!req.user) return next();
     if (req.user.role !== "USER") return next();
-    if (isExemptPath(req.path)) return next();
+    if (isExemptPath(req)) return next();
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },

@@ -4,6 +4,7 @@ import { createNotification, sendEmail } from "./communication.service.js";
 import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
+import { computeUserMetrics } from "./achievementMetrics.service.js";
 
 export async function addPoints(userId, points, reason) {
   // Points can be negative (penalties, e.g. complaint.service.js#approveComplaint)
@@ -16,10 +17,13 @@ export async function addPoints(userId, points, reason) {
     data: { userId, points, reason },
   });
 
-  // NOTE: automatic achievement unlocking + leaderboards were intentionally
-  // removed — the product no longer wants a catalog the user picks from,
-  // achievement pop-ups, or public rankings. Prizes are granted automatically
-  // by point threshold and shipped by the gym (see reward.service.js).
+  // NOTE: leaderboards/public rankings remain intentionally out of scope
+  // (see routes/index.js). Automatic achievement unlocking IS wanted, but is
+  // NOT triggered from here — it's evaluated from the specific activity
+  // that changes each metric (gym check-in/out for streaks, machine usage
+  // ending, social challenge completion) so it always sees fresh data. See
+  // checkAndUnlockAchievements below and its callers in gym.service.js,
+  // verification.service.js and challenge.service.js.
   try {
     await autoGrantRewards(userId);
   } catch (err) {
@@ -45,6 +49,23 @@ export async function getPoints(userId) {
   return { totalPoints: agg._sum.points ?? 0, transactions };
 }
 
+// Whether a given achievement's target has been reached, given the user's
+// current totalPoints and the freshly-computed per-metric values from
+// achievementMetrics.service.js. TOTAL_POINTS keeps using the legacy
+// `pointsRequired` field; every other metric uses `threshold`.
+function isAchievementEarned(achievement, totalPoints, metrics) {
+  if (achievement.metric === "TOTAL_POINTS") {
+    return totalPoints >= achievement.pointsRequired;
+  }
+  const value = metrics[achievement.metric];
+  return typeof value === "number" && value >= achievement.threshold;
+}
+
+// Personal badge collection: evaluates every Achievement definition against
+// this user's current stats (points, attendance streaks, social
+// interactions, machine usage) and unlocks any newly-earned ones. This is
+// purely personal — there is no public catalog to pick from and no
+// leaderboard; see routes/index.js for why those were intentionally left out.
 export async function checkAndUnlockAchievements(userId) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
@@ -52,26 +73,27 @@ export async function checkAndUnlockAchievements(userId) {
   });
   const totalPoints = agg?._sum?.points ?? 0;
 
+  const metrics = await computeUserMetrics(userId);
+
   const unlockedIds = (await prisma.userAchievement.findMany({
     where: { userId },
     select: { achievementId: true },
   })) || [];
   const unlockedSet = new Set(unlockedIds.map((u) => u.achievementId));
 
-  const eligible = (await prisma.achievement.findMany({
-    where: { pointsRequired: { lte: totalPoints } },
-  })) || [];
+  const allAchievements = (await prisma.achievement.findMany()) || [];
+  const eligible = allAchievements.filter(
+    (achievement) => !unlockedSet.has(achievement.id) && isAchievementEarned(achievement, totalPoints, metrics)
+  );
 
   for (const achievement of eligible) {
-    if (unlockedSet.has(achievement.id)) continue;
-
     // Atomic: both the unlock record and the bonus points are created together
-    await prisma.$transaction(async (tx) => {
+    const unlocked = await prisma.$transaction(async (tx) => {
       // Double-check inside transaction to prevent race conditions
       const alreadyUnlocked = await tx.userAchievement.findFirst({
         where: { userId, achievementId: achievement.id },
       });
-      if (alreadyUnlocked) return;
+      if (alreadyUnlocked) return false;
 
       await tx.userAchievement.create({
         data: { userId, achievementId: achievement.id },
@@ -85,7 +107,11 @@ export async function checkAndUnlockAchievements(userId) {
           reason: `Achievement unlocked: ${achievement.name}`,
         },
       });
+
+      return true;
     });
+
+    if (!unlocked) continue;
 
     // Notify user — non-blocking, outside the transaction
     const user = await prisma.user.findUnique({

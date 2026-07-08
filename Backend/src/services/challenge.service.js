@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 import { POINTS } from "../constants/points.js";
-import { addPoints } from "./gamification.service.js";
+import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { AppError } from "../utils/errors.js";
 
 // Social challenges expire after this long if nobody responds/completes them.
@@ -206,6 +206,13 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
       },
     }),
   ]);
+
+  // A completed challenge can push either participant's social-interaction
+  // count past a badge threshold — best-effort, never blocks the response.
+  Promise.all([
+    checkAndUnlockAchievements(challenge.userId),
+    checkAndUnlockAchievements(challenge.partnerUserId),
+  ]).catch(() => {});
 
   return updated;
 }

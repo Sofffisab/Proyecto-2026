@@ -130,4 +130,87 @@ describe("GamificationService", () => {
       expect(result.some((a) => a.unlockedAt === null)).toBe(true);
     });
   });
+
+  describe("checkAndUnlockAchievements", () => {
+    it("unlocks a streak-based badge once the metric reaches its threshold", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 30 } });
+      // 3 consecutive check-ins ending today -> STREAK_DAYS = 3
+      const today = new Date();
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: today },
+        { checkInAt: new Date(today.getTime() - 86400000) },
+        { checkInAt: new Date(today.getTime() - 2 * 86400000) },
+      ]);
+      prisma.socialInteraction.count.mockResolvedValue(0);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-streak-3",
+          name: "3 días seguidos",
+          category: "CONSISTENCY",
+          metric: "STREAK_DAYS",
+          threshold: 3,
+          pointsRequired: 0,
+        },
+      ]);
+      prisma.userAchievement.findFirst.mockResolvedValue(null);
+      prisma.userAchievement.create.mockResolvedValue({ id: "ua-1" });
+      prisma.pointTransaction.create.mockResolvedValue({ id: "txn-1" });
+      prisma.user.findUnique.mockResolvedValue({ email: "a@b.com", firstName: "Ana" });
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).toHaveBeenCalledWith({
+        data: { userId: "user-123", achievementId: "ach-streak-3" },
+      });
+    });
+
+    it("does not unlock an achievement whose metric has not reached its threshold", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 0 } });
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.socialInteraction.count.mockResolvedValue(0);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-streak-7",
+          name: "7 días seguidos",
+          category: "CONSISTENCY",
+          metric: "STREAK_DAYS",
+          threshold: 7,
+          pointsRequired: 0,
+        },
+      ]);
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).not.toHaveBeenCalled();
+    });
+
+    it("skips achievements already unlocked", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 0 } });
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.socialInteraction.count.mockResolvedValue(5);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([{ achievementId: "ach-social-1" }]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-social-1",
+          name: "Primer desafío social",
+          category: "SOCIAL",
+          metric: "SOCIAL_INTERACTIONS",
+          threshold: 1,
+          pointsRequired: 0,
+        },
+      ]);
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).not.toHaveBeenCalled();
+    });
+  });
 });

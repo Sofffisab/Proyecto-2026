@@ -17,11 +17,11 @@ export function calculateAge(birthday, now = new Date()) {
   const birthDate = new Date(birthday);
   if (Number.isNaN(birthDate.getTime())) return null;
 
-  let age = now.getFullYear() - birthDate.getFullYear();
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
 
   const hasHadBirthdayThisYear =
-    now.getMonth() > birthDate.getMonth() ||
-    (now.getMonth() === birthDate.getMonth() && now.getDate() >= birthDate.getDate());
+    now.getUTCMonth() > birthDate.getUTCMonth() ||
+    (now.getUTCMonth() === birthDate.getUTCMonth() && now.getUTCDate() >= birthDate.getUTCDate());
 
   if (!hasHadBirthdayThisYear) age -= 1;
 
@@ -44,14 +44,14 @@ export function isBirthdayToday(birthday, today = new Date()) {
   const birthDate = new Date(birthday);
   if (Number.isNaN(birthDate.getTime())) return false;
 
-  const isFeb29 = birthDate.getMonth() === 1 && birthDate.getDate() === 29;
-  const isNonLeapYear = !isLeapYear(today.getFullYear());
+  const isFeb29 = birthDate.getUTCMonth() === 1 && birthDate.getUTCDate() === 29;
+  const isNonLeapYear = !isLeapYear(today.getUTCFullYear());
 
   if (isFeb29 && isNonLeapYear) {
-    return today.getMonth() === 1 && today.getDate() === 28;
+    return today.getUTCMonth() === 1 && today.getUTCDate() === 28;
   }
 
-  return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
+  return today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() === birthDate.getUTCDate();
 }
 
 function isLeapYear(year) {

@@ -149,6 +149,11 @@ router.get("/rewards",                      rewardController.getAvailableRewards
 router.get("/rewards/redemptions/me",       rewardController.getUserRedemptions);
 router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardController.getAllRedemptions);
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
+// People who qualified by points but had nothing in stock to ship —
+// resolved automatically once an admin restocks a matching reward (see
+// reward.service.js#fulfillPendingGrants), but this lets admins see the
+// backlog and prioritize restocking in the meantime.
+router.get("/rewards/pending",              authorize(["ADMIN"]), rewardController.getPendingGrants);
 
 // Admin-only catalog management: includes stock and isMarketingItem, never
 // exposed on the public GET /rewards above.
@@ -160,7 +165,10 @@ router.get("/rewards/:id",                  authorize(["ADMIN"]), rewardControll
 // ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
-// Achievements/leaderboards intentionally removed — not wanted by the product.
+// Personal badges (above) are auto-unlocked from activity — see
+// gamification.service.js#checkAndUnlockAchievements. There is still no
+// browsable achievement catalog or leaderboard route; those remain
+// intentionally excluded — not wanted by the product.
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
 // ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────

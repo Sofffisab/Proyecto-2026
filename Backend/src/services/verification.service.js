@@ -2,7 +2,7 @@ import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { completeChallengeByQR } from "./challenge.service.js";
 import { POINTS } from "../constants/points.js";
-import { addPoints } from "./gamification.service.js";
+import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
 
 // QR tokens expire after this many milliseconds (default: 5 minutes)
@@ -30,12 +30,28 @@ export function getUserQR(userId) {
   return { ...payload, signature };
 }
 
+// How long a just-replaced token is still honored after rotation, to cover
+// a scan that happened (or was synced from offline storage) while it was
+// still the current token. Configurable, defaults to 15 minutes.
+const QR_GRACE_WINDOW_MS = parseInt(process.env.MACHINE_QR_GRACE_WINDOW_MS ?? "900000", 10);
+
 export async function regenerateMachineQR(machineId) {
+  const machine = await prisma.machine.findUnique({ where: { id: machineId } });
+  if (!machine) throw new Error("Machine not found");
+
   const token = crypto.randomBytes(16).toString("hex");
+  const now = new Date();
 
   await prisma.machine.update({
     where: { id: machineId },
-    data: { qrToken: token, qrTokenUpdatedAt: new Date() },
+    data: {
+      qrToken: token,
+      qrTokenUpdatedAt: now,
+      // Keep the outgoing token valid for a short grace window instead of
+      // invalidating it the instant rotation happens.
+      previousQrToken: machine.qrToken,
+      previousQrTokenValidUntil: new Date(now.getTime() + QR_GRACE_WINDOW_MS),
+    },
   });
 
   return { machineId, token };
@@ -50,14 +66,22 @@ export async function regenerateMachineQR(machineId) {
 export async function regenerateAllMachineQRCodes() {
   const machines = await prisma.machine.findMany({
     where: { active: true },
-    select: { id: true },
+    select: { id: true, qrToken: true },
   });
+
+  const now = new Date();
+  const validUntil = new Date(now.getTime() + QR_GRACE_WINDOW_MS);
 
   let count = 0;
   for (const machine of machines) {
     await prisma.machine.update({
       where: { id: machine.id },
-      data: { qrToken: crypto.randomBytes(16).toString("hex"), qrTokenUpdatedAt: new Date() },
+      data: {
+        qrToken: crypto.randomBytes(16).toString("hex"),
+        qrTokenUpdatedAt: now,
+        previousQrToken: machine.qrToken,
+        previousQrTokenValidUntil: validUntil,
+      },
     });
     count++;
   }
@@ -148,7 +172,23 @@ export async function processScan(scannerId, rawPayload) {
 
     if (qrToken) {
       const machine = await prisma.machine.findUnique({ where: { id: machineId } });
-      if (!machine || machine.qrToken !== qrToken) {
+      if (!machine) throw new Error("Invalid machine token");
+
+      const isCurrentToken = machine.qrToken === qrToken;
+
+      // Grace window: a scan against the token that was replaced by the
+      // most recent rotation still counts, as long as we're within the
+      // window recorded at rotation time. Covers a scan performed (or
+      // synced late from offline storage) while that token was still the
+      // one posted on the machine — it was valid "at the time", even if
+      // rotation has since moved on.
+      const isRecentlyExpiredToken =
+        machine.previousQrToken != null &&
+        machine.previousQrToken === qrToken &&
+        machine.previousQrTokenValidUntil != null &&
+        new Date() <= new Date(machine.previousQrTokenValidUntil);
+
+      if (!isCurrentToken && !isRecentlyExpiredToken) {
         throw new Error("Invalid machine token");
       }
     }
@@ -195,6 +235,7 @@ export async function processScan(scannerId, rawPayload) {
 
       try {
         await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage ended");
+        await checkAndUnlockAchievements(scannerId);
       } catch {
         // Points/achievements are best-effort; never block the scan flow.
       }
@@ -222,10 +263,21 @@ export async function processScan(scannerId, rawPayload) {
       });
     }
 
-    const activeSession = await prisma.gymSession.findFirst({
+    let activeSession = await prisma.gymSession.findFirst({
       where: { userId: scannerId, checkOutAt: null },
       orderBy: { checkInAt: "desc" },
     });
+
+    // "Si no escanea entrada pero sí máquina, marca ese escaneo como
+    // máquina Y entrada": a machine scan that starts a new usage implies
+    // the user is physically in the gym right now, so if they never
+    // scanned/checked in, open a gym session for them here instead of
+    // leaving the machine usage orphaned (gymSessionId: null).
+    let sessionOpenedByMachineScan = false;
+    if (!activeSession) {
+      activeSession = await gymCheckIn(scannerId);
+      sessionOpenedByMachineScan = true;
+    }
 
     const created = await prisma.machineUsage.create({
       data: {
@@ -242,7 +294,12 @@ export async function processScan(scannerId, rawPayload) {
       // Points/achievements are best-effort; never block the scan flow.
     }
 
-    return shapeMachineUsage(created);
+    const shaped = shapeMachineUsage(created);
+    if (sessionOpenedByMachineScan) {
+      shaped.gymSessionOpened = true;
+      shaped.gymSession = activeSession;
+    }
+    return shaped;
   }
 
   if (type === "ENTRY_EXIT") {

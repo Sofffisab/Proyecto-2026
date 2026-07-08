@@ -96,6 +96,26 @@ enum RewardRedemptionStatus {
   DELIVERED
 }
 
+// What area of activity a badge celebrates. Purely descriptive/grouping —
+// doesn't affect how the achievement is evaluated (see AchievementMetric).
+enum AchievementCategory {
+  CONSISTENCY // Attendance streaks (days/weeks/months in a row at the gym)
+  SOCIAL      // Social interactions / challenges completed with other members
+  MACHINE     // Machine usage
+  POINTS      // Legacy: total accumulated points (kept for existing data)
+}
+
+// The concrete measurement an achievement's `threshold` is checked against.
+// See achievementMetrics.service.js for how each one is computed.
+enum AchievementMetric {
+  STREAK_DAYS          // Consecutive calendar days with a gym check-in
+  STREAK_WEEKS         // Consecutive calendar weeks with at least one visit
+  STREAK_MONTHS        // Consecutive calendar months with at least one visit
+  SOCIAL_INTERACTIONS  // Total SocialInteraction rows (e.g. completed challenges)
+  MACHINE_USES         // Total completed MachineUsage rows
+  TOTAL_POINTS         // Legacy: sum of PointTransaction.points (uses pointsRequired)
+}
+
 model User {
   id                   String    @id @default(uuid())
   email                String    @unique
@@ -141,6 +161,7 @@ model User {
   pointTransactions    PointTransaction[]
   achievements         UserAchievement[]
   rewardRedemptions    RewardRedemption[]
+  rewardPendingGrants  RewardPendingGrant[]
   socialChallenges     SocialChallenge[]   @relation("ChallengeOwner")
   socialPartners       SocialChallenge[]   @relation("ChallengePartner")
   socialInteractions   SocialInteraction[] @relation("SocialUser")
@@ -258,6 +279,13 @@ model Machine {
   zone             String?  // Physical area/station in the gym (e.g. "Zona de pesas", "Cardio 2") — used to tell a trainer where a student is standing.
   qrToken          String   @unique
   qrTokenUpdatedAt DateTime @default(now())
+  // Grace window support: keeps the token that was replaced by the most
+  // recent rotation, plus the instant it stops being accepted, so a scan
+  // performed (or synced late) while it was still the current token is not
+  // wrongly rejected just because rotation has since moved on. See
+  // verification.service.js#processScan / #regenerateMachineQR.
+  previousQrToken           String?
+  previousQrTokenValidUntil DateTime?
   active           Boolean  @default(true)
   createdAt        DateTime @default(now())
 
@@ -413,13 +441,24 @@ model PointTransaction {
 }
 
 model Achievement {
-  id             String   @id @default(uuid())
+  id             String              @id @default(uuid())
   name           String
   description    String
-  pointsRequired Int
-  createdAt      DateTime @default(now())
+  // Legacy field: only meaningful when metric = TOTAL_POINTS. Kept (rather
+  // than dropped) so existing POINTS-category achievements keep working
+  // unchanged. New streak/social/machine achievements use `threshold` below.
+  pointsRequired Int                 @default(0)
+  category       AchievementCategory @default(POINTS)
+  metric         AchievementMetric   @default(TOTAL_POINTS)
+  // Value the computed metric must reach to unlock this badge. E.g. metric
+  // = STREAK_DAYS, threshold = 7 → "7-day attendance streak" badge.
+  // Ignored for metric = TOTAL_POINTS (pointsRequired is used instead).
+  threshold      Int                 @default(0)
+  createdAt      DateTime            @default(now())
 
   users          UserAchievement[]
+
+  @@index([category])
 }
 
 model UserAchievement {
@@ -433,6 +472,28 @@ model UserAchievement {
 
   @@unique([userId, achievementId])
   @@index([userId])
+}
+
+model RewardPendingGrant {
+  id                    String    @id @default(uuid())
+  userId                String
+  // Snapshot of the user's total points at the moment they qualified but no
+  // reward was in stock. Purely informational for the admin queue — the
+  // actual grant, when stock frees up, always re-reads live points (see
+  // reward.service.js#fulfillPendingGrants), since the user may have kept
+  // earning points while waiting.
+  pointsAtQueueTime     Int
+  createdAt             DateTime  @default(now())
+  // Set once a matching reward becomes available and the grant actually
+  // goes through (see fulfillPendingGrants). Null means still waiting.
+  fulfilledAt           DateTime?
+  fulfilledRedemptionId String?   @unique
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fulfilledRedemption   RewardRedemption?  @relation(fields: [fulfilledRedemptionId], references: [id])
+
+  @@index([userId])
+  @@index([fulfilledAt])
 }
 
 model Reward {
@@ -467,6 +528,7 @@ model RewardRedemption {
 
   user        User   @relation(fields: [userId],   references: [id], onDelete: Cascade)
   reward      Reward @relation(fields: [rewardId], references: [id])
+  pendingGrant RewardPendingGrant?
 
   @@index([userId])
   @@index([status])

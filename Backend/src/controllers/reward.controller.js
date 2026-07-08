@@ -77,6 +77,17 @@ export async function getAllRedemptions(req, res, next) {
   }
 }
 
+// Admin-facing "people waiting for shipment" queue: users who reached the
+// points threshold for a reward while nothing was in stock.
+export async function getPendingGrants(req, res, next) {
+  try {
+    const data = await rewardService.getPendingGrants();
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Rewards are granted and shipped automatically — the only admin-driven
 // transition left is marking a shipped reward as physically DELIVERED.
 export async function updateRedemptionStatus(req, res, next) {
