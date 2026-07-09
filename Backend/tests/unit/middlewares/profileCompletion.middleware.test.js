@@ -38,6 +38,10 @@ describe("requireCompleteProfile middleware", () => {
       birthday: null,
       medicalConditions: null,
       deliveryAddress: null,
+      trainingLevel: null,
+      objectives: [],
+      weeklyTrainingDays: null,
+      trainingType: null,
       isProfileComplete: false,
     });
 
@@ -56,6 +60,10 @@ describe("requireCompleteProfile middleware", () => {
       birthday: new Date("1990-01-01"),
       medicalConditions: [],
       deliveryAddress: "Main St 123",
+      trainingLevel: "BEGINNER",
+      objectives: ["LOSE_WEIGHT"],
+      weeklyTrainingDays: "THREE",
+      trainingType: "STRENGTH",
       isProfileComplete: true,
     });
 
@@ -71,6 +79,10 @@ describe("requireCompleteProfile middleware", () => {
       birthday: new Date("1990-01-01"),
       medicalConditions: [],
       deliveryAddress: "Main St 123",
+      trainingLevel: "BEGINNER",
+      objectives: ["LOSE_WEIGHT"],
+      weeklyTrainingDays: "THREE",
+      trainingType: "STRENGTH",
       isProfileComplete: false,
     });
     prisma.user.update.mockResolvedValue({});
@@ -95,15 +107,42 @@ describe("requireCompleteProfile middleware", () => {
 });
 
 describe("isProfileDataComplete", () => {
-  it("returns false when any required field is missing", () => {
-    expect(isProfileDataComplete({ birthday: null, medicalConditions: [], deliveryAddress: "x" })).toBe(false);
-    expect(isProfileDataComplete({ birthday: new Date(), medicalConditions: null, deliveryAddress: "x" })).toBe(false);
-    expect(isProfileDataComplete({ birthday: new Date(), medicalConditions: [], deliveryAddress: "" })).toBe(false);
+  const fullPantallaU = {
+    trainingLevel: "BEGINNER",
+    objectives: ["LOSE_WEIGHT"],
+    weeklyTrainingDays: "THREE",
+    trainingType: "STRENGTH",
+  };
+
+  it("returns false when any pre-existing required field is missing", () => {
+    expect(
+      isProfileDataComplete({ birthday: null, medicalConditions: [], deliveryAddress: "x", ...fullPantallaU })
+    ).toBe(false);
+    expect(
+      isProfileDataComplete({ birthday: new Date(), medicalConditions: null, deliveryAddress: "x", ...fullPantallaU })
+    ).toBe(false);
+    expect(
+      isProfileDataComplete({ birthday: new Date(), medicalConditions: [], deliveryAddress: "", ...fullPantallaU })
+    ).toBe(false);
   });
 
-  it("returns true when all required fields are present", () => {
+  it("returns false when any pantalla U field (perfil mínimo) is missing", () => {
+    const base = { birthday: new Date(), medicalConditions: [], deliveryAddress: "Main St 123" };
+    expect(isProfileDataComplete({ ...base, ...fullPantallaU, trainingLevel: null })).toBe(false);
+    expect(isProfileDataComplete({ ...base, ...fullPantallaU, objectives: [] })).toBe(false);
+    expect(isProfileDataComplete({ ...base, ...fullPantallaU, objectives: null })).toBe(false);
+    expect(isProfileDataComplete({ ...base, ...fullPantallaU, weeklyTrainingDays: null })).toBe(false);
+    expect(isProfileDataComplete({ ...base, ...fullPantallaU, trainingType: null })).toBe(false);
+  });
+
+  it("returns true when all required fields, including the 4 pantalla U fields, are present", () => {
     expect(
-      isProfileDataComplete({ birthday: new Date(), medicalConditions: [], deliveryAddress: "Main St 123" })
+      isProfileDataComplete({
+        birthday: new Date(),
+        medicalConditions: [],
+        deliveryAddress: "Main St 123",
+        ...fullPantallaU,
+      })
     ).toBe(true);
   });
 });

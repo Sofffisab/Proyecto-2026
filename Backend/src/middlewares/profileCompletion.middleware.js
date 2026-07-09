@@ -36,15 +36,28 @@ function isExemptPath(req) {
 }
 
 // Required for a profile to be considered complete: medical info, birthday,
-// and delivery address (needed to ship reward redemptions).
+// delivery address (needed to ship reward redemptions), and the 4 pantalla U
+// fields (objetivo principal, nivel actual, días que entrena por semana,
+// tipo de entrenamiento buscado) — without these, goal-progress/insights and
+// trainer-matching logic can't run for the user (see insights.service.js
+// and gym.service.js#studentGoalTypes).
 export function isProfileDataComplete(user) {
-  return Boolean(user.birthday) && user.medicalConditions != null && Boolean(user.deliveryAddress);
+  return (
+    Boolean(user.birthday) &&
+    user.medicalConditions != null &&
+    Boolean(user.deliveryAddress) &&
+    Boolean(user.trainingLevel) &&
+    Array.isArray(user.objectives) &&
+    user.objectives.length > 0 &&
+    Boolean(user.weeklyTrainingDays) &&
+    Boolean(user.trainingType)
+  );
 }
 
 // First-time-login lock: forces the member to fill in mandatory data
-// (medical, birthday, address) and blocks the rest of the API until
-// isProfileComplete = true. Only applies to regular members — trainers
-// and admins are never blocked by this.
+// (medical, birthday, address, and the pantalla U fields) and blocks the
+// rest of the API until isProfileComplete = true. Only applies to regular
+// members — trainers and admins are never blocked by this.
 export async function requireCompleteProfile(req, res, next) {
   try {
     if (!req.user) return next();
@@ -53,7 +66,17 @@ export async function requireCompleteProfile(req, res, next) {
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, birthday: true, medicalConditions: true, deliveryAddress: true, isProfileComplete: true },
+      select: {
+        id: true,
+        birthday: true,
+        medicalConditions: true,
+        deliveryAddress: true,
+        trainingLevel: true,
+        objectives: true,
+        weeklyTrainingDays: true,
+        trainingType: true,
+        isProfileComplete: true,
+      },
     });
 
     if (!user) throw new AppError("User not found", 404);
@@ -71,7 +94,7 @@ export async function requireCompleteProfile(req, res, next) {
         success: false,
         code: "PROFILE_INCOMPLETE",
         message:
-          "Debes completar tu perfil (datos médicos, fecha de nacimiento y dirección) antes de continuar.",
+          "Debes completar tu perfil (datos médicos, fecha de nacimiento, dirección, objetivo principal, nivel actual, días que entrenás por semana y tipo de entrenamiento) antes de continuar.",
       });
     }
 
