@@ -65,4 +65,51 @@ describe("AnalyticsController", () => {
     expect(next).toHaveBeenCalledWith(error);
     expect(res.json).not.toHaveBeenCalled();
   });
+
+  describe("getFullHistoryAdmin", () => {
+    it("does not include identifiers by default (identified query param absent)", async () => {
+      const data = [{ userHash: "abc123" }];
+      insightsService.getFullHistoryAdmin.mockResolvedValue(data);
+
+      await analyticsController.getFullHistoryAdmin(req, res, next);
+
+      expect(insightsService.getFullHistoryAdmin).toHaveBeenCalledWith({
+        includeIdentifiers: false,
+      });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data });
+    });
+
+    it("includes identifiers when ?identified=true", async () => {
+      req.query = { identified: "true" };
+      const data = [{ userHash: "abc123", name: "Jane Doe", email: "jane@example.com" }];
+      insightsService.getFullHistoryAdmin.mockResolvedValue(data);
+
+      await analyticsController.getFullHistoryAdmin(req, res, next);
+
+      expect(insightsService.getFullHistoryAdmin).toHaveBeenCalledWith({
+        includeIdentifiers: true,
+      });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data });
+    });
+
+    it("treats any value other than the literal string 'true' as false", async () => {
+      req.query = { identified: "1" };
+      insightsService.getFullHistoryAdmin.mockResolvedValue([]);
+
+      await analyticsController.getFullHistoryAdmin(req, res, next);
+
+      expect(insightsService.getFullHistoryAdmin).toHaveBeenCalledWith({
+        includeIdentifiers: false,
+      });
+    });
+
+    it("calls next(err) on failure", async () => {
+      const error = new Error("DB error");
+      insightsService.getFullHistoryAdmin.mockRejectedValue(error);
+
+      await analyticsController.getFullHistoryAdmin(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
 });
