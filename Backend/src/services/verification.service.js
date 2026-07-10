@@ -140,6 +140,20 @@ function shapeMachineUsage(usage) {
   return shaped;
 }
 
+// Attaches the "want to turn machine tracking back on?" prompt to a machine
+// scan result when the scanning user has machineTrackingOptOut set but went
+// ahead and scanned a machine QR anyway.
+function withOptOutPrompt(result, machineTrackingOptedOut) {
+  if (!machineTrackingOptedOut) return result;
+  return {
+    ...result,
+    tracked: true,
+    askDisableMachineTrackingOptOut: true,
+    message:
+      "This scan was registered even though machine tracking is off in your preferences. Want to turn it back on?",
+  };
+}
+
 export async function processScan(scannerId, rawPayload) {
   const data = validateQRPayload(rawPayload);
   const { type } = data;
@@ -193,24 +207,23 @@ export async function processScan(scannerId, rawPayload) {
       }
     }
 
-    // "No usar la app para máquinas": the user only wants entry/exit
-    // scanned. Don't create/update any MachineUsage record — the scan is
-    // accepted (so a stray tap doesn't error out) but nothing machine-level
-    // is stored. Presence is still reaffirmed so a pending auto-checkout is
-    // cancelled, same as a normal machine scan would do.
+    // "No usar la app para máquinas": the user said they didn't want machine
+    // QRs tracked. That preference still governs whether *unprompted* machine
+    // data gets used for anything (e.g. AI routine suggestions — see
+    // routine.service.js#getPatternSuggestion), but if they go ahead and
+    // scan a machine QR anyway, we don't silently drop it: the scan is
+    // registered like any other (MachineUsage is created/updated normally),
+    // and the response is flagged so the app can ask the user whether they
+    // want to turn machine tracking back on now that they've shown they're
+    // actually using it. If they decline, nothing changes — they keep using
+    // the app without ever needing to scan a machine QR, but the next one
+    // they do scan is registered and prompted the same way.
     const scannerSettings = await prisma.userSettings.findUnique({
       where: { userId: scannerId },
       select: { machineTrackingOptOut: true },
     });
 
-    if (scannerSettings?.machineTrackingOptOut) {
-      await reopenSessionIfAutoClosed(scannerId).catch(() => {});
-      return {
-        success: true,
-        tracked: false,
-        message: "Machine tracking is disabled for this user by preference",
-      };
-    }
+    const machineTrackingOptedOut = Boolean(scannerSettings?.machineTrackingOptOut);
 
     // Any machine scan proves the user is still physically in the gym —
     // cancel a pending auto-checkout if one was scheduled/applied.
@@ -240,7 +253,7 @@ export async function processScan(scannerId, rawPayload) {
         // Points/achievements are best-effort; never block the scan flow.
       }
 
-      return shapeMachineUsage(updated);
+      return withOptOutPrompt(shapeMachineUsage(updated), machineTrackingOptedOut);
     }
 
     // Scanning a *different* machine without ending the previous one used to
@@ -299,7 +312,7 @@ export async function processScan(scannerId, rawPayload) {
       shaped.gymSessionOpened = true;
       shaped.gymSession = activeSession;
     }
-    return shaped;
+    return withOptOutPrompt(shaped, machineTrackingOptedOut);
   }
 
   if (type === "ENTRY_EXIT") {

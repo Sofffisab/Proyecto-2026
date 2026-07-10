@@ -139,6 +139,7 @@ describe("RoutineService", () => {
 
   describe("getPatternSuggestion", () => {
     it("returns available:false when there is no training history", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
       prisma.userBehaviorProfile.findUnique.mockResolvedValue({
         routines: [],
         topMachines: [],
@@ -147,6 +148,21 @@ describe("RoutineService", () => {
 
       const result = await routineService.getPatternSuggestion("user-1");
       expect(result.available).toBe(false);
+    });
+
+    it("returns available:false for users who opted out of machine tracking, even with rich history", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: true });
+      prisma.userBehaviorProfile.findUnique.mockResolvedValue({
+        routines: [{ signature: ["Treadmill", "Bench Press"], occurrences: 8 }],
+        topMachines: [{ name: "Treadmill", count: 20 }],
+        frequentDays: [{ day: 1, name: "Monday", count: 5, share: 0.5 }],
+      });
+
+      const result = await routineService.getPatternSuggestion("user-1");
+
+      expect(result.available).toBe(false);
+      // Should not even need to read the behavior profile once opted out.
+      expect(prisma.userBehaviorProfile.findUnique).not.toHaveBeenCalled();
     });
   });
 });

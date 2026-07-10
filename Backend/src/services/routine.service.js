@@ -192,6 +192,22 @@ export async function completeRoutineRequest(requestId, callerId) {
  * to responsibly suggest anything.
  */
 export async function getPatternSuggestion(userId) {
+  // Users who opted out of machine QR tracking don't get routines learned
+  // from their machine-usage history — even if a handful of scans slipped
+  // through (see verification.service.js#processScan), we don't build
+  // personalized suggestions out of data the user asked us not to collect.
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { machineTrackingOptOut: true },
+  });
+
+  if (settings?.machineTrackingOptOut) {
+    return {
+      available: false,
+      reason: "Machine tracking is disabled for this user by preference.",
+    };
+  }
+
   const profile = await getUserBehaviorProfile(userId);
 
   const topRoutine = (profile.routines ?? [])

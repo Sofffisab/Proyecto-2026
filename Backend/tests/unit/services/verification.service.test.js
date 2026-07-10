@@ -380,6 +380,80 @@ describe("VerificationService", () => {
       expect(result.session).toBeDefined();
     });
 
+    it("type MACHINE: still registers the usage when the scanner opted out, and flags the response with a re-enable prompt", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        ts: Date.now(),
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: true });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-123",
+        machineId: "machine-123",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      // The scan is still registered (not silently dropped).
+      expect(prisma.machineUsage.create).toHaveBeenCalled();
+      expect(result).toHaveProperty("startedAt");
+      expect(result.tracked).toBe(true);
+      expect(result.askDisableMachineTrackingOptOut).toBe(true);
+    });
+
+    it("type MACHINE: opted-out scanner closing an open usage also gets registered + flagged", async () => {
+      const startTime = new Date(Date.now() - 15 * 60000);
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        ts: Date.now(),
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: true });
+      prisma.machineUsage.findFirst.mockResolvedValue({
+        id: "usage-123",
+        startedAt: startTime,
+        endedAt: null,
+      });
+      prisma.machineUsage.update.mockResolvedValue({
+        id: "usage-123",
+        startedAt: startTime,
+        endedAt: new Date(),
+        durationMinutes: 15,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(prisma.machineUsage.update).toHaveBeenCalled();
+      expect(result.askDisableMachineTrackingOptOut).toBe(true);
+      expect(result.tracked).toBe(true);
+    });
+
+    it("type MACHINE: does not flag the response when tracking is not opted out", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-123",
+        ts: Date.now(),
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-123",
+        machineId: "machine-123",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(result.askDisableMachineTrackingOptOut).toBeUndefined();
+    });
+
     it("unknown type: throws 'Unknown QR type' error", async () => {
       const payload = {
         type: "UNKNOWN_TYPE",
