@@ -208,3 +208,9 @@ export const createTrainerComplaintSchema = z.object({
 export const createMachineSchema = z.object({
   name: z.string().trim().min(1).max(200),
 });
+
+// ── Machine conflicts ("2 personas en la misma máquina") ──────────────────────
+
+export const resolveMachineConflictSchema = z.object({
+  resolution: z.enum(["BOTH_PRESENT", "NEITHER_PRESENT", "ONLY_FIRST", "ONLY_SECOND"]),
+});

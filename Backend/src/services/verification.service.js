@@ -1,9 +1,11 @@
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { completeChallengeByQR } from "./challenge.service.js";
-import { POINTS } from "../constants/points.js";
+import { MACHINE_USAGE_DURATION_TIERS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
+import { flagMachineConflict } from "./machineConflict.service.js";
+import { logger } from "../utils/logger.js";
 
 // QR tokens expire after this many milliseconds (default: 5 minutes)
 const QR_TTL_MS = parseInt(process.env.USER_QR_TTL_MS ?? "300000", 10);
@@ -136,6 +138,64 @@ export function validateQRPayload(rawPayload) {
   return parsed;
 }
 
+// "Estar mucho tiempo en una máquina cuenta más que estar poco tiempo":
+// walks MACHINE_USAGE_DURATION_TIERS (longest minimum first) and returns the
+// points for the first tier the duration qualifies for. Falls back to 0 for
+// anything under the shortest tier (callers already gate on
+// MIN_MACHINE_USAGE_MINUTES_FOR_POINTS before calling this, so in practice
+// that floor is never hit here, but it's a safe default regardless).
+export function computeMachineUsagePoints(durationMinutes) {
+  for (const tier of MACHINE_USAGE_DURATION_TIERS) {
+    if (durationMinutes >= tier.minMinutes) return tier.points;
+  }
+  return 0;
+}
+
+/**
+ * Ends any currently-open MachineUsage for a user (if any) — used both when
+ * a different machine/entry scan implies the previous one is over, and when
+ * the user leaves the gym entirely (see gym.service.js#checkOut). Awards
+ * duration-weighted points only if the usage cleared the minimum training
+ * time; never blocks the caller's own flow on failure.
+ *
+ * @param {string} userId
+ * @param {string} [reason] - human-readable reason recorded on the point transaction
+ */
+export async function closeOpenMachineUsage(userId, reason = "Machine usage ended") {
+  const openUsage = await prisma.machineUsage.findFirst({
+    where: { userId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+  });
+
+  if (!openUsage) return null;
+
+  const endedAt = new Date();
+  const durationMinutes = Math.max(
+    1,
+    Math.floor((endedAt - new Date(openUsage.startedAt)) / (1000 * 60))
+  );
+
+  const updated = await prisma.machineUsage.update({
+    where: { id: openUsage.id },
+    data: { endedAt, durationMinutes },
+  });
+
+  try {
+    if (durationMinutes >= MIN_MACHINE_USAGE_MINUTES_FOR_POINTS) {
+      const points = computeMachineUsagePoints(durationMinutes);
+      if (points > 0) {
+        await addPoints(userId, points, reason);
+      }
+    }
+    await checkAndUnlockAchievements(userId);
+  } catch (err) {
+    // Points/achievements are best-effort; never block the checkout/scan flow.
+    logger.error("[verification] Failed to award points on machine-usage close:", err.message);
+  }
+
+  return updated;
+}
+
 function shapeMachineUsage(usage) {
   const shaped = {
     id: usage.id,
@@ -243,55 +303,34 @@ export async function processScan(scannerId, rawPayload) {
     });
 
     if (openUsage) {
-      const endedAt = new Date();
-      const durationMinutes = Math.max(
-        1,
-        Math.floor((endedAt - new Date(openUsage.startedAt)) / (1000 * 60))
-      );
-
-      const updated = await prisma.machineUsage.update({
-        where: { id: openUsage.id },
-        data: { endedAt, durationMinutes },
-      });
-
-      try {
-        // Award points only once per machine cycle (on end, not on start)
-        // and only if the usage lasted at least
-        // MIN_MACHINE_USAGE_MINUTES_FOR_POINTS. Without this floor, a
-        // user could tap-scan the same machine's start/end QR back-to-back,
-        // or hop across many machines in seconds, and farm points without
-        // actually training — exactly the kind of fast, unearned saturation
-        // the points economy needs to avoid.
-        if (durationMinutes >= MIN_MACHINE_USAGE_MINUTES_FOR_POINTS) {
-          await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage ended");
-        }
-        await checkAndUnlockAchievements(scannerId);
-      } catch {
-        // Points/achievements are best-effort; never block the scan flow.
-      }
-
+      // Duration-weighted points, gated by the same minimum-time floor as
+      // before (see computeMachineUsagePoints / closeOpenMachineUsage).
+      const updated = await closeOpenMachineUsage(scannerId, "Machine usage ended");
       return withOptOutPrompt(shapeMachineUsage(updated), machineTrackingOptedOut);
     }
 
     // Scanning a *different* machine without ending the previous one used to
-    // leave that MachineUsage open forever. Close it out first so every
-    // usage record is properly bounded.
+    // leave that MachineUsage open forever. Close it out first (also
+    // handles "se cierra sola la sesión de una máquina al entrar a otra
+    // máquina") so every usage record is properly bounded.
     const otherOpenUsage = await prisma.machineUsage.findFirst({
       where: { userId: scannerId, endedAt: null, machineId: { not: machineId } },
       orderBy: { startedAt: "desc" },
     });
 
     if (otherOpenUsage) {
-      const endedAt = new Date();
-      const durationMinutes = Math.max(
-        1,
-        Math.floor((endedAt - new Date(otherOpenUsage.startedAt)) / (1000 * 60))
-      );
-      await prisma.machineUsage.update({
-        where: { id: otherOpenUsage.id },
-        data: { endedAt, durationMinutes },
-      });
+      await closeOpenMachineUsage(scannerId, "Machine usage auto-closed (started a different machine)");
     }
+
+    // "2 personas en la misma máquina": another user's usage is still open
+    // on THIS machine right now. Flag it as conducta extraña and let
+    // trainers verify — the new usage is still created below (both keep
+    // figuring as using it until a trainer resolves it, or it auto-expires
+    // into a mutual complaint — see machineConflict.service.js).
+    const concurrentUsageByOther = await prisma.machineUsage.findFirst({
+      where: { machineId, endedAt: null, userId: { not: scannerId } },
+      orderBy: { startedAt: "asc" },
+    });
 
     let activeSession = await prisma.gymSession.findFirst({
       where: { userId: scannerId, checkOutAt: null },
@@ -324,7 +363,18 @@ export async function processScan(scannerId, rawPayload) {
     // above, and only if real time was actually spent (see the duration
     // check there).
 
+    if (concurrentUsageByOther) {
+      flagMachineConflict({
+        machineId,
+        firstUsage: concurrentUsageByOther,
+        secondUsage: created,
+      }).catch((err) =>
+        logger.error("[verification] Failed to flag machine conflict:", err.message)
+      );
+    }
+
     const shaped = shapeMachineUsage(created);
+    if (concurrentUsageByOther) shaped.suspiciousActivity = true;
     if (sessionOpenedByMachineScan) {
       shaped.gymSessionOpened = true;
       shaped.gymSession = activeSession;

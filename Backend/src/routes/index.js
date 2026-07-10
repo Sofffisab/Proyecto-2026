@@ -18,6 +18,7 @@ import * as challengeController    from "../controllers/challenge.controller.js"
 import * as assistanceController   from "../controllers/assistance.controller.js";
 import * as complaintController    from "../controllers/complaint.controller.js";
 import * as qrController           from "../controllers/qr.controller.js";
+import * as machineConflictController from "../controllers/machineConflict.controller.js";
 import * as notificationController from "../controllers/notification.controller.js";
 import * as analyticsController    from "../controllers/analytics.controller.js";
 import * as syncController         from "../controllers/sync.controller.js";
@@ -213,6 +214,10 @@ router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
 router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchemas.createMachineSchema), qrController.createMachine);
 router.patch("/qr/machines/:id/regenerate", authorize(["ADMIN", "TRAINER"]), qrController.regenerateMachine);
 router.delete("/qr/machines/:id",           authorize(["ADMIN"]), qrController.deactivateMachine);
+
+// "2 personas en la misma máquina": trainer-facing verification queue.
+router.get("/qr/machine-conflicts",             authorize(["TRAINER", "ADMIN"]), machineConflictController.getPendingConflicts);
+router.patch("/qr/machine-conflicts/:id/resolve", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.resolveMachineConflictSchema), machineConflictController.resolveConflict);
 
 // ── NOTIFICATIONS ROUTES ──────────────────────────────────────────────────────
 router.get("/notifications",               notificationController.getNotifications);

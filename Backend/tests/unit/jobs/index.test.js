@@ -12,6 +12,7 @@ import { processComplaints } from "../../../src/jobs/complaints.job.js";
 import { generateAnnualWrapped } from "../../../src/jobs/wrapped.job.js";
 import { expireStaleEntities } from "../../../src/jobs/expiration.job.js";
 import { assignRandomChallenges } from "../../../src/jobs/challenge.job.js";
+import { processMachineConflicts } from "../../../src/jobs/machineConflicts.job.js";
 
 vi.mock("../../../src/jobs/points.job.js", () => ({ recalculatePoints: vi.fn() }));
 vi.mock("../../../src/jobs/analytics.job.js", () => ({ runAnalyticsJob: vi.fn() }));
@@ -20,10 +21,24 @@ vi.mock("../../../src/jobs/complaints.job.js", () => ({ processComplaints: vi.fn
 vi.mock("../../../src/jobs/wrapped.job.js", () => ({ generateAnnualWrapped: vi.fn() }));
 vi.mock("../../../src/jobs/expiration.job.js", () => ({ expireStaleEntities: vi.fn() }));
 vi.mock("../../../src/jobs/challenge.job.js", () => ({ assignRandomChallenges: vi.fn() }));
+vi.mock("../../../src/jobs/machineConflicts.job.js", () => ({ processMachineConflicts: vi.fn() }));
 
 describe("runJobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks() resets call history but NOT a mock's configured
+    // implementation/resolution — so a test that does
+    // `processMachineConflicts.mockRejectedValue(...)` would otherwise leak
+    // that rejection into every test that runs after it. Reset every mock
+    // back to a resolved no-op explicitly before each test.
+    recalculatePoints.mockResolvedValue();
+    runAnalyticsJob.mockResolvedValue();
+    checkInactiveProgress.mockResolvedValue();
+    processComplaints.mockResolvedValue();
+    generateAnnualWrapped.mockResolvedValue();
+    expireStaleEntities.mockResolvedValue();
+    assignRandomChallenges.mockResolvedValue();
+    processMachineConflicts.mockResolvedValue();
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     // Use fake timers so the system date can be freely manipulated
@@ -44,9 +59,23 @@ describe("runJobs", () => {
     expect(runAnalyticsJob).toHaveBeenCalledTimes(1);
     expect(checkInactiveProgress).toHaveBeenCalledTimes(1);
     expect(processComplaints).toHaveBeenCalledTimes(1);
+    expect(processMachineConflicts).toHaveBeenCalledTimes(1);
     expect(expireStaleEntities).toHaveBeenCalledTimes(1);
     expect(assignRandomChallenges).toHaveBeenCalledTimes(1);
     expect(generateAnnualWrapped).not.toHaveBeenCalled();
+  });
+
+  it("retries processMachineConflicts on failure just like the other jobs", async () => {
+    vi.setSystemTime(new Date(2026, 5, 15));
+
+    processMachineConflicts.mockRejectedValue(new Error("Conflict expiry failed"));
+
+    await runJobs();
+
+    expect(processMachineConflicts).toHaveBeenCalledTimes(2); // RETRY_ATTEMPTS = 2
+    // A failure here must not block the jobs that run after it.
+    expect(expireStaleEntities).toHaveBeenCalledTimes(1);
+    expect(assignRandomChallenges).toHaveBeenCalledTimes(1);
   });
 
   it("retries up to RETRY_ATTEMPTS before giving up", async () => {

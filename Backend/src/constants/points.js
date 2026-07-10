@@ -17,25 +17,69 @@
  *     spammy or trivially farmable.
  *   - A "large" reward (~1000-1500 pts) takes roughly a month of consistent
  *     attendance — an aspirational, low-frequency prize.
+ *   - An "epic" reward (~3200-6500 pts) takes roughly 3-6 months — the
+ *     slowest, most aspirational tier. This is the ceiling of the intended
+ *     range: an admin should never configure a Reward.pointsCost above
+ *     POINTS_HARD_CAP (see below), since a user could then accumulate
+ *     points indefinitely without ever qualifying for a reset.
  * These pointsCost tiers are set per-Reward by an admin (Reward.pointsCost),
- * not hardcoded here — use this comment as the guideline when creating them.
+ * not hardcoded here — use this comment as the guideline when creating them:
+ * spread active rewards across small/medium/large/epic so *some* reward is
+ * always reachable in 1-6 months, and none requires longer than that.
  * Since points reset to 0 on every auto-granted reward (see
  * reward.service.js#autoGrantRewards), this weekly rate is also what keeps
  * the "climb back up" cycle from feeling either instant or endless.
  */
+
+// Duration-weighted tiers for a single machine-usage cycle: the longer a
+// user actually trains on a machine (real minutes, measured start-scan to
+// end-scan/auto-close), the more the cycle is worth — "estar mucho tiempo
+// en una máquina cuenta más que estar poco tiempo en la misma máquina".
+// Read top-to-bottom, first tier whose minMinutes the duration meets or
+// exceeds wins (see verification.service.js#computeMachineUsagePoints).
+// Capped at MACHINE_USAGE_MAX so one very long usage still can't dominate
+// the weekly points budget on its own.
+export const MACHINE_USAGE_DURATION_TIERS = [
+  { minMinutes: 45, points: 22 },
+  { minMinutes: 25, points: 15 },
+  { minMinutes: 10, points: 8 }, // matches POINTS.MACHINE_USAGE base
+];
+export const MACHINE_USAGE_MAX = 22;
+
+// Absolute ceiling on a user's total point balance: the system must never
+// let this reach 5 digits (10000+). autoGrantRewards resets points to 0
+// every time a reward is granted, so under normal operation this is only a
+// safety net for edge cases (e.g. no reward currently affordable/in stock)
+// — see reward.service.js#enforcePointsCeiling.
+export const POINTS_HARD_CAP = 9999;
+
+// How long a MachineConflict ("2 personas en la misma máquina") stays open
+// waiting for a trainer to verify in person before it's auto-marked
+// UNVERIFIED and a complaint is raised against both users — see
+// machineConflict.job.js#expireUnverifiedConflicts.
+export const MACHINE_CONFLICT_VERIFICATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export const POINTS = {
   CHECK_IN: 10,
 
   CHECK_OUT: 5,
 
-  // Awarded once per machine-usage cycle (on the "end" scan only, and only
-  // if real time was spent — see MIN_MACHINE_USAGE_MINUTES_FOR_POINTS in
-  // verification.service.js). Previously this fired on both the "start" and
-  // "end" scan of the same machine, which let a user farm points by
-  // rapidly tapping in/out without training; now it's a single, gated
-  // award, so the per-visit value is bumped up to compensate.
+  // Base award for a machine-usage cycle that clears the minimum duration
+  // (on the "end" scan only — see MIN_MACHINE_USAGE_MINUTES_FOR_POINTS in
+  // verification.service.js). This is the floor; the real award scales up
+  // with time actually spent, see MACHINE_USAGE_DURATION_TIERS below and
+  // verification.service.js#computeMachineUsagePoints. "Estar mucho tiempo
+  // en una máquina cuenta más que estar poco tiempo": a quick tap in/out
+  // that barely clears the minimum earns this base value, a long real set
+  // earns progressively more, capped at MACHINE_USAGE_MAX so one usage can
+  // never dominate the weekly points budget.
   MACHINE_USAGE: 8,
+
+  // Small bonus paid to a TRAINER who verifies a MachineConflict ("2
+  // personas en la misma máquina") in person. Deliberately small — "sube
+  // calificación mínimamente" — recognition for helping keep order on the
+  // floor, not a way to farm points.
+  TRAINER_ORDER_BONUS: 5,
 
   PROGRESS_UPDATE: 20,
 
@@ -128,4 +172,8 @@ export default {
   DIFFICULTY_MULTIPLIERS,
   CONSISTENCY_BONUS_THRESHOLDS,
   COMPLAINT_PENALTY,
+  MACHINE_USAGE_DURATION_TIERS,
+  MACHINE_USAGE_MAX,
+  POINTS_HARD_CAP,
+  MACHINE_CONFLICT_VERIFICATION_WINDOW_MS,
 };

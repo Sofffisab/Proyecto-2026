@@ -129,6 +129,18 @@ enum ComplaintSource {
   USER            // Reported by another member
   TRAINER_REPORT  // Reported by a trainer against a member (equipment damage, misconduct, etc.)
   AUTO_NO_HELP    // Auto-generated when a member marks "No me ayudaron" on the rate-trainer popup
+  AUTO_MACHINE_CONFLICT // Auto-generated when 2 users show open usage on the same machine and no trainer verified in time
+}
+
+// How a MachineConflict ("2 people on the same machine") was ultimately
+// resolved. UNVERIFIED means no trainer verified in time — see
+// machineConflict.job.js#expireUnverifiedConflicts.
+enum MachineConflictResolution {
+  BOTH_PRESENT     // Trainer confirms both users are actually there
+  NEITHER_PRESENT  // Trainer confirms neither user is actually there
+  ONLY_FIRST       // Trainer confirms only the first (earlier) usage's user is there
+  ONLY_SECOND      // Trainer confirms only the second (later) usage's user is there
+  UNVERIFIED       // No trainer verified before the timeout — auto-closed
 }
 
 enum RewardRedemptionStatus {
@@ -217,6 +229,9 @@ model User {
   notifications        Notification[]
   wrappeds             Wrapped[]
   behaviorProfile      UserBehaviorProfile?
+  machineConflictsAsFirst  MachineConflict[] @relation("MachineConflictFirstUser")
+  machineConflictsAsSecond MachineConflict[] @relation("MachineConflictSecondUser")
+  machineConflictsResolved MachineConflict[] @relation("MachineConflictResolver")
 
   @@index([email])
   @@index([role])
@@ -333,8 +348,39 @@ model Machine {
   createdAt        DateTime @default(now())
 
   usages           MachineUsage[]
+  conflicts        MachineConflict[]
 
   @@index([active])
+}
+
+// "2 personas en la misma máquina": raised the instant a scan opens a new
+// MachineUsage on a machine that already has a different user's usage open.
+// Flagged as conducta extraña and pushed to trainers to verify in person —
+// see machineConflict.service.js. If a trainer verifies, their small
+// contribution is rewarded (see POINTS.TRAINER_ORDER_BONUS); if nobody
+// verifies before the timeout, both usages are left as-is (both users keep
+// figuring as using the machine) but a complaint is auto-raised against
+// both — see machineConflict.job.js#expireUnverifiedConflicts.
+model MachineConflict {
+  id             String                     @id @default(uuid())
+  machineId      String
+  firstUserId    String
+  secondUserId   String
+  firstUsageId   String
+  secondUsageId  String
+  detectedAt     DateTime                   @default(now())
+  notifiedTrainers Boolean                  @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  resolution     MachineConflictResolution?
+
+  machine        Machine       @relation(fields: [machineId],    references: [id], onDelete: Cascade)
+  firstUser      User          @relation("MachineConflictFirstUser",  fields: [firstUserId],  references: [id], onDelete: Cascade)
+  secondUser     User          @relation("MachineConflictSecondUser", fields: [secondUserId], references: [id], onDelete: Cascade)
+  resolver       User?         @relation("MachineConflictResolver",   fields: [resolvedBy],   references: [id])
+
+  @@index([machineId])
+  @@index([resolvedAt])
 }
 
 model MachineUsage {

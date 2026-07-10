@@ -77,6 +77,33 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
   });
 }
 
+// Auto-generated when a MachineConflict ("2 personas en la misma máquina")
+// times out without a trainer verifying who was actually there — see
+// machineConflict.service.js#expireUnverifiedConflicts. One per (reporter,
+// reported, conflict) so re-running the expiry job is safe.
+export async function createAutoMachineConflictComplaint({ reporterId, reportedUserId, conflictId }) {
+  const existing = await prisma.complaint.findFirst({
+    where: {
+      reporterId,
+      reportedUserId,
+      source: "AUTO_MACHINE_CONFLICT",
+      message: conflictId,
+    },
+  });
+  if (existing) return existing;
+
+  return prisma.complaint.create({
+    data: {
+      reporterId,
+      reportedUserId,
+      reason: "Uso simultáneo de la misma máquina sin verificación de un entrenador",
+      message: conflictId,
+      status: "PENDING",
+      source: "AUTO_MACHINE_CONFLICT",
+    },
+  });
+}
+
 // Trainer/Admin reporting a member (e.g. broke a machine, misbehaved).
 // Reported user must be a regular member — trainers report members here,
 // not other staff.

@@ -211,6 +211,17 @@ export async function checkOut(userId) {
     data: { checkOutAt, durationMinutes, autoClosed: false },
   });
 
+  // "Se cierra sola la sesión de una máquina ... al irse": leaving the gym
+  // implies whatever machine the user was on is done too. Dynamic import to
+  // avoid a require-cycle (verification.service.js imports checkIn/checkOut
+  // from this module).
+  try {
+    const { closeOpenMachineUsage } = await import("./verification.service.js");
+    await closeOpenMachineUsage(userId, "Machine usage auto-closed (left the gym)");
+  } catch (err) {
+    logger.error("[gym] Failed to auto-close machine usage on check-out:", err.message);
+  }
+
   // Award check-out points (non-blocking)
   addPoints(userId, POINTS.CHECK_OUT, "Gym check-out").catch((err) =>
     logger.error("[gym] Failed to award check-out points:", err.message)

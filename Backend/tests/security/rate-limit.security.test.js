@@ -86,28 +86,36 @@ describe("Rate Limit Security", () => {
     ).toBe(true);
   });
 
-  it("limits authenticated API requests", async () => {
-    const token = jwt.sign(
-      {
-        userId: "user-1",
-      },
-      process.env.JWT_ACCESS_SECRET
-    );
+  it(
+    "limits authenticated API requests",
+    async () => {
+      const token = jwt.sign(
+        {
+          userId: "user-1",
+        },
+        process.env.JWT_ACCESS_SECRET
+      );
 
-    let response;
+      let response;
 
-    for (let i = 0; i < 301; i++) {
-      response = await request(app)
-        .get("/api/v1/users/me")
-        .set("Authorization", `Bearer ${token}`);
-    }
+      for (let i = 0; i < 301; i++) {
+        response = await request(app)
+          .get("/api/v1/users/me")
+          .set("Authorization", `Bearer ${token}`);
+      }
 
-    expect(response.status).toBe(429);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe(
-      "Too many requests"
-    );
-  });
+      expect(response.status).toBe(429);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe(
+        "Too many requests"
+      );
+    },
+    // 301 sequential real HTTP requests is inherently slow, and gets slower
+    // still under `--coverage` (v8 instruments every executed line). The
+    // default 5000ms test timeout is tuned for normal `npm test` runs, not
+    // for this one intentionally-heavy test — give it real headroom instead.
+    20000
+  );
 
   it("does not rate limit different users together", async () => {
     const token1 = jwt.sign(

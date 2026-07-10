@@ -5,6 +5,7 @@ import { checkInactiveProgress } from './progress.job.js';
 import { processComplaints } from './complaints.job.js';
 import { expireStaleEntities } from './expiration.job.js';
 import { assignRandomChallenges } from './challenge.job.js';
+import { processMachineConflicts } from './machineConflicts.job.js';
 import { logger } from "../utils/logger.js";
 
 const RETRY_ATTEMPTS = 2;
@@ -42,6 +43,7 @@ export async function runJobs() {
   await withRetry('runAnalyticsJob', runAnalyticsJob);
   await withRetry('checkInactiveProgress', checkInactiveProgress);
   await withRetry('processComplaints', processComplaints);
+  await withRetry('processMachineConflicts', processMachineConflicts);
   await withRetry('expireStaleEntities', expireStaleEntities);
   await withRetry('assignRandomChallenges', assignRandomChallenges);
 

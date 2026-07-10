@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
+import { POINTS_HARD_CAP } from "../constants/points.js";
 
 // Public/user-facing: never expose stock or isMarketingItem. Users don't
 // pick a reward and shouldn't be able to infer availability/marketing
@@ -119,6 +120,17 @@ export async function autoGrantRewards(userId) {
     if (qualifiesByPoints) {
       await queuePendingGrant(userId, totalPoints);
     }
+
+    // Safety net: points must NEVER reach 5 digits (10000+), regardless of
+    // reward catalog/stock misconfiguration. If nothing was grantable above
+    // and the balance is already at/over the hard cap, force-clamp it back
+    // down and flag an admin review — this should basically never fire under
+    // normal operation (rewards reset points to 0 well before this), it only
+    // guards against an admin leaving the catalog empty/out of stock for too
+    // long.
+    if (totalPoints >= POINTS_HARD_CAP) {
+      await enforcePointsCeiling(userId, totalPoints);
+    }
     return null;
   }
 
@@ -192,6 +204,42 @@ export async function autoGrantRewards(userId) {
   }
 
   return redemption;
+}
+
+// Absolute safety net so a user's balance can never reach 5 digits (10000+),
+// no matter how the reward catalog is configured. Under normal operation
+// this never fires — autoGrantRewards resets points to 0 well before
+// POINTS_HARD_CAP whenever the catalog has a reachable, in-stock reward.
+// If it ever does fire, it means an admin left the catalog without any
+// affordable/in-stock reward for a long stretch — clamp the balance back
+// down (via a corrective PointTransaction, keeping full history intact) and
+// raise a PointReviewRequest so an admin fixes the catalog.
+async function enforcePointsCeiling(userId, totalPoints) {
+  if (totalPoints < POINTS_HARD_CAP) return;
+
+  const overflow = totalPoints - (POINTS_HARD_CAP - 1);
+
+  await prisma.pointTransaction.create({
+    data: {
+      userId,
+      points: -overflow,
+      reason: `Points ceiling safety cap applied (catalog had no reachable/in-stock reward)`,
+    },
+  });
+
+  try {
+    await prisma.pointReviewRequest.create({
+      data: {
+        userId,
+        reason:
+          `POINTS_CEILING_HIT: user's balance reached the ${POINTS_HARD_CAP} hard cap with no ` +
+          `affordable/in-stock reward available. Review the Reward catalog (pointsCost/stock).`,
+        resolved: false,
+      },
+    });
+  } catch (err) {
+    logger.error("[reward] Failed to raise points-ceiling review request:", err.message);
+  }
 }
 
 // Adds the user to the pending-shipment queue, unless they're already in it
