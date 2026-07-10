@@ -8,6 +8,14 @@ import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClos
 // QR tokens expire after this many milliseconds (default: 5 minutes)
 const QR_TTL_MS = parseInt(process.env.USER_QR_TTL_MS ?? "300000", 10);
 
+// Minimum real minutes a machine usage must have lasted before it earns
+// POINTS.MACHINE_USAGE. Keeps the points economy tied to actual training
+// time instead of quick start/end taps.
+const MIN_MACHINE_USAGE_MINUTES_FOR_POINTS = parseInt(
+  process.env.MIN_MACHINE_USAGE_MINUTES_FOR_POINTS ?? "3",
+  10
+);
+
 /**
  * Signs a payload object with HMAC-SHA256 using the server secret.
  * Returns the hex signature.
@@ -247,7 +255,16 @@ export async function processScan(scannerId, rawPayload) {
       });
 
       try {
-        await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage ended");
+        // Award points only once per machine cycle (on end, not on start)
+        // and only if the usage lasted at least
+        // MIN_MACHINE_USAGE_MINUTES_FOR_POINTS. Without this floor, a
+        // user could tap-scan the same machine's start/end QR back-to-back,
+        // or hop across many machines in seconds, and farm points without
+        // actually training — exactly the kind of fast, unearned saturation
+        // the points economy needs to avoid.
+        if (durationMinutes >= MIN_MACHINE_USAGE_MINUTES_FOR_POINTS) {
+          await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage ended");
+        }
         await checkAndUnlockAchievements(scannerId);
       } catch {
         // Points/achievements are best-effort; never block the scan flow.
@@ -301,11 +318,11 @@ export async function processScan(scannerId, rawPayload) {
       },
     });
 
-    try {
-      await addPoints(scannerId, POINTS.MACHINE_USAGE, "Machine usage started");
-    } catch {
-      // Points/achievements are best-effort; never block the scan flow.
-    }
+    // No points here: awarding on "start" is what let a user farm points by
+    // rapidly hopping between machines' start QR codes without training.
+    // Points for this cycle are awarded once, on the matching "end" scan
+    // above, and only if real time was actually spent (see the duration
+    // check there).
 
     const shaped = shapeMachineUsage(created);
     if (sessionOpenedByMachineScan) {

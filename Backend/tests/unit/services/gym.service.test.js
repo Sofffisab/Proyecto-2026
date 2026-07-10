@@ -182,6 +182,100 @@ describe("GymService", () => {
     });
   });
 
+  describe("getPriorityAssistanceList", () => {
+    it("prioritizes a specialty match over a slightly longer wait within the same 15-minute bucket", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: ["STRENGTH"] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: ["CARDIO"],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-B",
+          user: {
+            id: "user-B",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: ["STRENGTH"],
+            settings: {},
+          },
+        },
+      ]);
+      // Both within the same 15-min bucket (20 vs 27 minutes waited).
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: new Date(now - 27 * 60000) },
+        { userId: "user-B", completedAt: new Date(now - 20 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("still puts real wait-time gaps ahead of specialty when buckets differ", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: ["STRENGTH"] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: ["CARDIO"],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-B",
+          user: {
+            id: "user-B",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: ["STRENGTH"],
+            settings: {},
+          },
+        },
+      ]);
+      // Different buckets: user-A waited 45 min (bucket 3), user-B 20 min (bucket 1).
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: new Date(now - 45 * 60000) },
+        { userId: "user-B", completedAt: new Date(now - 20 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-A", "user-B"]);
+    });
+
+    it("excludes users with disableAssistance set", async () => {
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: [] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-opted-out",
+          user: {
+            id: "user-opted-out",
+            role: "USER",
+            createdAt: new Date(),
+            objectives: [],
+            settings: { disableAssistance: true },
+          },
+        },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe("rateTrainer", () => {
     it("rejects a rating outside of 1-5", async () => {
       await expect(

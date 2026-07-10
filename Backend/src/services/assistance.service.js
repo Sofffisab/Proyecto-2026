@@ -7,12 +7,11 @@ import { logger } from "../utils/logger.js";
 import { sendTrainerAlert } from "./pushNotification.service.js";
 
 export async function requestAssistance(userId) {
-  const settings = await prisma.userSettings.findUnique({ where: { userId } });
-
-  if (settings?.disableAssistance) {
-    throw new Error("Assistance requests are disabled for this user");
-  }
-
+  // `disableAssistance` opts the user out of proactive/passive trainer
+  // outreach (the priority list, "needs attention" alerts, abandonment
+  // check-in nudges, etc) — see gym.service.js. It must NOT block the user
+  // from explicitly pressing the "Ayuda" button themselves: an explicit
+  // request always goes through, regardless of that preference.
   const requester = await prisma.user.findUnique({
     where: { id: userId },
     select: { firstName: true, lastName: true },

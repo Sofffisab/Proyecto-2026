@@ -15,6 +15,15 @@ const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MIN
 // last assisted this specific student (or they've never assisted them at all).
 const ABANDONMENT_ALERT_THRESHOLD_DAYS = parseInt(process.env.ABANDONMENT_ALERT_THRESHOLD_DAYS ?? "14", 10);
 
+// getPriorityAssistanceList ordering granularity: students are grouped into
+// "wait-time buckets" of this many minutes before the other three criteria
+// (specialty, preference, seniority) get a say — see the function's doc
+// comment for the full rationale and worked example.
+const PRIORITY_LIST_WAIT_BUCKET_MINUTES = parseInt(
+  process.env.PRIORITY_LIST_WAIT_BUCKET_MINUTES ?? "15",
+  10
+);
+
 export async function checkIn(userId, options = {}) {
   // `checkInAt` lets callers (e.g. offline sync) record the real moment the
   // check-in happened, while the trainer alert below always uses "now"
@@ -297,9 +306,15 @@ export async function getPresentUsers() {
     lastAssistanceAt: lastAssistanceMap[session.userId] ?? null,
   }));
 
-  // Emit USER_NEEDS_ATTENTION for users who have been waiting too long
+  // Emit USER_NEEDS_ATTENTION for users who have been waiting too long.
+  // This is proactive trainer outreach, so users who opted out via
+  // `disableAssistance` are skipped — they can still ask for help anytime
+  // via the explicit assistance button (see assistance.service.js#requestAssistance),
+  // we just don't nudge trainers to go find them unprompted.
   const now = Date.now();
   for (const session of enriched) {
+    if (session.user.settings?.disableAssistance) continue;
+
     const lastAt = session.lastAssistanceAt
       ? new Date(session.lastAssistanceAt).getTime()
       : new Date(session.checkInAt).getTime();
@@ -328,11 +343,32 @@ export async function getPresentUsers() {
 
 /**
  * Priority list of present students for a specific trainer's attention screen.
- * Strict ordering (per product requirement):
- *   1) Not helped in the longest time (never-helped users first).
- *   2) Trainer's specialty matches the student's goal/objective.
- *   3) Student's explicit trainer preference.
- *   4) Seniority as a member (older members first).
+ *
+ * Ordering is a strict, four-level sort — each criterion only breaks ties
+ * left by the one before it — but "criterion 1" is bucketed rather than an
+ * exact timestamp, otherwise it would decide the order almost by itself
+ * (two students are essentially never helped at the exact same millisecond,
+ * so criteria 2-4 would never get a real chance to matter). Concretely:
+ *
+ *   1) WAIT BUCKET: minutes since last help (Infinity/"never helped" sorts
+ *      first), rounded DOWN to PRIORITY_LIST_WAIT_BUCKET_MINUTES (15 by
+ *      default — half of ATTENTION_THRESHOLD_MINUTES, i.e. two "waited too
+ *      long" alerts fit in one bucket). Students within the same 15-minute
+ *      band count as equally overdue, and fall through to:
+ *   2) SPECIALTY MATCH: trainer's specialty covers the student's goal.
+ *   3) TRAINER PREFERENCE: student explicitly prefers this trainer.
+ *   4) SENIORITY: older member account first.
+ *   5) Exact wait time (oldest first) as a final deterministic tiebreaker
+ *      once all of the above are equal, so the order is always stable.
+ *
+ * Worked example: two students both went unhelped for 20-27 minutes (same
+ * 15-29 min bucket). Student A doesn't match the trainer's specialty;
+ * student B does. B is shown first, even though A has waited slightly
+ * longer — a 27-minute wait isn't meaningfully more urgent than 20 minutes,
+ * but a genuine specialty match is worth prioritizing within that band. If
+ * A had instead waited 31 minutes (next bucket up), A would come first
+ * regardless of specialty — real wait-time gaps still win across buckets.
+ *
  * Users with `disableAssistance` set are excluded entirely.
  */
 export async function getPriorityAssistanceList(trainerId) {
@@ -405,11 +441,26 @@ export async function getPriorityAssistanceList(trainerId) {
     };
   });
 
+  const bucketMs = PRIORITY_LIST_WAIT_BUCKET_MINUTES * 60 * 1000;
+  const now = Date.now();
+
+  // Never-helped users get the largest possible wait (bucket 0 is the
+  // soonest-helped; a huge bucket number here puts them first once we sort
+  // buckets ascending) — mirrors the previous "epoch 0 sorts first" trick,
+  // just expressed as a bucket count instead of a raw timestamp.
+  function waitBucket(lastAssistanceAt) {
+    if (!lastAssistanceAt) return Number.POSITIVE_INFINITY;
+    const waitedMs = now - new Date(lastAssistanceAt).getTime();
+    return Math.floor(waitedMs / bucketMs);
+  }
+
+  enriched.forEach((s) => {
+    s.waitBucket = waitBucket(s.lastAssistanceAt);
+  });
+
   enriched.sort((a, b) => {
-    // 1) Longest without help first (never helped = oldest possible time)
-    const aTime = a.lastAssistanceAt ? new Date(a.lastAssistanceAt).getTime() : 0;
-    const bTime = b.lastAssistanceAt ? new Date(b.lastAssistanceAt).getTime() : 0;
-    if (aTime !== bTime) return aTime - bTime;
+    // 1) Wait-time bucket — larger bucket (longer overdue) sorts first.
+    if (a.waitBucket !== b.waitBucket) return b.waitBucket - a.waitBucket;
 
     // 2) Trainer specialty matches the student's goal
     if (a.specialtyMatch !== b.specialtyMatch) return a.specialtyMatch ? -1 : 1;
@@ -418,7 +469,13 @@ export async function getPriorityAssistanceList(trainerId) {
     if (a.prefersThisTrainer !== b.prefersThisTrainer) return a.prefersThisTrainer ? -1 : 1;
 
     // 4) Seniority as a member (older account first)
-    return new Date(a.user.createdAt).getTime() - new Date(b.user.createdAt).getTime();
+    const seniorityDiff = new Date(a.user.createdAt).getTime() - new Date(b.user.createdAt).getTime();
+    if (seniorityDiff !== 0) return seniorityDiff;
+
+    // 5) Final deterministic tiebreaker: exact wait time, oldest first.
+    const aTime = a.lastAssistanceAt ? new Date(a.lastAssistanceAt).getTime() : 0;
+    const bTime = b.lastAssistanceAt ? new Date(b.lastAssistanceAt).getTime() : 0;
+    return aTime - bTime;
   });
 
   return enriched;

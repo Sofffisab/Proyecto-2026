@@ -5,6 +5,23 @@
  * These are the current, agreed-upon defaults. If the business changes the
  * points economy, update the values below — every consumer of POINTS reads
  * from here, so there is a single source of truth to edit.
+ *
+ * DESIGN TARGET (why these specific numbers):
+ * A realistically active member — ~3 gym visits/week, a handful of machines
+ * per visit, occasionally logging progress or a social challenge — should
+ * earn roughly 180-260 points/week. That means:
+ *   - A "small" reward (~150-250 pts) is reachable in under a week — good
+ *     for hooking new/casual users early without feeling out of reach.
+ *   - A "medium" reward (~500-700 pts) takes about 2-3 weeks — the main
+ *     cadence, frequent enough to stay motivating, slow enough to not feel
+ *     spammy or trivially farmable.
+ *   - A "large" reward (~1000-1500 pts) takes roughly a month of consistent
+ *     attendance — an aspirational, low-frequency prize.
+ * These pointsCost tiers are set per-Reward by an admin (Reward.pointsCost),
+ * not hardcoded here — use this comment as the guideline when creating them.
+ * Since points reset to 0 on every auto-granted reward (see
+ * reward.service.js#autoGrantRewards), this weekly rate is also what keeps
+ * the "climb back up" cycle from feeling either instant or endless.
  */
 
 export const POINTS = {
@@ -12,7 +29,13 @@ export const POINTS = {
 
   CHECK_OUT: 5,
 
-  MACHINE_USAGE: 5,
+  // Awarded once per machine-usage cycle (on the "end" scan only, and only
+  // if real time was spent — see MIN_MACHINE_USAGE_MINUTES_FOR_POINTS in
+  // verification.service.js). Previously this fired on both the "start" and
+  // "end" scan of the same machine, which let a user farm points by
+  // rapidly tapping in/out without training; now it's a single, gated
+  // award, so the per-visit value is bumped up to compensate.
+  MACHINE_USAGE: 8,
 
   PROGRESS_UPDATE: 20,
 
@@ -29,10 +52,6 @@ export const POINTS = {
   SOCIAL_CHALLENGE_COMPLETED: 30,
 
   SOCIAL_CHALLENGE_ATTEMPTED: 10,
-
-  SCANNED_BY_USER: 10,
-
-  SCANNED_BY_TRAINER: 15,
 
   ACHIEVEMENT_UNLOCKED: 50,
 
