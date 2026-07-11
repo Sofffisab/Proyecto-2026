@@ -32,6 +32,35 @@ describe("requireCompleteProfile middleware", () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
+  it("strips the /api/v1 prefix from originalUrl before matching exempt paths (production mount)", async () => {
+    // In production the router is also mounted under /api/v1 (see
+    // server.js), so req.originalUrl arrives as e.g. "/api/v1/users/me"
+    // instead of the bare "/users/me" the other tests use.
+    req.originalUrl = "/api/v1/users/me?foo=bar";
+    req.path = "/me"; // Express would have already stripped the use() mount prefix
+    await requireCompleteProfile(req, res, next);
+    expect(next).toHaveBeenCalledWith();
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("does NOT exempt a /api/v1-prefixed path that isn't actually in the exempt list", async () => {
+    req.originalUrl = "/api/v1/goals";
+    req.path = "/goals";
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      birthday: new Date("1990-01-01"),
+      medicalConditions: [],
+      deliveryAddress: "Main St 123",
+      trainingLevel: "BEGINNER",
+      objectives: ["LOSE_WEIGHT"],
+      weeklyTrainingDays: "THREE",
+      trainingType: "STRENGTH",
+      isProfileComplete: true,
+    });
+    await requireCompleteProfile(req, res, next);
+    expect(prisma.user.findUnique).toHaveBeenCalled();
+  });
+
   it("blocks the request with 403 when the profile is incomplete", async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: "user-1",

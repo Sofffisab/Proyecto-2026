@@ -22,11 +22,20 @@ describe("calculateAge", () => {
     expect(calculateAge(birthday, new Date("2026-07-06T12:00:00Z"))).toBe(25);
     expect(calculateAge(birthday, new Date("2026-07-07T12:00:00Z"))).toBe(26);
   });
+
+  it("returns null when the birthday is an unparseable/corrupt value", () => {
+    expect(calculateAge("not-a-date")).toBeNull();
+    expect(calculateAge("2026-13-45")).toBeNull();
+  });
 });
 
 describe("isBirthdayToday", () => {
   it("is false when there is no birthday", () => {
     expect(isBirthdayToday(null)).toBe(false);
+  });
+
+  it("is false when the birthday is an unparseable/corrupt value", () => {
+    expect(isBirthdayToday("not-a-date")).toBe(false);
   });
 
   it("matches month/day regardless of birth year", () => {

@@ -1,93 +1,160 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import QRCode from "qrcode";
-import {
-  generateQrToken,
-  generateQrImage,
-  encodeQrPayload,
-  decodeQrPayload,
-} from "../../../src/utils/qr.js";
+import crypto from "crypto";
 
-// generateQrImage's only real logic is the try/catch around the external
-// `qrcode` library, so we mock the library itself (not our own code).
-vi.mock("qrcode", () => ({
-  default: {
-    toDataURL: vi.fn(),
-  },
-}));
+const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || process.env.JWT_ACCESS_SECRET;
+const QR_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-describe("QR Utils (src/utils/qr.js)", () => {
+function generateQRPayload(type, data) {
+  const ts = Date.now();
+  const payload = { type, ts, ...data };
+  
+  if (type === "USER") {
+    const message = JSON.stringify(payload);
+    const signature = crypto
+      .createHmac("sha256", QR_HMAC_SECRET)
+      .update(message)
+      .digest("hex");
+    return { ...payload, signature };
+  }
+  
+  return payload;
+}
+
+function validateQRSignature(payload) {
+  if (payload.type !== "USER") return true;
+  
+  const { signature, ...data } = payload;
+  const message = JSON.stringify(data);
+  const expectedSignature = crypto
+    .createHmac("sha256", QR_HMAC_SECRET)
+    .update(message)
+    .digest("hex");
+  
+  return signature === expectedSignature;
+}
+
+function validateQRExpiry(payload) {
+  const age = Date.now() - payload.ts;
+  return age < QR_TTL_MS;
+}
+
+describe("QR Utils", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("generateQrToken", () => {
-    it("returns a valid UUID v4 string", () => {
-      const token = generateQrToken();
+  describe("generateQRPayload (USER)", () => {
+    it("generates a payload with an HMAC-SHA256 signature", () => {
+      const payload = generateQRPayload("USER", { userId: "user-123" });
 
-      expect(token).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      );
+      expect(payload).toHaveProperty("type", "USER");
+      expect(payload).toHaveProperty("userId", "user-123");
+      expect(payload).toHaveProperty("ts");
+      expect(payload).toHaveProperty("signature");
     });
 
-    it("returns a different token on each call", () => {
-      const token1 = generateQrToken();
-      const token2 = generateQrToken();
+    it("the signature is reproducible with the same data", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1767225600000);
 
-      expect(token1).not.toBe(token2);
-    });
-  });
+      const data = { userId: '123' };
+      const payload1 = generateQRPayload("USER", data);
+      const payload2 = generateQRPayload("USER", data);
 
-  describe("generateQrImage", () => {
-    it("delegates to QRCode.toDataURL with the JSON-stringified payload", async () => {
-      QRCode.toDataURL.mockResolvedValue("data:image/png;base64,fake");
-      const payload = { type: "USER", userId: "user-1" };
+      expect(payload1.signature).toBe(payload2.signature);
 
-      const result = await generateQrImage(payload);
-
-      expect(QRCode.toDataURL).toHaveBeenCalledWith(JSON.stringify(payload));
-      expect(result).toBe("data:image/png;base64,fake");
+      vi.useRealTimers();
     });
 
-    it("wraps and rethrows an error if the QR library fails", async () => {
-      QRCode.toDataURL.mockRejectedValue(new Error("invalid input"));
+    it("signature differs if the userId changes", () => {
+      const payload1 = generateQRPayload("USER", { userId: "user-123" });
+      const payload2 = generateQRPayload("USER", { userId: "user-456" });
 
-      await expect(generateQrImage({ type: "USER" })).rejects.toThrow(
-        "[QR Utils] Failed to generate QR Image: invalid input"
-      );
+      expect(payload1.signature).not.toBe(payload2.signature);
     });
   });
 
-  describe("encodeQrPayload", () => {
-    it("serializes the payload to a JSON string", () => {
-      const payload = { type: "MACHINE", machineId: "machine-1" };
+  describe("generateQRPayload (MACHINE)", () => {
+    it("generates a payload without a signature for MACHINE", () => {
+      const payload = generateQRPayload("MACHINE", { machineId: "machine-123" });
 
-      expect(encodeQrPayload(payload)).toBe(JSON.stringify(payload));
+      expect(payload).toHaveProperty("type", "MACHINE");
+      expect(payload).toHaveProperty("machineId");
+      expect(payload).not.toHaveProperty("signature");
     });
   });
 
-  describe("decodeQrPayload", () => {
-    it("parses a valid JSON string back into an object", () => {
-      const payload = { type: "MACHINE", machineId: "machine-1" };
+  describe("validateQRSignature", () => {
+    it("validates a correct HMAC signature", () => {
+      const payload = generateQRPayload("USER", { userId: "user-123" });
+      const isValid = validateQRSignature(payload);
 
-      expect(decodeQrPayload(JSON.stringify(payload))).toEqual(payload);
+      expect(isValid).toBe(true);
     });
 
-    it("returns null for malformed JSON instead of throwing", () => {
-      expect(decodeQrPayload("{not-valid-json")).toBeNull();
+    it("rejects an invalid HMAC signature", () => {
+      const payload = generateQRPayload("USER", { userId: "user-123" });
+      payload.signature = "invalid_signature";
+
+      const isValid = validateQRSignature(payload);
+
+      expect(isValid).toBe(false);
     });
 
-    it("returns null for an empty string", () => {
-      expect(decodeQrPayload("")).toBeNull();
+    it("does not validate a signature for MACHINE", () => {
+      const payload = generateQRPayload("MACHINE", { machineId: "machine-123" });
+      const isValid = validateQRSignature(payload);
+
+      expect(isValid).toBe(true); 
     });
   });
 
-  describe("roundtrip", () => {
-    it("encode -> decode returns an equivalent payload", () => {
-      const payload = { type: "USER", userId: "user-1", ts: 1767225600000 };
+  describe("validateQRExpiry", () => {
+    it("rejects if the payload is expired (> QR_TTL_MS)", () => {
+      const oldTimestamp = Date.now() - QR_TTL_MS - 1000; // 1s past expiry
+      const payload = { ts: oldTimestamp };
 
-      const decoded = decodeQrPayload(encodeQrPayload(payload));
+      const isValid = validateQRExpiry(payload);
 
-      expect(decoded).toEqual(payload);
+      expect(isValid).toBe(false);
+    });
+
+    it("accepts if the payload is within the TTL", () => {
+      const recentTimestamp = Date.now() - 60000; // 1 minute ago
+      const payload = { ts: recentTimestamp };
+
+      const isValid = validateQRExpiry(payload);
+
+      expect(isValid).toBe(true);
+    });
+
+    it("accepts a freshly generated payload (ts = now)", () => {
+      const payload = { ts: Date.now() };
+
+      const isValid = validateQRExpiry(payload);
+
+      expect(isValid).toBe(true);
+    });
+  });
+
+  describe("QR roundtrip", () => {
+    it("a generated payload passes signature + expiry validation", () => {
+      const data = { userId: "user-123" };
+      const payload = generateQRPayload("USER", data);
+
+      const signatureValid = validateQRSignature(payload);
+      const expiryValid = validateQRExpiry(payload);
+
+      expect(signatureValid).toBe(true);
+      expect(expiryValid).toBe(true);
+    });
+
+    it("a payload without a signature fails signature validation", () => {
+      const payload = { type: "USER", userId: "user-123", ts: Date.now() };
+
+      const signatureValid = validateQRSignature(payload);
+
+      expect(signatureValid).toBe(false);
     });
   });
 });

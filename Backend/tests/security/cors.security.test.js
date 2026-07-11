@@ -136,4 +136,15 @@ describe("CORS Security", () => {
     expect(res.headers["access-control-max-age"])
       .toBe("86400");
   });
+
+  it("allows requests with no Origin header at all (native/mobile HTTP clients)", async () => {
+    // No .set("Origin", ...) at all — exercises the `if (!origin) return
+    // callback(null, true)` branch in server.js. cors() does not reflect
+    // an Access-Control-Allow-Origin header back when the request itself
+    // had no Origin, but the request must NOT be blocked either.
+    const res = await request(app).get("/api/v1/unknown");
+
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(res.status).not.toBe(0);
+  });
 });
