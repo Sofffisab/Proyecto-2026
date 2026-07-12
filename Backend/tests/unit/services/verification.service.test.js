@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 import * as verificationService from "../../../src/services/verification.service.js";
+import * as machineConflictService from "../../../src/services/machineConflict.service.js";
 import prisma from "../../../src/config/prisma.js";
+
+vi.mock("../../../src/services/machineConflict.service.js");
 
 // Mirrors verificationService's internal signing so tests can build
 // payloads with a real, valid HMAC signature instead of a fake string.
@@ -452,6 +455,143 @@ describe("VerificationService", () => {
       const result = await verificationService.processScan("user-123", payload);
 
       expect(result.askDisableMachineTrackingOptOut).toBeUndefined();
+    });
+
+    it("type MACHINE (new machine, no open usage on it): auto-closes a DIFFERENT machine's still-open usage first", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-B",
+        ts: Date.now(),
+      };
+
+      const otherOpenUsage = {
+        id: "usage-on-machine-A",
+        userId: "user-123",
+        machineId: "machine-A",
+        startedAt: new Date(Date.now() - 10 * 60000),
+        endedAt: null,
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      // 1st findFirst call inside processScan: "openUsage" on machine-B -> none.
+      // 2nd call: "otherOpenUsage" on any OTHER machine -> machine-A, still open.
+      // 3rd call: closeOpenMachineUsage()'s own internal re-query for that
+      //           same open usage -> machine-A again.
+      // 4th call: "concurrentUsageByOther" on machine-B by someone else -> none.
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(otherOpenUsage)
+        .mockResolvedValueOnce(otherOpenUsage)
+        .mockResolvedValueOnce(null);
+      prisma.machineUsage.update.mockResolvedValue({ ...otherOpenUsage, endedAt: new Date() });
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-123" });
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-on-machine-B",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      await verificationService.processScan("user-123", payload);
+
+      expect(prisma.machineUsage.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "usage-on-machine-A" },
+          data: expect.objectContaining({ endedAt: expect.anything() }),
+        })
+      );
+    });
+
+    it("type MACHINE (new machine, no other open usage anywhere): does NOT call closeOpenMachineUsage / update", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-B",
+        ts: Date.now(),
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null) // openUsage on machine-B
+        .mockResolvedValueOnce(null) // otherOpenUsage on any other machine
+        .mockResolvedValueOnce(null); // concurrentUsageByOther
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-123" });
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-on-machine-B",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+
+      await verificationService.processScan("user-123", payload);
+
+      expect(prisma.machineUsage.update).not.toHaveBeenCalled();
+    });
+
+    it("type MACHINE: flags a conflict and marks the response suspicious when another user already has this machine open", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-B",
+        ts: Date.now(),
+      };
+
+      const concurrentUsageByOther = {
+        id: "usage-by-other-user",
+        userId: "user-999",
+        machineId: "machine-B",
+        startedAt: new Date(Date.now() - 5 * 60000),
+        endedAt: null,
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null) // openUsage on machine-B for THIS user
+        .mockResolvedValueOnce(null) // otherOpenUsage on a different machine
+        .mockResolvedValueOnce(concurrentUsageByOther); // another user's open usage on machine-B
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-123" });
+      const createdUsage = {
+        id: "usage-new",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      };
+      prisma.machineUsage.create.mockResolvedValue(createdUsage);
+      vi.spyOn(machineConflictService, "flagMachineConflict").mockResolvedValue(undefined);
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(result.suspiciousActivity).toBe(true);
+      expect(machineConflictService.flagMachineConflict).toHaveBeenCalledWith({
+        machineId: "machine-B",
+        firstUsage: concurrentUsageByOther,
+        secondUsage: createdUsage,
+      });
+    });
+
+    it("type MACHINE: does NOT mark the response suspicious or flag a conflict when no one else has this machine open", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-B",
+        ts: Date.now(),
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-123" });
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-new",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+      vi.spyOn(machineConflictService, "flagMachineConflict").mockResolvedValue(undefined);
+
+      const result = await verificationService.processScan("user-123", payload);
+
+      expect(result.suspiciousActivity).toBeUndefined();
+      expect(machineConflictService.flagMachineConflict).not.toHaveBeenCalled();
     });
 
     it("unknown type: throws 'Unknown QR type' error", async () => {

@@ -36,6 +36,52 @@ describe("goalDifficultyEngine", () => {
       const goal = { type: "COMMITMENT", action: "MAINTAIN", targetValue: 30, difficulty: "MEDIUM" };
       expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
     });
+
+    it("scores losing muscle (action !== GAIN) using the gentler curve", () => {
+      const loseMuscle = { type: "MUSCLE", action: "LOSE", targetValue: 5, difficulty: "MEDIUM" };
+      const gainMuscle = { type: "MUSCLE", action: "GAIN", targetValue: 5, difficulty: "MEDIUM" };
+
+      const loseScore = difficultyEngine.computeStandardDifficulty(loseMuscle);
+      const gainScore = difficultyEngine.computeStandardDifficulty(gainMuscle);
+
+      expect(gainScore).toBeGreaterThan(loseScore);
+    });
+
+    it("scores an ENDURANCE goal by magnitude", () => {
+      const goal = { type: "ENDURANCE", action: "GAIN", targetValue: 20, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBeGreaterThan(0);
+    });
+
+    it("scores a MOBILITY goal by magnitude", () => {
+      const goal = { type: "MOBILITY", action: "GAIN", targetValue: 60, difficulty: "MEDIUM" };
+      // Above the highest threshold (50) => the top MOBILITY score (1.5).
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.5);
+    });
+
+    it("scores PHYSICAL_HEALTH goals with a flat 1.1 multiplier", () => {
+      const goal = { type: "PHYSICAL_HEALTH", action: "MAINTAIN", targetValue: 1, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.1);
+    });
+
+    it("scores MENTAL_HEALTH goals with a flat 1.1 multiplier", () => {
+      const goal = { type: "MENTAL_HEALTH", action: "MAINTAIN", targetValue: 1, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.1);
+    });
+
+    it("scores NONE goals with a flat 1.0 multiplier", () => {
+      const goal = { type: "NONE", action: "MAINTAIN", targetValue: 1, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
+    });
+
+    it("scores OTHER goals with a flat 1.0 multiplier", () => {
+      const goal = { type: "OTHER", action: "MAINTAIN", targetValue: 1, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
+    });
+
+    it("falls back to a neutral 1.0 score for a completely unrecognized goal type", () => {
+      const goal = { type: "SOME_FUTURE_TYPE", action: "GAIN", targetValue: 5, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
+    });
   });
 
   describe("computePersonalFactor", () => {

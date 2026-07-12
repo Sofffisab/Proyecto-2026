@@ -162,4 +162,94 @@ describe("GymController", () => {
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSessions });
     });
   });
+
+  describe("getSessionById", () => {
+    it("returns the session when found", async () => {
+      req.params = { id: "session-123" };
+      const mockSession = { id: "session-123", userId: "user-123" };
+
+      vi.spyOn(gymService, "getSessionById").mockResolvedValue(mockSession);
+
+      await gymController.getSessionById(req, res, next);
+
+      expect(gymService.getSessionById).toHaveBeenCalledWith("session-123", "user-123");
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSession });
+    });
+
+    it("returns 404 when the session does not exist or is not the caller's", async () => {
+      req.params = { id: "missing-session" };
+
+      vi.spyOn(gymService, "getSessionById").mockResolvedValue(null);
+
+      await gymController.getSessionById(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, message: "Session not found" });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      req.params = { id: "session-123" };
+      const error = new Error("boom");
+      vi.spyOn(gymService, "getSessionById").mockRejectedValue(error);
+
+      await gymController.getSessionById(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("priorityAssistanceList", () => {
+    it("returns the priority assistance list for the caller", async () => {
+      const mockList = [{ id: "user-1", waitingMinutes: 20 }];
+      vi.spyOn(gymService, "getPriorityAssistanceList").mockResolvedValue(mockList);
+
+      await gymController.priorityAssistanceList(req, res, next);
+
+      expect(gymService.getPriorityAssistanceList).toHaveBeenCalledWith("user-123");
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockList });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      const error = new Error("boom");
+      vi.spyOn(gymService, "getPriorityAssistanceList").mockRejectedValue(error);
+
+      await gymController.priorityAssistanceList(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("getGymStatus", () => {
+    it("reports isCheckedIn true with the active session when one exists", async () => {
+      const mockSession = { id: "session-123", checkOutAt: null };
+      vi.spyOn(gymService, "getCurrentSession").mockResolvedValue(mockSession);
+
+      await gymController.getGymStatus(req, res, next);
+
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { isCheckedIn: true, session: mockSession },
+      });
+    });
+
+    it("reports isCheckedIn false with a null session when there is none", async () => {
+      vi.spyOn(gymService, "getCurrentSession").mockResolvedValue(null);
+
+      await gymController.getGymStatus(req, res, next);
+
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { isCheckedIn: false, session: null },
+      });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      const error = new Error("boom");
+      vi.spyOn(gymService, "getCurrentSession").mockRejectedValue(error);
+
+      await gymController.getGymStatus(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
 });

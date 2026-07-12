@@ -75,6 +75,97 @@ describe("GymService", () => {
     });
   });
 
+  describe("getUserCurrentLocation", () => {
+    it("returns zone + machine name when the user has an active machine usage", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst.mockResolvedValue({
+        machine: { name: "Treadmill", zone: "Cardio" },
+      });
+
+      const result = await gymService.getUserCurrentLocation("user-1");
+
+      expect(result).toBe("Cardio (Treadmill)");
+    });
+
+    it("falls back to just the machine name when it has no zone", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst.mockResolvedValue({
+        machine: { name: "Treadmill", zone: null },
+      });
+
+      const result = await gymService.getUserCurrentLocation("user-1");
+
+      expect(result).toBe("Treadmill");
+    });
+
+    it("returns a generic 'just checked in' message when there's an active session but no active machine usage", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1" });
+
+      const result = await gymService.getUserCurrentLocation("user-1");
+
+      expect(result).toBe("entrada del gimnasio (recién ingresó)");
+    });
+
+    it("skips machine lookup entirely for users who opted out of machine tracking", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: true });
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1" });
+
+      const result = await gymService.getUserCurrentLocation("user-1");
+
+      expect(prisma.machineUsage.findFirst).not.toHaveBeenCalled();
+      expect(result).toBe("en el gimnasio (máquina no rastreada por preferencia del usuario)");
+    });
+
+    it("returns 'ubicación desconocida' when the user has no active session at all", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue(null);
+
+      const result = await gymService.getUserCurrentLocation("user-1");
+
+      expect(result).toBe("ubicación desconocida");
+    });
+  });
+
+  describe("reopenSessionIfAutoClosed", () => {
+    it("reopens an auto-closed session", async () => {
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", autoClosed: true });
+      prisma.gymSession.update.mockResolvedValue({ id: "session-1", autoClosed: false });
+
+      const result = await gymService.reopenSessionIfAutoClosed("user-1");
+
+      expect(result.autoClosed).toBe(false);
+      expect(prisma.gymSession.update).toHaveBeenCalledWith({
+        where: { id: "session-1" },
+        data: { checkOutAt: null, durationMinutes: null, autoClosed: false },
+      });
+    });
+
+    it("returns null when there is no auto-closed session to reopen", async () => {
+      prisma.gymSession.findFirst.mockResolvedValue(null);
+
+      const result = await gymService.reopenSessionIfAutoClosed("user-1");
+
+      expect(result).toBeNull();
+      expect(prisma.gymSession.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getSessionById", () => {
+    it("returns the session scoped to the requesting user", async () => {
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-1" });
+
+      const result = await gymService.getSessionById("session-1", "user-1");
+
+      expect(prisma.gymSession.findFirst).toHaveBeenCalledWith({
+        where: { id: "session-1", userId: "user-1" },
+      });
+      expect(result.id).toBe("session-1");
+    });
+  });
+
   describe("checkOut", () => {
     it("calculates durationMinutes correctly", async () => {
       const now = new Date();
@@ -112,6 +203,32 @@ describe("GymService", () => {
         "No active check-in session"
       );
       expect(prisma.gymSession.update).not.toHaveBeenCalled();
+    });
+
+    it("also finds and closes a session the expiration job auto-closed (user is checking out for real now)", async () => {
+      const mockSession = {
+        id: "session-123",
+        userId: "user-123",
+        checkInAt: new Date(Date.now() - 60000),
+        autoClosed: true,
+      };
+      prisma.gymSession.findFirst.mockResolvedValue(mockSession);
+      prisma.gymSession.update.mockResolvedValue({
+        ...mockSession,
+        checkOutAt: new Date(),
+        autoClosed: false,
+      });
+
+      const result = await gymService.checkOut("user-123");
+
+      expect(prisma.gymSession.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ checkOutAt: null }, { autoClosed: true }],
+          }),
+        })
+      );
+      expect(result.autoClosed).toBe(false);
     });
   });
 
@@ -179,6 +296,116 @@ describe("GymService", () => {
       const result = await gymService.getPresentUsers();
 
       expect(result).toBeDefined();
+    });
+
+    it("skips the USER_NEEDS_ATTENTION emit for users who opted out via disableAssistance", async () => {
+      const staleTime = new Date(Date.now() - 60 * 60000); // 60 min ago, well past threshold
+      const mockSessions = [
+        {
+          id: "session-1",
+          userId: "user-opted-out",
+          checkInAt: staleTime,
+          user: { id: "user-opted-out", settings: { disableAssistance: true } },
+        },
+      ];
+
+      prisma.gymSession.findMany.mockResolvedValue(mockSessions);
+      prisma.assistance.findMany.mockResolvedValue([]);
+
+      await gymService.getPresentUsers();
+
+      expect(emitUserNeedsAttention).not.toHaveBeenCalled();
+    });
+
+    it("breaks a lastAssistanceAt tie using trainerPreference, then seniority", async () => {
+      const now = Date.now();
+      const sameAssistanceTime = new Date(now - 300000);
+      const mockSessions = [
+        {
+          id: "session-A",
+          userId: "user-A",
+          checkInAt: new Date(now),
+          user: {
+            id: "user-A",
+            createdAt: new Date(now - 1000), // older account
+            settings: {},
+          },
+        },
+        {
+          id: "session-B",
+          userId: "user-B",
+          checkInAt: new Date(now),
+          user: {
+            id: "user-B",
+            createdAt: new Date(now - 2000), // even older, but no preference either
+            settings: { trainerPreference: "trainer-1" }, // has an explicit preference
+          },
+        },
+      ];
+
+      prisma.gymSession.findMany.mockResolvedValue(mockSessions);
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: sameAssistanceTime },
+        { userId: "user-B", completedAt: sameAssistanceTime },
+      ]);
+
+      const result = await gymService.getPresentUsers();
+
+      // Same lastAssistanceAt => trainerPreference wins the tie, regardless of seniority.
+      expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("falls back to seniority when lastAssistanceAt and trainerPreference are both tied", async () => {
+      const now = Date.now();
+      const sameAssistanceTime = new Date(now - 300000);
+      const mockSessions = [
+        {
+          id: "session-A",
+          userId: "user-A",
+          checkInAt: new Date(now),
+          user: { id: "user-A", createdAt: new Date(now - 1000), settings: {} }, // newer
+        },
+        {
+          id: "session-B",
+          userId: "user-B",
+          checkInAt: new Date(now),
+          user: { id: "user-B", createdAt: new Date(now - 2000), settings: {} }, // older
+        },
+      ];
+
+      prisma.gymSession.findMany.mockResolvedValue(mockSessions);
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: sameAssistanceTime },
+        { userId: "user-B", completedAt: sameAssistanceTime },
+      ]);
+
+      const result = await gymService.getPresentUsers();
+
+      // Same lastAssistanceAt, neither prefers this trainer => older account (user-B) first.
+      expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("falls back to checkInAt (never assisted yet) when computing wait time for the attention alert", async () => {
+      const staleCheckIn = new Date(Date.now() - 60 * 60000); // checked in 60 min ago
+      const mockSessions = [
+        {
+          id: "session-1",
+          userId: "user-never-helped",
+          checkInAt: staleCheckIn,
+          user: { id: "user-never-helped", settings: {} },
+        },
+      ];
+
+      prisma.gymSession.findMany.mockResolvedValue(mockSessions);
+      prisma.assistance.findMany.mockResolvedValue([]); // no prior assistance at all
+
+      await gymService.getPresentUsers();
+
+      expect(emitUserNeedsAttention).toHaveBeenCalledWith(
+        "user-never-helped",
+        null,
+        expect.any(Number)
+      );
     });
   });
 
@@ -274,6 +501,115 @@ describe("GymService", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("breaks a specialty tie using explicit trainer preference", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: [] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: [],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-B",
+          user: {
+            id: "user-B",
+            role: "USER",
+            createdAt: new Date(now - 2000),
+            objectives: [],
+            settings: { trainerPreference: "trainer-1" },
+          },
+        },
+      ]);
+      // Same wait bucket, no specialty match for either => preference decides.
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: new Date(now - 20 * 60000) },
+        { userId: "user-B", completedAt: new Date(now - 20 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("breaks a specialty+preference tie using seniority (older account first)", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: [] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: new Date(now - 1000), // newer
+            objectives: [],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-B",
+          user: {
+            id: "user-B",
+            role: "USER",
+            createdAt: new Date(now - 2000), // older
+            objectives: [],
+            settings: {},
+          },
+        },
+      ]);
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: new Date(now - 20 * 60000) },
+        { userId: "user-B", completedAt: new Date(now - 20 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("falls back to exact wait time as the final deterministic tiebreaker", async () => {
+      const now = Date.now();
+      const sameCreatedAt = new Date(now - 1000);
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: [] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: sameCreatedAt,
+            objectives: [],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-B",
+          user: {
+            id: "user-B",
+            role: "USER",
+            createdAt: sameCreatedAt,
+            objectives: [],
+            settings: {},
+          },
+        },
+      ]);
+      // Same bucket, no specialty/preference/seniority difference — only exact
+      // wait time differs (user-A waited longer within the same bucket).
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-A", completedAt: new Date(now - 25 * 60000) },
+        { userId: "user-B", completedAt: new Date(now - 20 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-A", "user-B"]);
+    });
   });
 
   describe("rateTrainer", () => {
@@ -292,6 +628,27 @@ describe("GymService", () => {
       await expect(
         gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
       ).rejects.toThrow();
+    });
+
+    it("throws 404 if the session does not exist", async () => {
+      prisma.gymSession.findUnique.mockResolvedValue(null);
+
+      await expect(
+        gymService.rateTrainer("ghost-session", "user-123", "trainer-123", 4)
+      ).rejects.toThrow("Session not found");
+    });
+
+    it("rejects if there is no completed assistance from this trainer for this user", async () => {
+      prisma.gymSession.findUnique.mockResolvedValue({
+        id: "session-123",
+        userId: "user-123",
+        checkOutAt: new Date(),
+      });
+      prisma.assistance.findFirst.mockResolvedValue(null);
+
+      await expect(
+        gymService.rateTrainer("session-123", "user-123", "trainer-123", 4)
+      ).rejects.toThrow("No completed assistance found for this trainer");
     });
 
     it("rejects if the session has not been checked out", async () => {

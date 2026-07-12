@@ -103,6 +103,123 @@ describe("AuthController", () => {
       expect(authService.logout).toHaveBeenCalledWith("access_token");
       expect(res.json).toHaveBeenCalledWith({ success: true, data: { success: true } });
     });
+
+    it("passes null when there is no Authorization header", async () => {
+      req.headers = {};
+
+      vi.spyOn(authService, "logout").mockResolvedValue({ success: true });
+
+      await authController.logout(req, res, next);
+
+      expect(authService.logout).toHaveBeenCalledWith(null);
+    });
+
+    it("calls next(err) on service failure", async () => {
+      req.headers.authorization = "Bearer access_token";
+      const error = new Error("boom");
+      vi.spyOn(authService, "logout").mockRejectedValue(error);
+
+      await authController.logout(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("createUserByAdmin", () => {
+    it("returns 201 with the newly created account", async () => {
+      req.validatedData = { email: "member@example.com", role: "MEMBER" };
+      const mockUser = { id: "user-456", email: "member@example.com", role: "MEMBER" };
+
+      vi.spyOn(authService, "createUserByAdmin").mockResolvedValue(mockUser);
+
+      await authController.createUserByAdmin(req, res, next);
+
+      expect(authService.createUserByAdmin).toHaveBeenCalledWith(req.validatedData);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUser });
+    });
+
+    it("calls next(err) when the email is already taken", async () => {
+      req.validatedData = { email: "dup@example.com" };
+      const error = new Error("Email already in use");
+      vi.spyOn(authService, "createUserByAdmin").mockRejectedValue(error);
+
+      await authController.createUserByAdmin(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("me", () => {
+    it("returns the authenticated user's profile", async () => {
+      req.user = { id: "user-123" };
+      const mockUser = { id: "user-123", email: "test@example.com" };
+
+      vi.spyOn(authService, "me").mockResolvedValue(mockUser);
+
+      await authController.me(req, res, next);
+
+      expect(authService.me).toHaveBeenCalledWith("user-123");
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUser });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      req.user = { id: "user-123" };
+      const error = new Error("boom");
+      vi.spyOn(authService, "me").mockRejectedValue(error);
+
+      await authController.me(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("forgotPassword", () => {
+    it("returns 200 with the service result", async () => {
+      req.validatedData = { email: "test@example.com" };
+      const mockResult = { success: true, message: "Email sent" };
+
+      vi.spyOn(authService, "forgotPassword").mockResolvedValue(mockResult);
+
+      await authController.forgotPassword(req, res, next);
+
+      expect(authService.forgotPassword).toHaveBeenCalledWith(req.validatedData);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      req.validatedData = { email: "test@example.com" };
+      const error = new Error("boom");
+      vi.spyOn(authService, "forgotPassword").mockRejectedValue(error);
+
+      await authController.forgotPassword(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("resetPassword", () => {
+    it("returns 200 when the password is reset successfully", async () => {
+      req.validatedData = { token: "reset-token", password: "newPassword123" };
+      const mockResult = { success: true };
+
+      vi.spyOn(authService, "resetPassword").mockResolvedValue(mockResult);
+
+      await authController.resetPassword(req, res, next);
+
+      expect(authService.resetPassword).toHaveBeenCalledWith(req.validatedData);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
+    });
+
+    it("calls next(err) with an invalid or expired token", async () => {
+      req.validatedData = { token: "invalid-token", password: "newPassword123" };
+      const error = new Error("Invalid or expired token");
+      vi.spyOn(authService, "resetPassword").mockRejectedValue(error);
+
+      await authController.resetPassword(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
 
   describe("refreshToken", () => {

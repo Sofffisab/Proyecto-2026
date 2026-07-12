@@ -97,6 +97,51 @@ describe("machineConflict.service", () => {
 
       expect(prisma.machineConflict.update).not.toHaveBeenCalled();
     });
+
+    it("still returns the created conflict if the realtime emit throws", async () => {
+      const { emitNotificationEvent } = await import("../../../src/realtime/ably.js");
+      emitNotificationEvent.mockImplementationOnce(() => {
+        throw new Error("Ably down");
+      });
+
+      prisma.machineConflict.findFirst.mockResolvedValue(null);
+      const newConflict = { id: "conflict-5", machineId: "machine-1" };
+      prisma.machineConflict.create.mockResolvedValue(newConflict);
+      prisma.machine.findUnique.mockResolvedValue({ id: "machine-1", name: "Treadmill 1" });
+      prisma.user.findMany.mockResolvedValue([{ id: "trainer-1" }]);
+      prisma.machineConflict.update.mockResolvedValue({});
+      communicationService.createNotification.mockResolvedValue({});
+
+      const result = await machineConflictService.flagMachineConflict({
+        machineId: "machine-1",
+        firstUsage: { userId: "user-1", id: "usage-1" },
+        secondUsage: { userId: "user-2", id: "usage-2" },
+      });
+
+      expect(result).toBe(newConflict);
+    });
+
+    it("falls back to the raw machineId in the alert body when the machine lookup returns null", async () => {
+      prisma.machineConflict.findFirst.mockResolvedValue(null);
+      const newConflict2 = { id: "conflict-6", machineId: "machine-1" };
+      prisma.machineConflict.create.mockResolvedValue(newConflict2);
+      prisma.machine.findUnique.mockResolvedValue(null);
+      prisma.user.findMany.mockResolvedValue([{ id: "trainer-1" }]);
+      prisma.machineConflict.update.mockResolvedValue({});
+      communicationService.createNotification.mockResolvedValue({});
+
+      await machineConflictService.flagMachineConflict({
+        machineId: "machine-1",
+        firstUsage: { userId: "user-1", id: "usage-1" },
+        secondUsage: { userId: "user-2", id: "usage-2" },
+      });
+
+      expect(communicationService.createNotification).toHaveBeenCalledWith(
+        "trainer-1",
+        expect.any(String),
+        expect.stringContaining("machine-1")
+      );
+    });
   });
 
   describe("getPendingConflicts", () => {
@@ -203,6 +248,47 @@ describe("machineConflict.service", () => {
       await machineConflictService.resolveConflict("conflict-1", "trainer-1", "ONLY_FIRST");
 
       expect(prisma.machineUsage.update).not.toHaveBeenCalled();
+    });
+
+    it("closes only the first usage when resolution is ONLY_SECOND", async () => {
+      prisma.machineConflict.findUnique.mockResolvedValue({
+        id: "conflict-1",
+        resolvedAt: null,
+        firstUsageId: "usage-1",
+        secondUsageId: "usage-2",
+      });
+      prisma.machineUsage.findUnique.mockResolvedValue({ id: "usage-1", endedAt: null });
+      prisma.machineConflict.update.mockResolvedValue({ id: "conflict-1" });
+
+      await machineConflictService.resolveConflict("conflict-1", "trainer-1", "ONLY_SECOND");
+
+      expect(prisma.machineUsage.update).toHaveBeenCalledTimes(1);
+      expect(prisma.machineUsage.update).toHaveBeenCalledWith({
+        where: { id: "usage-1" },
+        data: expect.objectContaining({ durationMinutes: 0 }),
+      });
+    });
+
+    it("does not let a failed trainer order-bonus award break the resolution", async () => {
+      prisma.machineConflict.findUnique.mockResolvedValue({
+        id: "conflict-1",
+        resolvedAt: null,
+        firstUsageId: "usage-1",
+        secondUsageId: "usage-2",
+      });
+      prisma.machineConflict.update.mockResolvedValue({ id: "conflict-1" });
+      gamificationService.addPoints.mockRejectedValueOnce(new Error("points service down"));
+
+      const result = await machineConflictService.resolveConflict(
+        "conflict-1",
+        "trainer-1",
+        "BOTH_PRESENT"
+      );
+
+      // Let the fire-and-forget addPoints().catch() microtask run.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(result).toEqual({ id: "conflict-1" });
     });
 
     it("awards the trainer order bonus after resolving", async () => {

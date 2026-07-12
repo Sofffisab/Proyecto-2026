@@ -1,5 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
+import QRCode from "qrcode";
+import {
+  generateQrToken,
+  generateQrImage,
+  encodeQrPayload,
+  decodeQrPayload,
+} from "../../../src/utils/qr.js";
+
+// NOTE: the suite below ("QR Utils") exercises a *local re-implementation*
+// of QR signing/expiry concepts for documentation purposes; it never
+// imports src/utils/qr.js, so it does not cover the real module. The
+// "src/utils/qr.js (real module)" suite further down covers the actual
+// exported functions.
+describe("src/utils/qr.js (real module)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("generateQrToken", () => {
+    it("returns a valid UUID string", () => {
+      const token = generateQrToken();
+      expect(token).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      );
+    });
+
+    it("returns a different token on each call", () => {
+      const a = generateQrToken();
+      const b = generateQrToken();
+      expect(a).not.toBe(b);
+    });
+  });
+
+  describe("encodeQrPayload / decodeQrPayload", () => {
+    it("round-trips a plain object", () => {
+      const payload = { type: "USER", userId: "user-123", ts: 123456 };
+      const encoded = encodeQrPayload(payload);
+
+      expect(typeof encoded).toBe("string");
+      expect(decodeQrPayload(encoded)).toEqual(payload);
+    });
+
+    it("decodeQrPayload returns null for malformed JSON instead of throwing", () => {
+      expect(decodeQrPayload("{not valid json")).toBeNull();
+    });
+
+    it("decodeQrPayload returns null for undefined/empty input", () => {
+      expect(decodeQrPayload(undefined)).toBeNull();
+      expect(decodeQrPayload("")).toBeNull();
+    });
+  });
+
+  describe("generateQrImage", () => {
+    it("resolves with the data URL returned by the qrcode library", async () => {
+      vi.spyOn(QRCode, "toDataURL").mockResolvedValue("data:image/png;base64,AAAA");
+
+      const result = await generateQrImage({ type: "USER", userId: "user-123" });
+
+      expect(QRCode.toDataURL).toHaveBeenCalledWith(
+        JSON.stringify({ type: "USER", userId: "user-123" })
+      );
+      expect(result).toBe("data:image/png;base64,AAAA");
+    });
+
+    it("wraps and re-throws library errors with a descriptive message", async () => {
+      vi.spyOn(QRCode, "toDataURL").mockRejectedValue(new Error("encoding failed"));
+
+      await expect(generateQrImage({ type: "USER" })).rejects.toThrow(
+        "[QR Utils] Failed to generate QR Image: encoding failed"
+      );
+    });
+  });
+});
 
 const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || process.env.JWT_ACCESS_SECRET;
 const QR_TTL_MS = 5 * 60 * 1000; // 5 minutes

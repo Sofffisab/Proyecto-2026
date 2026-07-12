@@ -83,4 +83,42 @@ describe("NotificationController", () => {
 
     expect(next).toHaveBeenCalledWith(error);
   });
+
+  it("markAsRead calls next(err) when the notification doesn't belong to the caller", async () => {
+    req.params.id = "notif-1";
+    const error = new Error("Forbidden");
+    communicationService.markAsRead.mockRejectedValue(error);
+
+    await notificationController.markAsRead(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("markAllAsRead calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    communicationService.markAllAsRead.mockRejectedValue(error);
+
+    await notificationController.markAllAsRead(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("deleteNotification calls next(err) when the notification doesn't belong to the caller", async () => {
+    req.params.id = "notif-1";
+    const error = new Error("Forbidden");
+    communicationService.deleteNotification.mockRejectedValue(error);
+
+    await notificationController.deleteNotification(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getUnreadCount calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    communicationService.getUnreadCount.mockRejectedValue(error);
+
+    await notificationController.getUnreadCount(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });

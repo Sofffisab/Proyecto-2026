@@ -28,6 +28,37 @@ describe('ComplaintService', () => {
     expect(result.status).toBe('PENDING');
   });
 
+  it('createComplaint rejects reporting yourself', async () => {
+    await expect(
+      complaintService.createComplaint({
+        reporterId: 'user-1',
+        reportedUserId: 'user-1',
+        reason: 'Test',
+      })
+    ).rejects.toThrow('Cannot report yourself');
+  });
+
+  it('createComplaint throws if the reported user does not exist', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      complaintService.createComplaint({
+        reporterId: 'user-1',
+        reportedUserId: 'ghost',
+        reason: 'Test',
+      })
+    ).rejects.toThrow('Reported user not found');
+  });
+
+  it('getComplaintById returns the complaint by id', async () => {
+    prisma.complaint.findUnique.mockResolvedValue({ id: 'complaint-1' });
+
+    const result = await complaintService.getComplaintById('complaint-1');
+
+    expect(result.id).toBe('complaint-1');
+    expect(prisma.complaint.findUnique).toHaveBeenCalledWith({ where: { id: 'complaint-1' } });
+  });
+
   it('approveComplaint setea reviewedAt y resolution', async () => {
     const mockResolved = {
       id: 'complaint-1',
@@ -96,6 +127,39 @@ describe('ComplaintService', () => {
         data: expect.objectContaining({ userId: 'user-2', resolved: false }),
       })
     );
+  });
+
+  it('approveComplaint: does not duplicate the admin alert if one is already open', async () => {
+    prisma.complaint.update.mockResolvedValue({
+      id: 'complaint-1',
+      status: 'APPROVED',
+      reportedUserId: 'user-2',
+    });
+    prisma.complaint.count.mockResolvedValue(5);
+    prisma.pointReviewRequest.findFirst.mockResolvedValue({ id: 'existing-flag' });
+    prisma.pointTransaction.create.mockResolvedValue({});
+    prisma.notification.create.mockResolvedValue({});
+
+    await complaintService.approveComplaint('complaint-1', 'admin-1');
+
+    expect(prisma.pointReviewRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('approveComplaint: logs but does not throw if raising the admin alert fails', async () => {
+    prisma.complaint.update.mockResolvedValue({
+      id: 'complaint-1',
+      status: 'APPROVED',
+      reportedUserId: 'user-2',
+    });
+    prisma.complaint.count.mockResolvedValue(5);
+    prisma.pointReviewRequest.findFirst.mockResolvedValue(null);
+    prisma.pointReviewRequest.create.mockRejectedValue(new Error('db down'));
+    prisma.pointTransaction.create.mockResolvedValue({});
+    prisma.notification.create.mockResolvedValue({});
+
+    await expect(
+      complaintService.approveComplaint('complaint-1', 'admin-1')
+    ).resolves.toBeDefined();
   });
 
   it('rejectComplaint setea reviewedAt sin resolution positiva', async () => {
@@ -180,6 +244,26 @@ describe('ComplaintService', () => {
       expect(prisma.complaint.create).not.toHaveBeenCalled();
     });
 
+    it('falls back to a null gymSessionId and null message when neither is provided', async () => {
+      prisma.complaint.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue({ id: 'trainer-1', role: 'TRAINER' });
+      prisma.complaint.create.mockResolvedValue({ id: 'complaint-1', source: 'AUTO_NO_HELP' });
+
+      await complaintService.createAutoNoHelpComplaint({
+        reporterId: 'user-1',
+        reportedUserId: 'trainer-1',
+      });
+
+      expect(prisma.complaint.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ gymSessionId: null }),
+        })
+      );
+      expect(prisma.complaint.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ gymSessionId: null, message: null }),
+      });
+    });
+
     it('rejects reporting yourself', async () => {
       await expect(
         complaintService.createAutoNoHelpComplaint({
@@ -188,6 +272,64 @@ describe('ComplaintService', () => {
           gymSessionId: 'session-1',
         })
       ).rejects.toThrow('Cannot report yourself');
+    });
+
+    it('throws if the reported trainer does not exist', async () => {
+      prisma.complaint.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        complaintService.createAutoNoHelpComplaint({
+          reporterId: 'user-1',
+          reportedUserId: 'ghost-trainer',
+          gymSessionId: 'session-1',
+        })
+      ).rejects.toThrow('Reported user not found');
+    });
+  });
+
+  describe('createAutoMachineConflictComplaint', () => {
+    it('creates an AUTO_MACHINE_CONFLICT complaint linked to the conflict id', async () => {
+      prisma.complaint.findFirst.mockResolvedValue(null);
+      prisma.complaint.create.mockResolvedValue({
+        id: 'complaint-1',
+        reporterId: 'user-1',
+        reportedUserId: 'user-2',
+        source: 'AUTO_MACHINE_CONFLICT',
+        message: 'conflict-1',
+        status: 'PENDING',
+      });
+
+      const result = await complaintService.createAutoMachineConflictComplaint({
+        reporterId: 'user-1',
+        reportedUserId: 'user-2',
+        conflictId: 'conflict-1',
+      });
+
+      expect(prisma.complaint.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reporterId: 'user-1',
+          reportedUserId: 'user-2',
+          source: 'AUTO_MACHINE_CONFLICT',
+          message: 'conflict-1',
+          status: 'PENDING',
+        }),
+      });
+      expect(result.source).toBe('AUTO_MACHINE_CONFLICT');
+    });
+
+    it('is idempotent: returns the existing complaint instead of duplicating it', async () => {
+      const existing = { id: 'complaint-1', source: 'AUTO_MACHINE_CONFLICT' };
+      prisma.complaint.findFirst.mockResolvedValue(existing);
+
+      const result = await complaintService.createAutoMachineConflictComplaint({
+        reporterId: 'user-1',
+        reportedUserId: 'user-2',
+        conflictId: 'conflict-1',
+      });
+
+      expect(result).toBe(existing);
+      expect(prisma.complaint.create).not.toHaveBeenCalled();
     });
   });
 
@@ -222,6 +364,21 @@ describe('ComplaintService', () => {
       expect(result.source).toBe('TRAINER_REPORT');
     });
 
+    it('falls back to a null message when none is provided', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2', role: 'USER' });
+      prisma.complaint.create.mockResolvedValue({ id: 'complaint-2', source: 'TRAINER_REPORT' });
+
+      await complaintService.createTrainerComplaint({
+        reporterId: 'trainer-1',
+        reportedUserId: 'user-2',
+        reason: 'DAÑO_DE_MAQUINA',
+      });
+
+      expect(prisma.complaint.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ message: null }),
+      });
+    });
+
     it('rejects reporting a non-member (e.g. another trainer)', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'trainer-2', role: 'TRAINER' });
 
@@ -233,6 +390,18 @@ describe('ComplaintService', () => {
         })
       ).rejects.toThrow('Trainers can only report regular members through this endpoint');
       expect(prisma.complaint.create).not.toHaveBeenCalled();
+    });
+
+    it('throws if the reported member does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        complaintService.createTrainerComplaint({
+          reporterId: 'trainer-1',
+          reportedUserId: 'ghost',
+          reason: 'MAL_COMPORTAMIENTO',
+        })
+      ).rejects.toThrow('Reported user not found');
     });
 
     it('rejects reporting yourself', async () => {

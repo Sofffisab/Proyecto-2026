@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // tests). This suite needs the real cron implementation, so unmock it here.
 vi.unmock("../../../src/jobs/index.js");
 
-import { runJobs } from "../../../src/jobs/index.js";
+import { runJobs, runWrappedJob } from "../../../src/jobs/index.js";
 import { recalculatePoints } from "../../../src/jobs/points.job.js";
 import { runAnalyticsJob } from "../../../src/jobs/analytics.job.js";
 import { checkInactiveProgress } from "../../../src/jobs/progress.job.js";
@@ -124,15 +124,42 @@ describe("runJobs", () => {
   });
 });
 
-describe("runWrappedJob - Aislado", () => {
-  // Note: since index.js doesn't directly export a separate 'runWrappedJob' function, 
-  // it instead runs the mathematically-computed 'year' parameter inside runJobs, 
-  // we validate the underlying job's year-parameter logic.
-  it("accepts year as a parameter, defaulting to the current year", async () => {
+describe("runWrappedJob (manual/CLI trigger export)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
     generateAnnualWrapped.mockResolvedValue();
-    
-    // Directly invoke the imported function to validate its signature and default behavior
-    await generateAnnualWrapped(2025);
-    expect(generateAnnualWrapped).toHaveBeenCalledWith(2025);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("generates the wrapped report for the given year", async () => {
+    await runWrappedJob(2024);
+
+    expect(generateAnnualWrapped).toHaveBeenCalledWith(2024);
+  });
+
+  it("defaults to the current year when no year is passed", async () => {
+    vi.setSystemTime(new Date(2026, 6, 11)); // July 11, 2026
+
+    await runWrappedJob();
+
+    expect(generateAnnualWrapped).toHaveBeenCalledWith(2026);
+  });
+
+  it("retries like the other jobs and gives up after RETRY_ATTEMPTS on persistent failure", async () => {
+    generateAnnualWrapped.mockRejectedValue(new Error("DB unavailable"));
+
+    await runWrappedJob(2024);
+
+    expect(generateAnnualWrapped).toHaveBeenCalledTimes(2); // RETRY_ATTEMPTS = 2
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[ERROR]"),
+      expect.stringContaining("generateAnnualWrapped(2024): all attempts exhausted, skipping")
+    );
   });
 });

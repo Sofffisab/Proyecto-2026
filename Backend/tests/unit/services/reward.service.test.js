@@ -155,6 +155,37 @@ describe("RewardService", () => {
       expect(prisma.rewardPendingGrant.create).not.toHaveBeenCalled();
     });
 
+    it("clamps the balance and raises a review request when it hits the hard cap with nothing grantable", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 9999 } });
+      prisma.reward.findMany.mockResolvedValue([]); // nothing in stock
+      prisma.reward.findFirst.mockResolvedValue(null); // nothing affordable either
+      prisma.pointTransaction.create.mockResolvedValue({});
+      prisma.pointReviewRequest.create.mockResolvedValue({});
+
+      await rewardService.autoGrantRewards("user-123");
+
+      expect(prisma.pointTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: "user-123", points: -1 }),
+        })
+      );
+      expect(prisma.pointReviewRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: "user-123", resolved: false }),
+        })
+      );
+    });
+
+    it("does not raise a review request if the hard cap fires but raising it fails (logged, not thrown)", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 10000 } });
+      prisma.reward.findMany.mockResolvedValue([]);
+      prisma.reward.findFirst.mockResolvedValue(null);
+      prisma.pointTransaction.create.mockResolvedValue({});
+      prisma.pointReviewRequest.create.mockRejectedValue(new Error("db down"));
+
+      await expect(rewardService.autoGrantRewards("user-123")).resolves.toBeNull();
+    });
+
     it("closes out an open pending grant once a reward is actually shipped", async () => {
       const mockReward = { id: "reward-1", name: "Coffee", pointsCost: 100, active: true, stock: 3 };
 
@@ -301,6 +332,119 @@ describe("RewardService", () => {
       expect(prisma.reward.findMany).toHaveBeenCalledWith({
         orderBy: { pointsCost: "asc" },
       });
+    });
+  });
+
+  describe("getRewardById", () => {
+    it("returns the reward by id", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "r1", name: "Coffee" });
+
+      const result = await rewardService.getRewardById("r1");
+
+      expect(result.name).toBe("Coffee");
+      expect(prisma.reward.findUnique).toHaveBeenCalledWith({ where: { id: "r1" } });
+    });
+  });
+
+  describe("createReward", () => {
+    it("applies defaults for optional fields", async () => {
+      prisma.reward.create.mockResolvedValue({ id: "r1" });
+
+      await rewardService.createReward({ name: "Coffee", description: "A coffee" });
+
+      expect(prisma.reward.create).toHaveBeenCalledWith({
+        data: {
+          name: "Coffee",
+          description: "A coffee",
+          pointsCost: 0,
+          active: true,
+          stock: 0,
+          isMarketingItem: false,
+        },
+      });
+    });
+
+    it("respects explicitly provided values instead of defaults", async () => {
+      prisma.reward.create.mockResolvedValue({ id: "r1" });
+
+      await rewardService.createReward({
+        name: "Shirt",
+        description: "A shirt",
+        pointsCost: 500,
+        active: false,
+        stock: 10,
+        isMarketingItem: true,
+      });
+
+      expect(prisma.reward.create).toHaveBeenCalledWith({
+        data: {
+          name: "Shirt",
+          description: "A shirt",
+          pointsCost: 500,
+          active: false,
+          stock: 10,
+          isMarketingItem: true,
+        },
+      });
+    });
+  });
+
+  describe("updateReward", () => {
+    it("throws if the reward does not exist", async () => {
+      prisma.reward.findUnique.mockResolvedValue(null);
+
+      await expect(rewardService.updateReward("ghost", { stock: 5 })).rejects.toThrow(
+        "Reward not found"
+      );
+    });
+
+    it("updates the reward without triggering a restock fulfillment when stock did not increase", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "r1", stock: 5 });
+      prisma.reward.update.mockResolvedValue({ id: "r1", stock: 5, active: false });
+
+      await rewardService.updateReward("r1", { active: false });
+
+      expect(prisma.reward.update).toHaveBeenCalled();
+      // No stock number was provided, so the restock branch must not fire.
+      expect(prisma.rewardPendingGrant.findMany).not.toHaveBeenCalled();
+    });
+
+    it("triggers a best-effort fulfillPendingGrants pass when stock increased", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "r1", stock: 0 });
+      prisma.reward.update.mockResolvedValue({ id: "r1", stock: 10 });
+      prisma.rewardPendingGrant.findMany.mockResolvedValue([]);
+
+      await rewardService.updateReward("r1", { stock: 10 });
+      // fulfillPendingGrants runs fire-and-forget; give its microtask a tick
+      await new Promise((r) => setImmediate(r));
+
+      expect(prisma.rewardPendingGrant.findMany).toHaveBeenCalled();
+    });
+
+    it("does not trigger fulfillment when the new stock is lower or equal", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "r1", stock: 10 });
+      prisma.reward.update.mockResolvedValue({ id: "r1", stock: 3 });
+
+      await rewardService.updateReward("r1", { stock: 3 });
+      await new Promise((r) => setImmediate(r));
+
+      expect(prisma.rewardPendingGrant.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getAllRedemptions", () => {
+    it("lists every redemption across all users with reward + user info", async () => {
+      prisma.rewardRedemption.findMany.mockResolvedValue([{ id: "red-1" }]);
+
+      const result = await rewardService.getAllRedemptions();
+
+      expect(result).toEqual([{ id: "red-1" }]);
+      expect(prisma.rewardRedemption.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({ reward: true, user: expect.any(Object) }),
+          orderBy: { createdAt: "desc" },
+        })
+      );
     });
   });
 

@@ -108,4 +108,67 @@ describe("InsightsService", () => {
       expect(prisma.user.count).toHaveBeenCalledWith({ where: { isActive: true } });
     });
   });
+
+  describe("getFullHistoryAdmin", () => {
+    const baseUsers = [
+      {
+        id: "user-1",
+        firstName: "Ana",
+        lastName: "Gomez",
+        email: "ana@example.com",
+        settings: { analyticsConsent: true },
+        gymSessions: [{ id: "s1", checkInAt: new Date(), checkOutAt: new Date(), durationMinutes: 30 }],
+        machineUsages: [{ id: "m1", startedAt: new Date(), endedAt: new Date(), durationMinutes: 10, machine: { name: "Treadmill", zone: "Cardio" } }],
+      },
+      {
+        id: "user-2",
+        firstName: "Ben",
+        lastName: "Lee",
+        email: "ben@example.com",
+        settings: { analyticsConsent: false }, // withdrew consent
+        gymSessions: [],
+        machineUsages: [],
+      },
+    ];
+
+    it("defaults to fully pseudonymous rows (no identifiers) even when not asked otherwise", async () => {
+      prisma.user.findMany.mockResolvedValue(baseUsers);
+
+      const result = await insightsService.getFullHistoryAdmin();
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { role: "USER" } })
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0].userId).toBeUndefined();
+      expect(result[0].name).toBeUndefined();
+      expect(result[0].pseudoId).toBeDefined();
+      expect(result[0].totalSessions).toBe(1);
+      expect(result[0].totalMinutes).toBe(30);
+    });
+
+    it("attaches real identifiers only for consented users when includeIdentifiers=true", async () => {
+      prisma.user.findMany.mockResolvedValue(baseUsers);
+
+      const result = await insightsService.getFullHistoryAdmin({ includeIdentifiers: true });
+
+      const consentedUser = result.find((r) => r.totalSessions === 1);
+      const withdrawnUser = result.find((r) => r.totalSessions === 0);
+
+      expect(consentedUser.name).toBe("Ana Gomez");
+      expect(consentedUser.email).toBe("ana@example.com");
+      // Withdrawn consent overrides includeIdentifiers — never de-anonymized.
+      expect(withdrawnUser.name).toBeUndefined();
+      expect(withdrawnUser.email).toBeUndefined();
+      expect(withdrawnUser.consented).toBe(false);
+    });
+
+    it("returns an empty array when there are no USER-role accounts", async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const result = await insightsService.getFullHistoryAdmin();
+
+      expect(result).toEqual([]);
+    });
+  });
 });

@@ -35,6 +35,28 @@ describe("ChallengeService", () => {
       ).rejects.toThrow("does not have an active gym session");
     });
 
+    it("rejects if either user opted out of machine tracking", async () => {
+      prisma.userSettings.findUnique
+        .mockResolvedValueOnce({ machineTrackingOptOut: true })
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("machine tracking disabled");
+    });
+
+    it("rejects if either user is currently mid-exercise (active machine usage)", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce({ id: "usage-a" })
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("mid-exercise");
+    });
+
     it("creates an ASSIGNED challenge when both users are eligible", async () => {
       prisma.userSettings.findUnique.mockResolvedValue(null);
       prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
@@ -60,6 +82,26 @@ describe("ChallengeService", () => {
   });
 
   describe("acceptChallenge", () => {
+    it("throws 404 if the challenge does not exist", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue(null);
+
+      await expect(challengeService.acceptChallenge("ghost", "user-2")).rejects.toThrow(
+        "Challenge not found"
+      );
+    });
+
+    it("throws if the challenge is not in the ASSIGNED state", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        partnerUserId: "user-2",
+        status: "ACCEPTED",
+      });
+
+      await expect(challengeService.acceptChallenge("c1", "user-2")).rejects.toThrow(
+        "Challenge cannot be accepted in its current state"
+      );
+    });
+
     it("only the challenged partner can accept", async () => {
       prisma.socialChallenge.findUnique.mockResolvedValue({
         id: "challenge-1",
@@ -86,6 +128,40 @@ describe("ChallengeService", () => {
   });
 
   describe("rejectChallenge", () => {
+    it("throws 404 if the challenge does not exist", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue(null);
+
+      await expect(challengeService.rejectChallenge("ghost", "user-1")).rejects.toThrow(
+        "Challenge not found"
+      );
+    });
+
+    it("throws Forbidden if the caller is neither participant", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+        status: "ASSIGNED",
+      });
+
+      await expect(challengeService.rejectChallenge("c1", "user-3")).rejects.toThrow(
+        "Forbidden"
+      );
+    });
+
+    it("throws if the challenge is already resolved (not ASSIGNED/ACCEPTED)", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+        status: "COMPLETED",
+      });
+
+      await expect(challengeService.rejectChallenge("c1", "user-1")).rejects.toThrow(
+        "Challenge cannot be cancelled in its current state"
+      );
+    });
+
     it("awards consolation points to the partner if the assigner backs out after acceptance", async () => {
       prisma.socialChallenge.findUnique.mockResolvedValue({
         id: "challenge-1",
@@ -121,6 +197,27 @@ describe("ChallengeService", () => {
   });
 
   describe("completeChallengeByQR", () => {
+    it("throws 404 if the challenge does not exist", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue(null);
+
+      await expect(
+        challengeService.completeChallengeByQR("ghost", "user-1", "user-2")
+      ).rejects.toThrow("Challenge not found");
+    });
+
+    it("throws if the provided partnerId doesn't match this challenge's match-up", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+        status: "ACCEPTED",
+      });
+
+      await expect(
+        challengeService.completeChallengeByQR("c1", "user-1", "someone-else")
+      ).rejects.toThrow("Provided partnerId does not match this challenge match-up");
+    });
+
     it("rejects if the challenge is not yet ACCEPTED", async () => {
       prisma.socialChallenge.findUnique.mockResolvedValue({
         id: "challenge-1",
@@ -217,6 +314,87 @@ describe("ChallengeService", () => {
       expect(prisma.socialChallenge.update).not.toHaveBeenCalled();
       expect(prisma.socialChallenge.create).not.toHaveBeenCalled();
       expect(result).toBe(existing);
+    });
+  });
+
+  describe("getActiveChallenges / getChallengeHistory / getSocialHistory aliases", () => {
+    it("getActiveChallenges returns ASSIGNED/ACCEPTED challenges involving the user, either side", async () => {
+      prisma.socialChallenge.findMany.mockResolvedValue([{ id: "c1" }]);
+
+      const result = await challengeService.getActiveChallenges("user-1");
+
+      expect(prisma.socialChallenge.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ userId: "user-1" }, { partnerUserId: "user-1" }],
+            status: { in: ["ASSIGNED", "ACCEPTED"] },
+          }),
+        })
+      );
+      expect(result).toEqual([{ id: "c1" }]);
+    });
+
+    it("getActiveSocialChallenges is an alias for getActiveChallenges", async () => {
+      prisma.socialChallenge.findMany.mockResolvedValue([{ id: "c1" }]);
+
+      const result = await challengeService.getActiveSocialChallenges("user-1");
+
+      expect(result).toEqual([{ id: "c1" }]);
+    });
+
+    it("getChallengeHistory returns every challenge regardless of status", async () => {
+      prisma.socialChallenge.findMany.mockResolvedValue([{ id: "c1" }, { id: "c2" }]);
+
+      const result = await challengeService.getChallengeHistory("user-1");
+
+      expect(prisma.socialChallenge.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { OR: [{ userId: "user-1" }, { partnerUserId: "user-1" }] },
+        })
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it("getSocialHistory is an alias for getChallengeHistory", async () => {
+      prisma.socialChallenge.findMany.mockResolvedValue([{ id: "c1" }]);
+
+      const result = await challengeService.getSocialHistory("user-1");
+
+      expect(result).toEqual([{ id: "c1" }]);
+    });
+  });
+
+  describe("getChallengeById", () => {
+    it("returns the challenge when the caller is a participant", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+      });
+
+      const result = await challengeService.getChallengeById("c1", "user-1");
+
+      expect(result.id).toBe("c1");
+    });
+
+    it("returns null when the challenge does not exist", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue(null);
+
+      const result = await challengeService.getChallengeById("ghost", "user-1");
+
+      expect(result).toBeNull();
+    });
+
+    it("throws Forbidden when the caller is not a participant", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "c1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+      });
+
+      await expect(challengeService.getChallengeById("c1", "user-3")).rejects.toThrow(
+        "Forbidden"
+      );
     });
   });
 });

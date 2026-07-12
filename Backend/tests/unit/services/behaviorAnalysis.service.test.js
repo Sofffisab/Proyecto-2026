@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import prisma from "../../../src/config/prisma.js";
 import * as behaviorAnalysis from "../../../src/services/behaviorAnalysis.service.js";
+import * as communicationService from "../../../src/services/communication.service.js";
+
+vi.mock("../../../src/services/communication.service.js");
 
 function session(checkInAt, machineNames) {
   return {
@@ -158,6 +161,119 @@ describe("behaviorAnalysis.service", () => {
 
       expect(result).toBeNull();
       expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("refreshUserBehaviorProfile", () => {
+    it("upserts the computed patterns into the behavior profile table", async () => {
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.userBehaviorProfile.upsert.mockResolvedValue({ userId: "user-1" });
+
+      await behaviorAnalysis.refreshUserBehaviorProfile("user-1");
+
+      expect(prisma.userBehaviorProfile.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "user-1" },
+          update: expect.objectContaining({
+            sessionCount: 0,
+            calculatedAt: expect.any(Date),
+          }),
+          create: expect.objectContaining({
+            userId: "user-1",
+            sessionCount: 0,
+          }),
+        })
+      );
+    });
+
+    it("treats same-timestamp check-ins (zero average gap) as perfectly consistent", async () => {
+      const sameInstant = new Date("2026-01-05T08:00:00Z");
+      const sessions = [
+        session(sameInstant, ["Treadmill"]),
+        session(sameInstant, ["Treadmill"]),
+        session(sameInstant, ["Treadmill"]),
+      ];
+      prisma.gymSession.findMany.mockResolvedValue(sessions);
+      prisma.userBehaviorProfile.upsert.mockResolvedValue({});
+
+      await behaviorAnalysis.refreshUserBehaviorProfile("user-1");
+
+      expect(prisma.userBehaviorProfile.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            consistencyScore: 1,
+            avgSessionsPerWeek: 7,
+          }),
+        })
+      );
+    });
+  });
+
+  describe("runPatternAnalysisForAll", () => {
+    it("skips users with zero sessions", async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }]);
+      prisma.gymSession.findMany.mockResolvedValue([]);
+
+      await behaviorAnalysis.runPatternAnalysisForAll();
+
+      expect(prisma.userBehaviorProfile.upsert).not.toHaveBeenCalled();
+      expect(communicationService.createNotification).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the profile and sends a notification summarising the top day/machine/routine", async () => {
+      const base = new Date("2026-01-05T08:00:00Z"); // Monday
+      const sessions = [0, 7, 14, 21].map((offsetDays) =>
+        session(new Date(base.getTime() + offsetDays * 86400000), ["Treadmill", "Bench Press"])
+      );
+
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }]);
+      prisma.gymSession.findMany.mockResolvedValue(sessions);
+      prisma.userBehaviorProfile.upsert.mockResolvedValue({});
+      prisma.pointTransaction.findFirst.mockResolvedValue({ id: "already-awarded" });
+      communicationService.createNotification.mockResolvedValue({});
+
+      await behaviorAnalysis.runPatternAnalysisForAll();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.userBehaviorProfile.upsert).toHaveBeenCalled();
+      expect(communicationService.createNotification).toHaveBeenCalledWith(
+        "user-1",
+        "Your training patterns",
+        expect.stringContaining("Monday")
+      );
+    });
+
+    it("continues processing remaining users when one user's analysis throws", async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
+      prisma.gymSession.findMany
+        .mockRejectedValueOnce(new Error("db exploded for user-1"))
+        .mockResolvedValueOnce([]);
+
+      await expect(behaviorAnalysis.runPatternAnalysisForAll()).resolves.not.toThrow();
+
+      expect(prisma.gymSession.findMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not let an awardConsistencyBonus failure break the loop", async () => {
+      const base = new Date("2026-01-05T08:00:00Z");
+      // Evenly spaced every 3 days => perfectly consistent and well above the
+      // 2-sessions/week bonus threshold, so awardConsistencyBonus actually
+      // reaches the point-transaction lookup below (instead of bailing out
+      // early on the threshold check).
+      const sessions = [0, 3, 6, 9, 12].map((offsetDays) =>
+        session(new Date(base.getTime() + offsetDays * 86400000), ["Treadmill"])
+      );
+
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }]);
+      prisma.gymSession.findMany.mockResolvedValue(sessions);
+      prisma.userBehaviorProfile.upsert.mockResolvedValue({});
+      prisma.pointTransaction.findFirst.mockRejectedValue(new Error("points db down"));
+      communicationService.createNotification.mockResolvedValue({});
+
+      await expect(behaviorAnalysis.runPatternAnalysisForAll()).resolves.not.toThrow();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.pointTransaction.findFirst).toHaveBeenCalled();
     });
   });
 });

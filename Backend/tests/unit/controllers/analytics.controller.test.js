@@ -56,6 +56,37 @@ describe("AnalyticsController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: metrics });
   });
 
+  it("getFullHistoryAdmin passes includeIdentifiers=true when ?identified=true", async () => {
+    req.query = { identified: "true" };
+    const data = [{ userId: "user-1", name: "Jane" }];
+    insightsService.getFullHistoryAdmin.mockResolvedValue(data);
+
+    await analyticsController.getFullHistoryAdmin(req, res, next);
+
+    expect(insightsService.getFullHistoryAdmin).toHaveBeenCalledWith({ includeIdentifiers: true });
+    expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+
+  it("getFullHistoryAdmin passes includeIdentifiers=false by default (pseudonymized)", async () => {
+    req.query = {};
+    const data = [{ userId: "anon-1" }];
+    insightsService.getFullHistoryAdmin.mockResolvedValue(data);
+
+    await analyticsController.getFullHistoryAdmin(req, res, next);
+
+    expect(insightsService.getFullHistoryAdmin).toHaveBeenCalledWith({ includeIdentifiers: false });
+    expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+
+  it("getFullHistoryAdmin calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    insightsService.getFullHistoryAdmin.mockRejectedValue(error);
+
+    await analyticsController.getFullHistoryAdmin(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
   it("forwards service errors to next() instead of throwing", async () => {
     const error = new Error("boom");
     insightsService.getUserAnalytics.mockRejectedValue(error);
