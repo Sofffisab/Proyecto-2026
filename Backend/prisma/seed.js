@@ -4,7 +4,6 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -21,6 +20,7 @@ async function main() {
       lastName: "User",
       role: "ADMIN",
       isActive: true,
+      objectives: [], 
     },
   });
 
@@ -34,6 +34,7 @@ async function main() {
       lastName: "Trainer",
       role: "TRAINER",
       isActive: true,
+      objectives: [], 
       trainerProfile: {
         create: { specialties: ["STRENGTH", "REHABILITATION"] },
       },
@@ -50,6 +51,7 @@ async function main() {
       lastName: "User",
       role: "USER",
       isActive: true,
+      objectives: ["IMPROVE_HEALTH", "INCREASE_ENDURANCE"],
     },
   });
 
