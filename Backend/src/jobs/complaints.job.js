@@ -2,20 +2,12 @@ import prisma from "../config/prisma.js";
 import { logger } from "../utils/logger.js";
 
 const STALE_AFTER_DAYS = 30;
-// A user accumulating this many PENDING complaints against them is treated
-// as a suspicious-behavior pattern worth an admin's attention, even before
-// any single complaint is decided.
+// This many PENDING complaints against one user flags a suspicious pattern
 const SUSPICIOUS_COMPLAINT_THRESHOLD = 3;
 
 /**
- * Complaints are never auto-approved or auto-rejected by the system — an
- * admin always makes that call. What this job does instead is surface
- * patterns that deserve active review:
- *  - a user with several PENDING complaints against them at once
- *  - a complaint that has sat PENDING for a long time without action
- * Either case raises a suspicious-behavior review alert (PointReviewRequest)
- * so it shows up in the admin's active review queue instead of silently
- * expiring.
+ * Never auto-approves/rejects complaints — only flags patterns for admin
+ * review: many pending complaints on one user, or one stale too long.
  */
 export async function processComplaints() {
   const pending = await prisma.complaint.findMany({

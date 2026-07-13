@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// The global tests/setup.js mock for src/config/redis.js only implements
-// get/set/setex/del/expire (no incr/ttl/decr), which is exactly what makes
-// rateLimiter.js's redisStore() fall back to the in-memory store. To
-// actually exercise the Redis-backed branch (increment/decrement/resetKey),
-// override the mock here with a fuller fake Redis client before importing.
+// The global redis.js mock lacks incr/ttl/decr, which makes redisStore()
+// fall back to in-memory. To exercise the Redis-backed branch, override
+// the mock here with a fuller fake client before importing.
 
 vi.mock("../../../src/config/redis.js", () => ({
   default: {

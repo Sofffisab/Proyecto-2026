@@ -2,23 +2,10 @@ import { firebase } from "../config/firebase.js";
 import prisma from "../config/prisma.js";
 import { logger } from "../utils/logger.js";
 
-/**
- * Sends a "call-style" high priority push notification.
- *
- * IMPORTANT: this is intentionally a DATA-ONLY message (no `notification`
- * block). If we included a `notification` block, Android/iOS would render
- * the OS's own transient banner and the frontend would never get a chance
- * to intercept it and draw the full-screen blocking UI. By sending only
- * `data`, the message is delivered to our own background handler
- * (see Frontend `src/services/sos.service.js`), which is what lets us:
- *   - show a full-screen, non-dismissible screen (Uber/Cabify style)
- *   - keep it ringing until the trainer taps "Ayudar" or "Cerrar"
- *
- * On Android we ask for `priority: "high"` so the OS wakes the app process
- * even if it's backgrounded/killed. On iOS we set `content-available: 1`
- * (background fetch) plus `interruption-level: time-sensitive` so it can
- * bypass Focus/Do Not Disturb the same way a VoIP-style alert would.
- */
+// Sends a "call-style" high-priority push (data-only, no `notification`
+// block) so the frontend can draw its own full-screen, non-dismissible
+// alert. Android uses high priority to wake the app; iOS uses background
+// fetch + time-sensitive interruption to bypass Focus/DND.
 export async function sendTrainerAlert({ trainerIds, type, payload }) {
   if (!firebase) {
     logger.warn("[push] Firebase not initialized — skipping trainer alert push");

@@ -77,8 +77,8 @@ export async function getAllRedemptions(req, res, next) {
   }
 }
 
-// Admin-facing "people waiting for shipment" queue: users who reached the
-// points threshold for a reward while nothing was in stock.
+// Admin queue of users waiting for shipment: reached the points threshold
+// while stock was unavailable.
 export async function getPendingGrants(req, res, next) {
   try {
     const data = await rewardService.getPendingGrants();

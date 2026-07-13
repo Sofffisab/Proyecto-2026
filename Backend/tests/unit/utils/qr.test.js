@@ -8,11 +8,9 @@ import {
   decodeQrPayload,
 } from "../../../src/utils/qr.js";
 
-// NOTE: the suite below ("QR Utils") exercises a *local re-implementation*
-// of QR signing/expiry concepts for documentation purposes; it never
-// imports src/utils/qr.js, so it does not cover the real module. The
-// "src/utils/qr.js (real module)" suite further down covers the actual
-// exported functions.
+// NOTE: this "QR Utils" suite is a local re-implementation for docs only —
+// it never imports src/utils/qr.js. The "(real module)" suite below covers
+// the actual exported functions.
 describe("src/utils/qr.js (real module)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

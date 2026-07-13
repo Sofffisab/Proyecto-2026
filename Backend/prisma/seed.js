@@ -1,19 +1,6 @@
-/**
- * DATABASE SEED SCRIPT — DEVELOPMENT ONLY
- * 
- * ⚠️  WARNING: This script seeds the database with hardcoded test users including
- *     an ADMIN account with password "admin123".
- * 
- * ⚠️  CRITICAL: This script MUST NEVER run on production databases.
- *     Always ensure NODE_ENV !== 'production' before running prisma seed.
- * 
- * Usage:
- *   - Development: npx prisma db seed (runs automatically after prisma migrate dev)
- *   - Manual: npx prisma db seed
- * 
- * To skip the seed during development:
- *   - Set "skipSeed": true in the prisma block of package.json
- */
+// Development-only seed script. Creates hardcoded test users (admin password:
+// "admin123"). Must never run against production — check NODE_ENV first.
+// Run: npx prisma db seed. Skip via "skipSeed": true in package.json's prisma block.
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";

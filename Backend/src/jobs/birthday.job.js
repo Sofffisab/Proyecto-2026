@@ -4,22 +4,16 @@ import { isBirthdayToday } from "../utils/age.js";
 import { sendBirthdayEmail } from "../services/communication.service.js";
 
 /**
- * Runs daily. Finds every active user whose birthday is today and who
- * hasn't already been congratulated this year (throttled via
- * lastBirthdayEmailAt, same pattern as lastHealthEmailAt), sends them a
- * congratulation email + in-app notification, and stamps the throttle.
- *
- * Note: we never store/patch an "age" field here. Age is always derived
- * on read from `birthday` (see utils/age.js / user.service.js). This job's
- * only job is the once-a-year congratulation side effect.
+ * Daily: greets every active user whose birthday is today and hasn't been
+ * congratulated yet this year (throttled via lastBirthdayEmailAt). Age is
+ * never stored — always derived on read from `birthday` (see utils/age.js).
  */
 export async function sendBirthdayGreetings() {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  // Birthday month/day can't be filtered directly in SQL via Prisma without
-  // raw queries, so we narrow with a cheap "has a birthday set" filter and
-  // do the month/day (and leap-year) match in JS via isBirthdayToday().
+  // Month/day matching can't be done directly in SQL via Prisma, so we
+  // narrow with a cheap "has birthday set" filter and match in JS below
   const candidates = await prisma.user.findMany({
     where: { isActive: true, birthday: { not: null } },
     select: { id: true, email: true, firstName: true, birthday: true, lastBirthdayEmailAt: true },

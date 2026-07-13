@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>108/108</span>
+                <span class='fraction'>90/90</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>108/108</span>
+                <span class='fraction'>90/90</span>
             </div>
         
             
@@ -163,25 +163,7 @@
 <a name='L98'></a><a href='#L98'>98</a>
 <a name='L99'></a><a href='#L99'>99</a>
 <a name='L100'></a><a href='#L100'>100</a>
-<a name='L101'></a><a href='#L101'>101</a>
-<a name='L102'></a><a href='#L102'>102</a>
-<a name='L103'></a><a href='#L103'>103</a>
-<a name='L104'></a><a href='#L104'>104</a>
-<a name='L105'></a><a href='#L105'>105</a>
-<a name='L106'></a><a href='#L106'>106</a>
-<a name='L107'></a><a href='#L107'>107</a>
-<a name='L108'></a><a href='#L108'>108</a>
-<a name='L109'></a><a href='#L109'>109</a>
-<a name='L110'></a><a href='#L110'>110</a>
-<a name='L111'></a><a href='#L111'>111</a>
-<a name='L112'></a><a href='#L112'>112</a>
-<a name='L113'></a><a href='#L113'>113</a>
-<a name='L114'></a><a href='#L114'>114</a>
-<a name='L115'></a><a href='#L115'>115</a>
-<a name='L116'></a><a href='#L116'>116</a>
-<a name='L117'></a><a href='#L117'>117</a>
-<a name='L118'></a><a href='#L118'>118</a>
-<a name='L119'></a><a href='#L119'>119</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L101'></a><a href='#L101'>101</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -190,13 +172,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">14x</span>
-<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
@@ -204,11 +179,8 @@
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
-<span class="cline-any cline-yes">14x</span>
-<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">14x</span>
-<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-yes">19x</span>
@@ -227,14 +199,6 @@
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
@@ -303,31 +267,21 @@
 import * as gymService from "../services/gym.service.js";
 &nbsp;
 /**
- * Receives a batch of offline-queued actions and processes them in order.
- * Supported actions: "checkin", "checkout", "machineStart", "machineEnd".
- * Each action that fails is included in the response as an error without
- * aborting the rest of the batch.
- *
- * Input is validated by syncActionsSchema before reaching this controller,
- * so `actions` is guaranteed to be a non-empty array of well-typed objects
- * with valid ISO timestamps and UUID payloads where required.
+ * Processes a batch of offline-queued actions in order (checkin, checkout,
+ * machineStart, machineEnd). Failed actions are reported per-item without
+ * aborting the rest of the batch. Input already validated by syncActionsSchema.
  */
 export async function syncOfflineActions(req, res, next) {
   try {
-    // req.validatedData is guaranteed by syncActionsSchema — no manual
-    // array/length check needed here.
     const { actions } = req.validatedData;
     const results = [];
 &nbsp;
-    // Reject timestamps that are obviously wrong — more than 7 days in
-    // the past or any amount in the future. Online check-ins always use server
-    // time; offline sync must still be within a reasonable window.
+    // Reject timestamps more than 7 days old or in the future
     const MAX_PAST_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
     const now          = Date.now();
 &nbsp;
     for (const action of actions) {
       try {
-        // Validate timestamp range before processing
         const actionTime = new Date(action.timestamp).getTime();
         if (isNaN(actionTime)) {
           results.push({ type: action.type, success: false, error: "Invalid timestamp" });
@@ -345,16 +299,8 @@ export async function syncOfflineActions(req, res, next) {
         let result = null;
 &nbsp;
         if (action.type === "checkin") {
-          // IMPORTANT: go through gymService.checkIn instead of writing the
-          // GymSession row directly. A raw prisma.create here used to skip
-          // points awarding AND the real-time "student needs attention"
-          // trainer alert (notifyAbandoningTrainersOnCheckIn) — meaning a
-          // check-in synced late from an offline queue would silently never
-          // notify a trainer, even though the student may be on the floor
-          // right now. gymService.checkIn always alerts using the current
-          // moment (alertNow, default true) regardless of how old the
-          // synced checkInAt timestamp is, since that's what real-time
-          // attention requires.
+          // Goes through gymService.checkIn (not raw prisma.create) so points
+          // and the real-time trainer alert still fire on synced check-ins
           result = await gymService.checkIn(req.user.id, {
             checkInAt: new Date(action.timestamp),
           });
@@ -424,7 +370,7 @@ export async function syncOfflineActions(req, res, next) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-13T02:32:25.110Z
+                at 2026-07-13T11:32:51.465Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

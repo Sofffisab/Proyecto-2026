@@ -10,29 +10,20 @@ import { logger } from "../utils/logger.js";
 // QR tokens expire after this many milliseconds (default: 5 minutes)
 const QR_TTL_MS = parseInt(process.env.USER_QR_TTL_MS ?? "300000", 10);
 
-// Minimum real minutes a machine usage must have lasted before it earns
-// POINTS.MACHINE_USAGE. Keeps the points economy tied to actual training
-// time instead of quick start/end taps.
+// Minimum real minutes a machine usage must last to earn points
 const MIN_MACHINE_USAGE_MINUTES_FOR_POINTS = parseInt(
   process.env.MIN_MACHINE_USAGE_MINUTES_FOR_POINTS ?? "3",
   10
 );
 
-/**
- * Signs a payload object with HMAC-SHA256 using the server secret.
- * Returns the hex signature.
- */
+/** Signs a payload with HMAC-SHA256 using the server secret; returns hex signature. */
 function signQRPayload(payloadStr) {
   const secret = process.env.QR_HMAC_SECRET ?? process.env.JWT_ACCESS_SECRET;
   if (!secret) throw new Error("QR_HMAC_SECRET is not configured");
   return crypto.createHmac("sha256", secret).update(payloadStr).digest("hex");
 }
 
-/**
- * Generates a signed USER QR payload (HMAC-SHA256), including a timestamp
- * that is verified on scan to enforce a TTL. Synchronous — callers that need
- * an actual scannable image should encode the returned payload themselves.
- */
+/** Generates a signed, timestamped USER QR payload (TTL enforced on scan). */
 export function getUserQR(userId) {
   const ts = Date.now();
   const payload = { userId, type: "USER", ts };
@@ -40,9 +31,8 @@ export function getUserQR(userId) {
   return { ...payload, signature };
 }
 
-// How long a just-replaced token is still honored after rotation, to cover
-// a scan that happened (or was synced from offline storage) while it was
-// still the current token. Configurable, defaults to 15 minutes.
+// Grace period a just-replaced QR token is still honored after rotation
+// (covers scans synced late from offline storage)
 const QR_GRACE_WINDOW_MS = parseInt(process.env.MACHINE_QR_GRACE_WINDOW_MS ?? "900000", 10);
 
 export async function regenerateMachineQR(machineId) {
@@ -57,8 +47,7 @@ export async function regenerateMachineQR(machineId) {
     data: {
       qrToken: token,
       qrTokenUpdatedAt: now,
-      // Keep the outgoing token valid for a short grace window instead of
-      // invalidating it the instant rotation happens.
+      // Keep the previous token valid for a short grace window
       previousQrToken: machine.qrToken,
       previousQrTokenValidUntil: new Date(now.getTime() + QR_GRACE_WINDOW_MS),
     },
@@ -67,12 +56,7 @@ export async function regenerateMachineQR(machineId) {
   return { machineId, token };
 }
 
-/**
- * Daily rotation: every active machine QR (and the machine QRs only —
- * entry/exit is a signed, per-request dynamic payload and doesn't need
- * rotation) gets a brand new token. Runs from the noon cron job, but is
- * idempotent-safe to call more than once a day (it just rotates again).
- */
+/** Daily rotation of all active machine QR tokens (entry/exit QRs don't need this). Safe to call more than once a day. */
 export async function regenerateAllMachineQRCodes() {
   const machines = await prisma.machine.findMany({
     where: { active: true },
@@ -99,11 +83,7 @@ export async function regenerateAllMachineQRCodes() {
   return { regenerated: count };
 }
 
-/**
- * Validates a QR payload (object, or a JSON string that will be parsed).
- * Throws on any invalid payload rather than returning a { valid } flag.
- * Only USER-type payloads require an HMAC signature + TTL check.
- */
+/** Validates a QR payload (object or JSON string), throwing on any invalid case. Only USER-type payloads need a signature + TTL check. */
 export function validateQRPayload(rawPayload) {
   let parsed = rawPayload;
   if (typeof rawPayload === "string") {
@@ -138,11 +118,7 @@ export function validateQRPayload(rawPayload) {
   return parsed;
 }
 
-// Walks MACHINE_USAGE_DURATION_TIERS (longest minimum first) and returns the
-// points for the first tier the duration qualifies for. Falls back to 0 for
-// anything under the shortest tier (callers already gate on
-// MIN_MACHINE_USAGE_MINUTES_FOR_POINTS before calling this, so in practice
-// that floor is never hit here, but it's a safe default regardless).
+// Points for the first duration tier reached (0 if under the shortest tier).
 export function computeMachineUsagePoints(durationMinutes) {
   for (const tier of MACHINE_USAGE_DURATION_TIERS) {
     if (durationMinutes >= tier.minMinutes) return tier.points;
@@ -151,14 +127,8 @@ export function computeMachineUsagePoints(durationMinutes) {
 }
 
 /**
- * Ends any currently-open MachineUsage for a user (if any) — used both when
- * a different machine/entry scan implies the previous one is over, and when
- * the user leaves the gym entirely (see gym.service.js#checkOut). Awards
- * duration-weighted points only if the usage cleared the minimum training
- * time; never blocks the caller's own flow on failure.
- *
- * @param {string} userId
- * @param {string} [reason] - human-readable reason recorded on the point transaction
+ * Ends a user's currently-open MachineUsage, awarding duration-weighted
+ * points if it cleared the minimum training time. Never throws.
  */
 export async function closeOpenMachineUsage(userId, reason = "Machine usage ended") {
   const openUsage = await prisma.machineUsage.findFirst({
@@ -188,7 +158,7 @@ export async function closeOpenMachineUsage(userId, reason = "Machine usage ende
     }
     await checkAndUnlockAchievements(userId);
   } catch (err) {
-    // Points/achievements are best-effort; never block the checkout/scan flow.
+    // Best-effort only; never block the checkout/scan flow
     logger.error("[verification] Failed to award points on machine-usage close:", err.message);
   }
 
@@ -207,9 +177,7 @@ function shapeMachineUsage(usage) {
   return shaped;
 }
 
-// Attaches the "want to turn machine tracking back on?" prompt to a machine
-// scan result when the scanning user has machineTrackingOptOut set but went
-// ahead and scanned a machine QR anyway.
+// Prompts an opted-out user to re-enable tracking if they scan anyway.
 function withOptOutPrompt(result, machineTrackingOptedOut) {
   if (!machineTrackingOptedOut) return result;
   return {
@@ -257,12 +225,8 @@ export async function processScan(scannerId, rawPayload) {
 
       const isCurrentToken = machine.qrToken === qrToken;
 
-      // Grace window: a scan against the token that was replaced by the
-      // most recent rotation still counts, as long as we're within the
-      // window recorded at rotation time. Covers a scan performed (or
-      // synced late from offline storage) while that token was still the
-      // one posted on the machine — it was valid "at the time", even if
-      // rotation has since moved on.
+      // Grace window: a scan against the just-rotated-out token still counts
+      // (covers scans synced late from offline storage)
       const isRecentlyExpiredToken =
         machine.previousQrToken != null &&
         machine.previousQrToken === qrToken &&
@@ -274,17 +238,9 @@ export async function processScan(scannerId, rawPayload) {
       }
     }
 
-    // The user opted out of having machine QRs tracked. That preference
-    // still governs whether *unprompted* machine
-    // data gets used for anything (e.g. AI routine suggestions — see
-    // routine.service.js#getPatternSuggestion), but if they go ahead and
-    // scan a machine QR anyway, we don't silently drop it: the scan is
-    // registered like any other (MachineUsage is created/updated normally),
-    // and the response is flagged so the app can ask the user whether they
-    // want to turn machine tracking back on now that they've shown they're
-    // actually using it. If they decline, nothing changes — they keep using
-    // the app without ever needing to scan a machine QR, but the next one
-    // they do scan is registered and prompted the same way.
+    // Opt-out only affects unprompted use of machine data (e.g. AI routine
+    // suggestions); if the user scans anyway, the scan is still registered
+    // and the response is flagged so the app can offer to re-enable tracking.
     const scannerSettings = await prisma.userSettings.findUnique({
       where: { userId: scannerId },
       select: { machineTrackingOptOut: true },
@@ -292,8 +248,7 @@ export async function processScan(scannerId, rawPayload) {
 
     const machineTrackingOptedOut = Boolean(scannerSettings?.machineTrackingOptOut);
 
-    // Any machine scan proves the user is still physically in the gym —
-    // cancel a pending auto-checkout if one was scheduled/applied.
+    // A scan proves the user is still present — cancel any pending auto-checkout
     await reopenSessionIfAutoClosed(scannerId).catch(() => {});
 
     const openUsage = await prisma.machineUsage.findFirst({
@@ -302,16 +257,12 @@ export async function processScan(scannerId, rawPayload) {
     });
 
     if (openUsage) {
-      // Duration-weighted points, gated by the same minimum-time floor as
-      // before (see computeMachineUsagePoints / closeOpenMachineUsage).
+      // Duration-weighted points, gated by the minimum-time floor
       const updated = await closeOpenMachineUsage(scannerId, "Machine usage ended");
       return withOptOutPrompt(shapeMachineUsage(updated), machineTrackingOptedOut);
     }
 
-    // Scanning a *different* machine without ending the previous one used to
-    // leave that MachineUsage open forever. Close it out first (also
-    // handles the "starting a different machine auto-closes the previous
-    // one" rule) so every usage record is properly bounded.
+    // Starting a different machine auto-closes any other open usage
     const otherOpenUsage = await prisma.machineUsage.findFirst({
       where: { userId: scannerId, endedAt: null, machineId: { not: machineId } },
       orderBy: { startedAt: "desc" },
@@ -321,11 +272,8 @@ export async function processScan(scannerId, rawPayload) {
       await closeOpenMachineUsage(scannerId, "Machine usage auto-closed (started a different machine)");
     }
 
-    // Another user's usage is still open on THIS machine right now (two
-    // people on the same machine). Flag it as suspicious and let
-    // trainers verify — the new usage is still created below (both keep
-    // figuring as using it until a trainer resolves it, or it auto-expires
-    // into a mutual complaint — see machineConflict.service.js).
+    // Another user's usage is still open on this machine — flag as a
+    // conflict for a trainer to verify (see machineConflict.service.js)
     const concurrentUsageByOther = await prisma.machineUsage.findFirst({
       where: { machineId, endedAt: null, userId: { not: scannerId } },
       orderBy: { startedAt: "asc" },
@@ -336,12 +284,8 @@ export async function processScan(scannerId, rawPayload) {
       orderBy: { checkInAt: "desc" },
     });
 
-    // If the user never scanned a check-in but did scan a machine, mark
-    // that scan as both a machine usage AND a check-in: a machine scan
-    // that starts a new usage implies
-    // the user is physically in the gym right now, so if they never
-    // scanned/checked in, open a gym session for them here instead of
-    // leaving the machine usage orphaned (gymSessionId: null).
+    // A machine scan with no active gym session implies the user is
+    // physically present — open a session so the usage isn't orphaned
     let sessionOpenedByMachineScan = false;
     if (!activeSession) {
       activeSession = await gymCheckIn(scannerId);
@@ -357,11 +301,8 @@ export async function processScan(scannerId, rawPayload) {
       },
     });
 
-    // No points here: awarding on "start" is what let a user farm points by
-    // rapidly hopping between machines' start QR codes without training.
-    // Points for this cycle are awarded once, on the matching "end" scan
-    // above, and only if real time was actually spent (see the duration
-    // check there).
+    // Points are awarded on the "end" scan only, to prevent farming by
+    // rapidly hopping between machine start QR codes
 
     if (concurrentUsageByOther) {
       flagMachineConflict({

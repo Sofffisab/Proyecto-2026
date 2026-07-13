@@ -3,10 +3,9 @@ import express from "express";
 import request from "supertest";
 import { authRateLimiter, apiRateLimiter } from "../../../src/middlewares/rateLimiter.js";
 
-// tests/setup.js mocks src/config/redis.js with only get/set/setex/del (no
-// incr/expire/ttl/decr), which is exactly the scenario rateLimiter.js guards
-// against — it must silently fall back to the in-memory store instead of
-// crashing every request with a 500.
+// tests/setup.js mocks redis.js without incr/expire/ttl/decr, the exact
+// scenario rateLimiter.js guards against — it should fall back to the
+// in-memory store instead of crashing every request with a 500.
 
 function buildApp(limiter, { withUser } = {}) {
   const app = express();

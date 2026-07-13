@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/131</span>
+                <span class='fraction'>0/118</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/131</span>
+                <span class='fraction'>0/118</span>
             </div>
         
             
@@ -192,33 +192,7 @@
 <a name='L127'></a><a href='#L127'>127</a>
 <a name='L128'></a><a href='#L128'>128</a>
 <a name='L129'></a><a href='#L129'>129</a>
-<a name='L130'></a><a href='#L130'>130</a>
-<a name='L131'></a><a href='#L131'>131</a>
-<a name='L132'></a><a href='#L132'>132</a>
-<a name='L133'></a><a href='#L133'>133</a>
-<a name='L134'></a><a href='#L134'>134</a>
-<a name='L135'></a><a href='#L135'>135</a>
-<a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a>
-<a name='L138'></a><a href='#L138'>138</a>
-<a name='L139'></a><a href='#L139'>139</a>
-<a name='L140'></a><a href='#L140'>140</a>
-<a name='L141'></a><a href='#L141'>141</a>
-<a name='L142'></a><a href='#L142'>142</a>
-<a name='L143'></a><a href='#L143'>143</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L130'></a><a href='#L130'>130</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -347,22 +321,9 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >/**<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
-<span class="cstat-no" title="statement not covered" > * DATABASE SEED SCRIPT — DEVELOPMENT ONLY</span>
-<span class="cstat-no" title="statement not covered" > * </span>
-<span class="cstat-no" title="statement not covered" > * ⚠️  WARNING: This script seeds the database with hardcoded test users including</span>
-<span class="cstat-no" title="statement not covered" > *     an ADMIN account with password "admin123".</span>
-<span class="cstat-no" title="statement not covered" > * </span>
-<span class="cstat-no" title="statement not covered" > * ⚠️  CRITICAL: This script MUST NEVER run on production databases.</span>
-<span class="cstat-no" title="statement not covered" > *     Always ensure NODE_ENV !== 'production' before running prisma seed.</span>
-<span class="cstat-no" title="statement not covered" > * </span>
-<span class="cstat-no" title="statement not covered" > * Usage:</span>
-<span class="cstat-no" title="statement not covered" > *   - Development: npx prisma db seed (runs automatically after prisma migrate dev)</span>
-<span class="cstat-no" title="statement not covered" > *   - Manual: npx prisma db seed</span>
-<span class="cstat-no" title="statement not covered" > * </span>
-<span class="cstat-no" title="statement not covered" > * To skip the seed during development:</span>
-<span class="cstat-no" title="statement not covered" > *   - Set "skipSeed": true in the prisma block of package.json</span>
-<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >// Development-only seed script. Creates hardcoded test users (admin password:<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
+<span class="cstat-no" title="statement not covered" >// "admin123"). Must never run against production — check NODE_ENV first.</span>
+<span class="cstat-no" title="statement not covered" >// Run: npx prisma db seed. Skip via "skipSeed": true in package.json's prisma block.</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >import { PrismaClient } from "@prisma/client";</span>
 <span class="cstat-no" title="statement not covered" >import bcrypt from "bcrypt";</span>
@@ -496,7 +457,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-13T02:32:25.110Z
+                at 2026-07-13T11:32:51.465Z
             </div>
         <script src="../prettify.js"></script>
         <script>

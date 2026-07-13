@@ -6,9 +6,7 @@ import { AppError } from "../utils/errors.js";
 // Social challenges expire after this long if nobody responds/completes them.
 const CHALLENGE_TTL_HOURS = parseInt(process.env.SOCIAL_CHALLENGE_TTL_HOURS ?? "24", 10);
 
-// Shared eligibility guard used both by the scheduled auto-matching job
-// (assignChallenge) and the instant QR-pairing endpoint (pairFromScan) —
-// the two ways a SocialChallenge can come into existence.
+// Shared eligibility guard for both ways a SocialChallenge can be created
 async function assertChallengeEligibility(userIdA, userIdB) {
   if (userIdA === userIdB) {
     throw new AppError("A user cannot challenge themselves", 400);
@@ -23,10 +21,7 @@ async function assertChallengeEligibility(userIdA, userIdB) {
     throw new AppError("One or both users have social challenges disabled", 400);
   }
 
-  // Social challenges are station/machine-based (they're assigned at a
-  // machine and completed by scanning there). Users who opted out of
-  // machine tracking are excluded from this matching entirely — they keep
-  // interacting with trainers, just not with other members at a machine.
+  // Machine-tracking opt-out excludes users from station-based matching
   if (settingsA?.machineTrackingOptOut || settingsB?.machineTrackingOptOut) {
     throw new AppError("One or both users have machine tracking disabled and cannot be matched for a station challenge", 400);
   }
@@ -39,8 +34,7 @@ async function assertChallengeEligibility(userIdA, userIdB) {
   if (!sessionA) throw new AppError("The first user does not have an active gym session", 400);
   if (!sessionB) throw new AppError("The second user does not have an active gym session", 400);
 
-  // A user mid-exercise (actively using a machine, not yet ended) should not
-  // be interrupted with a new social challenge assignment.
+  // A user mid-exercise shouldn't be interrupted with a new assignment
   const [usageA, usageB] = await Promise.all([
     prisma.machineUsage.findFirst({ where: { userId: userIdA, endedAt: null } }),
     prisma.machineUsage.findFirst({ where: { userId: userIdB, endedAt: null } }),
@@ -82,12 +76,8 @@ export async function assignChallenge(userIdA, userIdB, station) {
   });
 }
 
-// Instant pairing via physical QR exchange: one member's screen shows their
-// personal QR (GET /qr/me), the other scans it with their camera and this
-// is called with the scanned userId. There is no search form — the two
-// phones being next to each other, screen-to-camera, at the same moment
-// *is* the mutual consent, so (unlike assignChallenge, which waits for a
-// separate accept step) the challenge starts life already ACCEPTED.
+// Instant pairing via QR scan: the in-person scan itself is the mutual
+// consent, so the challenge starts already ACCEPTED (unlike assignChallenge)
 export async function pairFromScan(scannerId, targetUserId, station) {
   await assertChallengeEligibility(scannerId, targetUserId);
 
@@ -95,13 +85,10 @@ export async function pairFromScan(scannerId, targetUserId, station) {
 
   if (existing) {
     if (existing.status === "ACCEPTED") {
-      // Duplicate scan (e.g. camera fired twice) — idempotent, just return it.
+      // Duplicate scan — idempotent, just return it
       return existing;
     }
-    // An ASSIGNED challenge already exists between these two (e.g. from the
-    // scheduled auto-matching job). Scanning each other in person is a
-    // stronger signal than that async assignment — upgrade it instead of
-    // erroring out.
+    // Upgrade an existing ASSIGNED challenge instead of erroring out
     return prisma.socialChallenge.update({
       where: { id: existing.id },
       data: { status: "ACCEPTED" },
@@ -152,10 +139,7 @@ export async function rejectChallenge(challengeId, callerId) {
   });
 
   if (previousStatus === "ACCEPTED" && callerId !== challenge.partnerUserId) {
-    // Only the assigner (userId) backing out after the partner already
-    // accepted counts as the partner having "made the effort" — award them
-    // consolation points. If the partner is the one rejecting their own
-    // acceptance, they didn't follow through, so no points are awarded.
+    // Consolation points only if the assigner backed out after acceptance
     await addPoints(
       challenge.partnerUserId,
       POINTS.SOCIAL_CHALLENGE_ATTEMPTED,
@@ -188,8 +172,7 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
   await Promise.all([
     addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
     addPoints(challenge.partnerUserId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
-    // Record the social interaction in both directions so wrapped.service.js's
-    // peopleMetCount (filtered by type: "CHALLENGE_COMPLETED") can find it.
+    // Recorded both ways so wrapped.service.js's peopleMetCount can find it
     prisma.socialInteraction.create({
       data: {
         userId: challenge.userId,
@@ -206,8 +189,7 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
     }),
   ]);
 
-  // A completed challenge can push either participant's social-interaction
-  // count past a badge threshold — best-effort, never blocks the response.
+  // May unlock a social-interaction achievement (best-effort)
   Promise.all([
     checkAndUnlockAchievements(challenge.userId),
     checkAndUnlockAchievements(challenge.partnerUserId),
@@ -263,8 +245,7 @@ export async function getChallengeById(challengeId, userId) {
   return challenge;
 }
 
-// Alias kept for controllers that reference the "social" naming — same data
-// as getChallengeHistory (every SocialChallenge involves two participants).
+// Alias for controllers using the "social" naming
 export async function getSocialHistory(userId) {
   return getChallengeHistory(userId);
 }

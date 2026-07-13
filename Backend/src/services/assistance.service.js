@@ -7,11 +7,8 @@ import { logger } from "../utils/logger.js";
 import { sendTrainerAlert } from "./pushNotification.service.js";
 
 export async function requestAssistance(userId) {
-  // `disableAssistance` opts the user out of proactive/passive trainer
-  // outreach (the priority list, "needs attention" alerts, abandonment
-  // check-in nudges, etc) — see gym.service.js. It must NOT block the user
-  // from explicitly pressing the "Ayuda" button themselves: an explicit
-  // request always goes through, regardless of that preference.
+  // disableAssistance only blocks proactive outreach (see gym.service.js);
+  // an explicit help request always goes through regardless of it
   const requester = await prisma.user.findUnique({
     where: { id: userId },
     select: { firstName: true, lastName: true },
@@ -21,19 +18,14 @@ export async function requestAssistance(userId) {
     data: { userId, status: "PENDING" },
   });
 
-  // Realtime event for trainers who already have the app open in
-  // foreground (dashboard list, etc).
+  // Realtime event for trainers with the app already open
   emitAssistanceEvent("ASSISTANCE_REQUESTED", {
     assistanceId: assistance.id,
     userId,
     requestedAt: assistance.requestedAt,
   });
 
-  // Call-style push so a trainer who does NOT have the app open right now
-  // still gets woken up with the full-screen blocking alert. Broadcast to
-  // every AVAILABLE trainer (first one to hit "Ayudar" wins the assignment
-  // — assignAssistance already guards against double-assignment/BUSY).
-  // Never let a push failure break the assistance request itself.
+  // Push alert to every available trainer (first to accept wins; non-blocking)
   notifyAvailableTrainers(assistance, requester).catch((err) =>
     logger.error("[assistance] Failed to push trainer alert:", err.message)
   );
@@ -68,12 +60,7 @@ async function notifyAvailableTrainers(assistance, requester) {
   });
 }
 
-/**
- * Pure permission check: only TRAINER accounts can be assigned an
- * assistance request. Extracted so callers (routes, other services, tests)
- * can check eligibility without going through the full assignAssistance
- * side-effecting flow.
- */
+/** Permission check: only TRAINER accounts can be assigned assistance. */
 export function canAssign(user) {
   return !!user && user.role === "TRAINER";
 }
@@ -93,9 +80,7 @@ export async function assignAssistance(assistanceId, trainerId) {
   if (!canAssign(trainer)) throw new Error("User is not a trainer");
   if (!trainer.isActive) throw new Error("Trainer account is disabled");
 
-  // A trainer already dictating a class / helping another student must not
-  // be handed a second alert — the profile's availability flag is the source
-  // of truth for that. A trainer with no profile yet is treated as available.
+  // A trainer already busy (class or other assistance) can't be assigned again
   if (trainer.trainerProfile?.availability === "BUSY") {
     throw new Error("Trainer is currently busy and cannot be assigned new assistance");
   }
@@ -117,12 +102,7 @@ export async function assignAssistance(assistanceId, trainerId) {
   return updated;
 }
 
-/**
- * Sets a trainer's availability flag. Used automatically around assignment /
- * completion / cancellation, and also usable by a trainer-facing endpoint so
- * a trainer can manually mark themselves BUSY (e.g. dictating a class) even
- * without an active Assistance record.
- */
+/** Sets a trainer's availability; used both automatically and via manual trainer-facing toggle. */
 export async function setTrainerAvailability(trainerId, availability) {
   if (!["AVAILABLE", "BUSY"].includes(availability)) {
     throw new Error("Invalid availability value");
@@ -166,11 +146,7 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
     await setTrainerAvailability(updated.trainerId, "AVAILABLE");
   }
 
-  // Reward the student for the interaction actually happening — a real,
-  // staff-facilitated engagement is exactly the kind of behavior the gym
-  // wants to encourage (as opposed to just showing up and never asking
-  // for help). Non-blocking: never let a points failure break the
-  // assistance completion itself.
+  // Reward the student for the real, staff-facilitated engagement (non-blocking)
   addPoints(updated.userId, POINTS.ASSISTANCE_COMPLETED, "Trainer assistance completed").catch(
     (err) => logger.error("[assistance] Failed to award assistance points:", err.message)
   );

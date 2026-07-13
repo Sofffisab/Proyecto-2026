@@ -11,7 +11,6 @@ export async function request(req, res, next) {
 
 export async function assign(req, res, next) {
   try {
-    // req.validatedData from assignAssistanceSchema guarantees trainerId is a valid UUID.
     const { trainerId } = req.validatedData;
     const data = await assistanceService.assignAssistance(req.params.id, trainerId);
     res.json({ success: true, data });
@@ -46,8 +45,7 @@ export async function cancel(req, res, next) {
 export async function setAvailability(req, res, next) {
   try {
     const { availability } = req.body;
-    // ADMIN can only manage their own availability if they also hold a trainer
-    // profile; in practice this route is meant for the authenticated trainer.
+    // Meant for the authenticated trainer's own availability
     const data = await assistanceService.setTrainerAvailability(req.user.id, availability);
     res.json({ success: true, data });
   } catch (err) {

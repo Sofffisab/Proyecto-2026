@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { COMPLAINT_REASON_CODES } from "../locales/es.js";
 
-// ── Goal / Progress ──────────────────────────────────────────────────────────
+// Goal / Progress
 
 export const goalSchema = z.object({
   objectiveAction: z.enum(["GAIN", "LOSE", "MAINTAIN"]),
@@ -27,7 +27,7 @@ export const updateProgressSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
-// ── Routines ─────────────────────────────────────────────────────────────────
+// Routines
 
 export const createRoutineSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -40,17 +40,14 @@ export const updateRoutineSchema = z.object({
   content: z.record(z.unknown()).optional(),
 });
 
-// Accepting an AI-suggested routine: the client normally just echoes back
-// what /routines/suggestions/patterns returned, but we allow overriding the
-// name/content in case the user tweaked it before accepting. If omitted,
-// the server recomputes the suggestion fresh from the user's current
-// behavior profile.
+// Accepting an AI-suggested routine: client can override name/content if
+// tweaked, or omit them to let the server recompute fresh.
 export const acceptRoutineSuggestionSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   content: z.record(z.unknown()).optional(),
 });
 
-// ── Rewards ──────────────────────────────────────────────────────────────────
+// Rewards
 
 // stock and isMarketingItem are admin-only fields: managed here, but never
 // returned by the public /rewards endpoint (see reward.service.js).
@@ -78,7 +75,7 @@ export const rejectRedemptionSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-// ── Challenges ───────────────────────────────────────────────────────────────
+// Challenges
 
 export const createChallengeSchema = z.object({
   userIdA: z.string().uuid(),
@@ -89,9 +86,8 @@ export const createChallengeSchema = z.object({
   path: ["userIdB"],
 });
 
-// Instant pairing via QR exchange: one phone shows its personal QR (GET
-// /qr/me), the other scans it and posts the raw payload here. No searcher/
-// form — `payload` is the exact string the scanner's camera read.
+// Instant QR pairing: one phone shows its personal QR, the other scans and
+// posts the raw payload here — no form/searcher involved.
 export const scanUserChallengeSchema = z.object({
   payload: z.string().min(1),
   station: z.string().max(200).optional(),
@@ -103,7 +99,7 @@ export const completeChallengeSchema = z.object({
 
 export const cancelChallengeSchema = z.object({}).optional();
 
-// ── Assistance ───────────────────────────────────────────────────────────────
+// Assistance
 
 export const requestAssistanceSchema = z.object({}).optional();
 
@@ -113,7 +109,7 @@ export const assignAssistanceSchema = z.object({
 
 export const completeAssistanceSchema = z.object({}).optional();
 
-// ── Complaints ───────────────────────────────────────────────────────────────
+// Complaints
 
 export const createComplaintSchema = z.object({
   reportedUserId: z.string().uuid(),
@@ -127,7 +123,7 @@ export const rejectComplaintSchema = z.object({
   reason: z.string().max(500).optional(),
 }).optional();
 
-// ── QR ───────────────────────────────────────────────────────────────────────
+// QR
 
 export const generateQRSchema = z.object({}).optional();
 
@@ -187,19 +183,15 @@ export const pointReviewRequestSchema = z.object({
 export const rateTrainerSchema = z.object({
   trainerId: z.string().uuid(),
   rating: z.number().int().min(1).max(5),
-  // "No me ayudaron" toggle on the rate-trainer popup. When false, an
+  // "They didn't help me" toggle on the rate-trainer popup. When false, an
   // automatic complaint is filed against the trainer alongside the rating.
   helped: z.boolean().optional().default(true),
   // Optional detail the member adds when marking helped = false.
   comment: z.string().trim().max(1000).optional(),
 });
 
-// Enum values are the wire-format contract with the Frontend. As of this
-// writing the Frontend has no complaint-creation screen yet referencing
-// them, so these are defined here as plain English codes (see
-// COMPLAINT_REASON_CODES in src/locales/es.js) rather than Spanish text —
-// if a UI is built to display them, use COMPLAINT_REASON_LABELS_ES to map
-// each code to its Spanish label instead of changing the codes themselves.
+// Wire-format contract with the Frontend (English codes, not Spanish text).
+// See COMPLAINT_REASON_CODES / COMPLAINT_REASON_LABELS_ES in locales/es.js.
 export const createTrainerComplaintSchema = z.object({
   reportedUserId: z.string().uuid(),
   reason: z.enum([
@@ -216,7 +208,7 @@ export const createMachineSchema = z.object({
   name: z.string().trim().min(1).max(200),
 });
 
-// ── Machine conflicts (two people on the same machine) ─────────────────────────
+// Machine conflicts (two people on the same machine)
 
 export const resolveMachineConflictSchema = z.object({
   resolution: z.enum(["BOTH_PRESENT", "NEITHER_PRESENT", "ONLY_FIRST", "ONLY_SECOND"]),

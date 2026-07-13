@@ -1,8 +1,6 @@
 import crypto from "crypto";
 
-/**
- * @param {number} maxAgeSeconds 
- */
+// Adds Cache-Control + ETag headers, replying 304 on a matching If-None-Match.
 export function cacheResponse(maxAgeSeconds = 60) {
   return (req, res, next) => {
     const originalJson = res.json.bind(res);

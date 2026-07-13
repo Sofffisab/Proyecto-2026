@@ -17,13 +17,8 @@ export async function addPoints(userId, points, reason) {
     data: { userId, points, reason },
   });
 
-  // NOTE: leaderboards/public rankings remain intentionally out of scope
-  // (see routes/index.js). Automatic achievement unlocking IS wanted, but is
-  // NOT triggered from here — it's evaluated from the specific activity
-  // that changes each metric (gym check-in/out for streaks, machine usage
-  // ending, social challenge completion) so it always sees fresh data. See
-  // checkAndUnlockAchievements below and its callers in gym.service.js,
-  // verification.service.js and challenge.service.js.
+  // Achievement unlocking is intentionally NOT triggered here — it's checked
+  // from the specific activity that changes each metric, see checkAndUnlockAchievements
   try {
     await autoGrantRewards(userId);
   } catch (err) {
@@ -49,9 +44,7 @@ export async function getPoints(userId) {
   return { totalPoints: agg._sum.points ?? 0, transactions };
 }
 
-// Whether a given achievement's target has been reached, given the user's
-// current totalPoints and the freshly-computed per-metric values from
-// achievementMetrics.service.js. TOTAL_POINTS keeps using the legacy
+// Whether an achievement's target is reached. TOTAL_POINTS uses the legacy
 // `pointsRequired` field; every other metric uses `threshold`.
 function isAchievementEarned(achievement, totalPoints, metrics) {
   if (achievement.metric === "TOTAL_POINTS") {
@@ -61,11 +54,8 @@ function isAchievementEarned(achievement, totalPoints, metrics) {
   return typeof value === "number" && value >= achievement.threshold;
 }
 
-// Personal badge collection: evaluates every Achievement definition against
-// this user's current stats (points, attendance streaks, social
-// interactions, machine usage) and unlocks any newly-earned ones. This is
-// purely personal — there is no public catalog to pick from and no
-// leaderboard; see routes/index.js for why those were intentionally left out.
+// Evaluates every Achievement definition against the user's current stats
+// and unlocks any newly-earned ones (purely personal, no leaderboard)
 export async function checkAndUnlockAchievements(userId) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
@@ -87,9 +77,9 @@ export async function checkAndUnlockAchievements(userId) {
   );
 
   for (const achievement of eligible) {
-    // Atomic: both the unlock record and the bonus points are created together
+    // Atomic: unlock record + bonus points created together
     const unlocked = await prisma.$transaction(async (tx) => {
-      // Double-check inside transaction to prevent race conditions
+      // Double-check inside the transaction to avoid race conditions
       const alreadyUnlocked = await tx.userAchievement.findFirst({
         where: { userId, achievementId: achievement.id },
       });
@@ -99,7 +89,7 @@ export async function checkAndUnlockAchievements(userId) {
         data: { userId, achievementId: achievement.id },
       });
 
-      // Use the constant — not a hardcoded literal
+
       await tx.pointTransaction.create({
         data: {
           userId,
@@ -113,7 +103,7 @@ export async function checkAndUnlockAchievements(userId) {
 
     if (!unlocked) continue;
 
-    // Notify user — non-blocking, outside the transaction
+    // Notify user (non-blocking)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, firstName: true },
@@ -136,9 +126,7 @@ export async function checkAndUnlockAchievements(userId) {
   }
 }
 
-// Badges are never claimed manually — only checkAndUnlockAchievements above
-// grants them, so there is no way for a user to self-award one without
-// actually meeting its threshold.
+// Badges are only ever granted by checkAndUnlockAchievements, never claimed manually
 export async function getAchievements(userId) {
   return prisma.userAchievement.findMany({
     where: { userId },
@@ -146,6 +134,4 @@ export async function getAchievements(userId) {
   });
 }
 
-// No leaderboard/ranking of any kind, public or private — not wanted by
-// the product. Engagement is measured entirely through personal achievement
-// badges (see checkAndUnlockAchievements above), not by comparing users.
+// No leaderboard/ranking by design — engagement is measured via personal badges only

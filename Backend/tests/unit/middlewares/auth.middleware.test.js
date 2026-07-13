@@ -4,7 +4,7 @@ import { authenticate } from "../../../src/middlewares/auth.middleware.js";
 import prisma from "../../../src/config/prisma.js";
 import redis from "../../../src/config/redis.js";
 
-// Explicit local mock to make sure Redis calls are tracked in this unit test environment
+// Local mock so Redis calls are tracked in this test file
 vi.mock("../../../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),

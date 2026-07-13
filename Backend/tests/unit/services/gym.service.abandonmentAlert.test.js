@@ -4,16 +4,10 @@ import * as gamificationService from "../../../src/services/gamification.service
 import * as communicationService from "../../../src/services/communication.service.js";
 import prisma from "../../../src/config/prisma.js";
 
-// notifyAbandoningTrainersOnCheckIn() is NOT exported directly — it's fired
-// (fire-and-forget) from inside checkIn() whenever alertNow is true (the
-// default). These tests drive it through the public checkIn() API and flush
-// the microtask queue, then assert on what it did/didn't tell
-// communication.service to send.
-//
-// This covers src/services/gym.service.js lines ~129-184, which were
-// previously untested: the "who gets alerted and why" business logic
-// (ABANDONMENT_ALERT_THRESHOLD_DAYS comparison, disableAssistance opt-out,
-// dedup of trainerPreference vs. past trainers, "never assisted" case).
+// notifyAbandoningTrainersOnCheckIn() isn't exported — it fires from inside
+// checkIn() when alertNow is true. Tests drive it via checkIn(), flush the
+// microtask queue, and assert what it told communication.service to send
+// (threshold comparison, disableAssistance opt-out, trainer dedup, "never assisted" case).
 
 vi.mock("../../../src/services/gamification.service.js");
 vi.mock("../../../src/services/communication.service.js");

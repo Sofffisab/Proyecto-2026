@@ -4,10 +4,8 @@ import { addPoints } from "./gamification.service.js";
 import { POINTS, CONSISTENCY_BONUS_THRESHOLDS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
 
-// Two sessions are considered "the same routine" when the sets of machines
-// they used overlap by at least this fraction (Jaccard-style similarity).
-// This lets us detect repeated routines even if the user occasionally skips
-// or adds one machine, instead of requiring an exact match.
+// Two sessions count as "the same routine" when their machine sets overlap
+// by at least this fraction (Jaccard similarity) — tolerates skipped/added machines.
 const ROUTINE_SIMILARITY_THRESHOLD = 0.7;
 // A routine signature needs to show up at least this many times before we
 // call it a "pattern" rather than a one-off session.
@@ -18,16 +16,9 @@ const DAY_NAMES = [
 ];
 
 /**
- * Learns a user's training patterns from their raw history:
- *  - which weekdays and hour they usually train
- *  - which machines they use most
- *  - which machine-sequences repeat often enough to count as a "routine"
- *  - how consistent (regular) their attendance cadence is
- *
- * This is the analysis layer other engines (difficulty adjustment, points)
- * read from — see getUserBehaviorProfile below.
- *
- * @param {string} userId
+ * Learns a user's training patterns (frequent days/hours, top machines,
+ * recurring routines, attendance consistency) from their session history.
+ * Other engines (difficulty, points) read this via getUserBehaviorProfile.
  */
 export async function analyzeUserPatterns(userId) {
   const sessions = await prisma.gymSession.findMany({
@@ -38,7 +29,7 @@ export async function analyzeUserPatterns(userId) {
 
   const sessionCount = sessions.length;
 
-  // ---- Weekday + hour frequency ----
+  // Weekday + hour frequency
   const dayCount = {};
   const hourCount = {};
   for (const session of sessions) {
@@ -62,7 +53,7 @@ export async function analyzeUserPatterns(userId) {
     ? Number(Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0][0])
     : null;
 
-  // ---- Most used machines ----
+  // Most used machines
   const machineCount = {};
   for (const session of sessions) {
     for (const usage of session.machineUsages ?? []) {
@@ -76,10 +67,7 @@ export async function analyzeUserPatterns(userId) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  // ---- Recurring routine detection ----
-  // Each session becomes a "signature" (sorted list of distinct machine
-  // names). Sessions with highly overlapping signatures are grouped
-  // together; a group that repeats often enough is reported as a routine.
+  // Recurring routine detection: cluster sessions by machine overlap
   const sessionSignatures = sessions
     .map((session) => {
       const machines = [...new Set((session.machineUsages ?? []).map((u) => u.machine.name))].sort();
@@ -89,9 +77,7 @@ export async function analyzeUserPatterns(userId) {
 
   const routines = detectRoutines(sessionSignatures);
 
-  // ---- Consistency score ----
-  // Based on how regular the gaps between sessions are: low variance in
-  // days-between-sessions relative to the average gap => high consistency.
+  // Consistency score: based on regularity of gaps between sessions
   const { consistencyScore, avgSessionsPerWeek } = computeConsistency(
     sessions.map((s) => new Date(s.checkInAt))
   );
@@ -107,12 +93,7 @@ export async function analyzeUserPatterns(userId) {
   };
 }
 
-/**
- * Groups session machine-signatures into recurring routines using a simple
- * greedy clustering by Jaccard similarity. No external ML dependency needed:
- * the "learning" here is statistical pattern detection over the user's own
- * history, recomputed periodically as more sessions come in.
- */
+/** Groups session machine-signatures into routines via greedy Jaccard-similarity clustering. */
 function detectRoutines(sessionSignatures) {
   const clusters = []; // [{ machines: Set, occurrences: number, lastSeenAt: Date }]
 
@@ -132,8 +113,7 @@ function detectRoutines(sessionSignatures) {
     if (bestCluster && bestScore >= ROUTINE_SIMILARITY_THRESHOLD) {
       bestCluster.occurrences += 1;
       if (checkInAt > bestCluster.lastSeenAt) bestCluster.lastSeenAt = checkInAt;
-      // Keep the signature as the intersection so a routine's reported
-      // machines are the ones consistently present across occurrences.
+      // Keep only machines consistently present across occurrences
       bestCluster.machines = intersect(bestCluster.machines, machineSet);
     } else {
       clusters.push({ machines: machineSet, occurrences: 1, lastSeenAt: checkInAt });
@@ -161,11 +141,7 @@ function intersect(setA, setB) {
   return new Set([...setA].filter((m) => setB.has(m)));
 }
 
-/**
- * Consistency score in [0, 1]: 1 means the user shows up on an almost
- * perfectly regular cadence (low relative variance between session gaps),
- * 0/null means highly irregular / not enough data.
- */
+/** Consistency score in [0,1]: 1 = perfectly regular cadence, 0/null = irregular or not enough data. */
 function computeConsistency(checkInDates) {
   if (checkInDates.length < 3) {
     return { consistencyScore: null, avgSessionsPerWeek: null };
@@ -186,8 +162,7 @@ function computeConsistency(checkInDates) {
   const variance = gaps.reduce((acc, g) => acc + (g - avgGap) ** 2, 0) / gaps.length;
   const stdDev = Math.sqrt(variance);
 
-  // Coefficient of variation, clamped into [0, 1] and inverted so that
-  // "1" means perfectly regular and "0" means wildly irregular.
+  // Coefficient of variation, inverted so 1 = regular, 0 = irregular
   const coefficientOfVariation = stdDev / avgGap;
   const consistencyScore = Number(Math.max(0, 1 - Math.min(1, coefficientOfVariation)).toFixed(2));
 
@@ -197,11 +172,7 @@ function computeConsistency(checkInDates) {
   return { consistencyScore, avgSessionsPerWeek };
 }
 
-/**
- * ISO-week identifier (e.g. "2026-W27") for the given date, used to dedupe
- * the weekly consistency bonus so it can only be granted once per week per
- * user regardless of how many times the analytics job runs that week.
- */
+/** ISO-week id (e.g. "2026-W27"), used to dedupe the weekly bonus per user. */
 function isoWeekKey(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -211,14 +182,7 @@ function isoWeekKey(date) {
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
-/**
- * Rewards attendance that is both FREQUENT and REGULAR — the behavior the
- * gym actually cares about (a single burst of visits doesn't count, and
- * neither does a barely-there but perfectly spaced pattern). Uses the just
- * -recomputed UserBehaviorProfile thresholds (see constants/points.js).
- * Awarded at most once per ISO week per user; safe to call every time the
- * analytics job runs since it checks for an existing transaction first.
- */
+/** Rewards attendance that's both frequent and regular (thresholds in constants/points.js). Once per ISO week per user. */
 export async function awardConsistencyBonus(userId, patterns) {
   const { consistencyScore, avgSessionsPerWeek } = patterns;
   const { MIN_CONSISTENCY_SCORE, MIN_SESSIONS_PER_WEEK } = CONSISTENCY_BONUS_THRESHOLDS;
@@ -274,11 +238,7 @@ export async function refreshUserBehaviorProfile(userId) {
   });
 }
 
-/**
- * Reads the cached behavior profile for a user. Falls back to computing it
- * on demand (without persisting) if the nightly job hasn't run yet for this
- * user, so callers (e.g. future difficulty/points engines) always get a value.
- */
+/** Reads the cached profile, or computes it on demand if the nightly job hasn't run yet. */
 export async function getUserBehaviorProfile(userId) {
   const cached = await prisma.userBehaviorProfile.findUnique({ where: { userId } });
   if (cached) return cached;

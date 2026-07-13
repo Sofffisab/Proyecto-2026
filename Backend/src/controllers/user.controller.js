@@ -12,11 +12,10 @@ export async function getMe(req, res, next) {
 
 export async function updateMe(req, res, next) {
   try {
-    // Use req.validatedData so Zod-sanitized values reach the service,
-    // not raw req.body which may contain extra fields.
+    // req.validatedData holds the Zod-sanitized fields (not raw req.body)
     const user = await userService.update(req.user.id, req.validatedData);
 
-    // Invalidate user cache in Redis
+    // Invalidate cached user
     if (redis) {
       await redis.del(`user:${req.user.id}`);
     }
@@ -87,7 +86,7 @@ export async function changeRole(req, res, next) {
     const targetId = req.params.id;
     const { role } = req.validatedData;
 
-    // An admin cannot modify their own role — prevents accidental self-demotion.
+    // Prevent accidental self-demotion
     if (targetId === req.user.id) {
       return res.status(403).json({
         success: false,
@@ -95,11 +94,7 @@ export async function changeRole(req, res, next) {
       });
     }
 
-    // Fetch the target user to check whether they are already an ADMIN.
-    // One admin should not be able to silently demote another admin; this
-    // requires an extra confirmation step that the client must implement
-    // (e.g. a dedicated "demote admin" flow). Here we block it at the API
-    // level unless the caller explicitly confirms via the `confirm` query param.
+    // Demoting another admin requires explicit ?confirm=true from the client
     const target = await userService.getById(targetId, "ADMIN");
     if (!target) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -115,8 +110,7 @@ export async function changeRole(req, res, next) {
 
     const user = await userService.updateRole(targetId, role);
 
-    // Invalidate user cache in Redis so the new role/privileges take
-    // effect immediately instead of after the 60s cache TTL.
+    // Invalidate cache so the new role takes effect immediately
     if (redis) {
       await redis.del(`user:${targetId}`);
     }
@@ -131,8 +125,7 @@ export async function deactivate(req, res, next) {
   try {
     const user = await userService.deactivateUser(req.params.id);
 
-    // Invalidate user cache in Redis so the deactivation takes effect
-    // immediately instead of after the 60s cache TTL.
+    // Invalidate cache so deactivation takes effect immediately
     if (redis) {
       await redis.del(`user:${req.params.id}`);
     }
@@ -143,7 +136,6 @@ export async function deactivate(req, res, next) {
   }
 }
 
-// Self-service: the authenticated user deactivates their own account.
 export async function deactivateSelf(req, res, next) {
   try {
     const user = await userService.deactivateUser(req.user.id);
@@ -158,8 +150,7 @@ export async function deactivateSelf(req, res, next) {
   }
 }
 
-// Self-service: the authenticated user permanently deletes their own account.
-// Hard-delete; ensure the Prisma schema cascades or the service handles relations.
+// Self-service hard-delete (Prisma schema/service must handle cascading relations)
 export async function deleteSelf(req, res, next) {
   try {
     await userService.deleteUser(req.user.id);
@@ -180,13 +171,13 @@ export async function changePassword(req, res, next) {
 
 export async function updateNotificationPreferences(req, res, next) {
   try {
-    // Always use req.user.id — never trust req.params.id for this endpoint.
+    // Always uses req.user.id, never req.params.id
     const settings = await userService.updateNotificationPreferences(
       req.user.id,
       req.validatedData
     );
 
-    // Invalidate user cache in Redis
+    // Invalidate cached user
     if (redis) {
       await redis.del(`user:${req.user.id}`);
     }
@@ -196,13 +187,13 @@ export async function updateNotificationPreferences(req, res, next) {
     next(err);
   }
 }
-// Fix #11: create/update trainer profile for a given user
+// Creates/updates a trainer profile for a given user
 export async function upsertTrainerProfile(req, res, next) {
   try {
     const targetId = req.params.id;
     const { specialty } = req.validatedData;
 
-    // Verify the target user exists and is a TRAINER (or will become one)
+    // Verify the target user exists
     const target = await userService.getById(targetId, req.user.role);
     if (!target) {
       return res.status(404).json({ success: false, message: "User not found" });

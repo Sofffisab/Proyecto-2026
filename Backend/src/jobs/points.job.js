@@ -1,18 +1,8 @@
 import prisma from "../config/prisma.js";
 import { logger } from "../utils/logger.js";
 
-/**
- * Recalculates total points for every user from their PointTransaction records
- * and logs a summary.
- *
- * This job is a consistency check / repair tool in case individual addPoints
- * calls fail silently. It is NOT the primary source of points — PointTransaction
- * records are the source of truth.
- *
- * NOTE: The UserPoints cache table does not exist in schema.prisma.
- * If a denormalised cache is needed for performance, add the model to the schema
- * and re-enable the upsert below. Until then the job only logs the totals.
- */
+// Consistency check: recomputes each user's total points from PointTransaction
+// (source of truth) and logs it. Not persisted anywhere yet.
 export async function recalculatePoints() {
   let users;
 
@@ -35,8 +25,6 @@ export async function recalculatePoints() {
 
       const total = agg._sum.points ?? 0;
 
-      // Log the result. To persist this to a cache table, add the UserPoints
-      // model to prisma/schema.prisma and replace this log with an upsert.
       logger.info(`[points.job] User ${user.id} total: ${total} pts`);
 
       processed++;

@@ -3,14 +3,8 @@ import { assignChallenge } from "../services/challenge.service.js";
 import { createNotification } from "../services/communication.service.js";
 import { logger } from "../utils/logger.js";
 
-// Users cannot request a social challenge themselves — the app assigns them
-// automatically every so often as a popup, pairing people who are currently
-// training at the gym at the same time. This job is what generates that
-// popup: it looks for eligible pairs of checked-in users and, respecting all
-// the same constraints as assignChallenge (no active session, no mid-exercise
-// interruption, no duplicate active challenge, social disabled, etc.), creates
-// a new SocialChallenge and notifies both participants so the app can surface
-// it as a popup.
+// Auto-pairs checked-in users into social challenges (users can't request
+// these themselves). Same eligibility constraints as assignChallenge.
 const MAX_NEW_CHALLENGES_PER_RUN = 10;
 
 export async function assignRandomChallenges() {
@@ -27,8 +21,7 @@ export async function assignRandomChallenges() {
     return { assigned: 0 };
   }
 
-  // Shuffle so the same two users at the top of the list aren't always
-  // matched first on every run.
+  // Shuffle so the same users aren't always matched first
   const shuffled = [...userIds].sort(() => Math.random() - 0.5);
 
   let assigned = 0;
@@ -55,9 +48,7 @@ export async function assignRandomChallenges() {
 
       assigned++;
     } catch (err) {
-      // Any pair that fails eligibility checks (disabled social, mid-exercise,
-      // an existing active challenge, etc.) is skipped — it must not block
-      // the rest of the pairs from being processed.
+      // Skip pairs that fail eligibility, without blocking the rest
       logger.info(`[challenge.job] Skipped pairing ${userIdA}/${userIdB}: ${err.message}`);
     }
   }

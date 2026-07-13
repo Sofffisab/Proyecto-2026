@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// ── Minimal-profile screen: fixed option sets ──────────────────────────────────
+// Minimal-profile screen: fixed option sets
 export const MAIN_GOAL_OPTIONS = ["LOSE_WEIGHT", "GAIN_MUSCLE", "IMPROVE_HEALTH", "INCREASE_ENDURANCE"];
 export const EXPERIENCE_LEVEL_OPTIONS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
 export const TRAINING_FREQUENCY_OPTIONS = ["ONE_TO_TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN"];
@@ -29,13 +29,9 @@ export const updateSettingsSchema = z.object({
   disableAssistance: z.boolean().optional(),
   disableSocial: z.boolean().optional(),
   trainerPreference: z.string().nullable().optional(),
-  // Opt out of machine tracking: only entry/exit is scanned, no machine
-  // QR is recorded, and the user is dropped from machine-based social
-  // matching. They stay in the trainer's help list, just without any
-  // machine/zone info attached.
+  // Opt out of machine QR scans; only gym entry/exit is tracked.
   machineTrackingOptOut: z.boolean().optional(),
-  // Consent to be included (even pseudonymized) in the admin full
-  // analytics/history export. Defaults to true; users can withdraw it.
+  // Consent to appear (pseudonymized) in admin analytics exports. Default true.
   analyticsConsent: z.boolean().optional(),
 });
 

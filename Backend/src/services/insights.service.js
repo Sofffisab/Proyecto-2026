@@ -1,9 +1,7 @@
 import prisma from "../config/prisma.js";
 import { shapeUserForAnalytics } from "../utils/privacy.js";
 
-// Midpoint (in days/week) used to compare actual attendance against the
-// fixed TrainingFrequency bucket the user picked in pantalla U (perfil
-// profile). SEVEN has no upper bound to average against, so it maps to 7.
+// Midpoint days/week per TrainingFrequency bucket (declared vs actual attendance)
 const TRAINING_FREQUENCY_TARGET_DAYS = {
   ONE_TO_TWO: 1.5,
   THREE: 3,
@@ -13,16 +11,9 @@ const TRAINING_FREQUENCY_TARGET_DAYS = {
   SEVEN: 7,
 };
 
-// ============================================
 // USER ANALYTICS (daily / weekly / monthly)
-// ============================================
 
-/**
- * Returns user activity summary by period.
- * Performs a single query for all sessions and filters them in-memory
- * to prevent executing 4 identical queries against the database.
- * @param {string} userId
- */
+/** User activity summary by period (day/week/month), computed from a single query. */
 export async function getUserAnalytics(userId) {
   const now = new Date();
 
@@ -35,7 +26,7 @@ export async function getUserAnalytics(userId) {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Single query for all user sessions + machine usage, filter in memory
+  // Single query, then filter in memory (avoids 4 near-identical queries)
   const [allSessions, machineUsage, profile] = await Promise.all([
     prisma.gymSession.findMany({ 
       where: { userId },
@@ -45,7 +36,7 @@ export async function getUserAnalytics(userId) {
       where: { userId }, 
       include: { machine: true }
     }),
-    // Minimal-profile data — feeds the goal-adherence comparison below.
+    // Feeds the goal-adherence comparison below
     prisma.user.findUnique({
       where: { id: userId },
       select: { objectives: true, trainingLevel: true, weeklyTrainingDays: true, trainingType: true },
@@ -66,8 +57,7 @@ export async function getUserAnalytics(userId) {
     return acc;
   }, {});
 
-  // Compares the user's declared weekly frequency goal (pantalla U) against
-  // this week's actual check-ins. null when the user hasn't set a goal yet.
+  // Declared weekly frequency goal vs actual check-ins this week (null if no goal set)
   const targetDaysPerWeek = profile?.weeklyTrainingDays
     ? TRAINING_FREQUENCY_TARGET_DAYS[profile.weeklyTrainingDays]
     : null;
@@ -93,9 +83,7 @@ export async function getUserAnalytics(userId) {
   };
 }
 
-/**
- * Returns global gym metrics.
- */
+/** Global gym metrics. */
 export async function getGymAnalytics() {
   const [totalSessions, activeUsers] = await Promise.all([
     prisma.gymSession.count(),
@@ -105,23 +93,10 @@ export async function getGymAnalytics() {
   return { totalSessions, activeUsers };
 }
 
-// ============================================================================
-// ADMIN: full user history/analytics export.
-//
-// This is the endpoint referenced in the "privacy filters on full history"
-// requirement: every row goes through shapeUserForAnalytics(), which is the
-// abstraction/pseudonymization layer that keeps this legal to use for
-// operational analytics without exposing every user's identity by default,
-// and fully honors a user's withdrawn consent (settings.analyticsConsent).
-//
-// - includeIdentifiers=false (default): every row is fully pseudonymous —
-//   no name/email at all, only a stable pseudoId, regardless of consent.
-// - includeIdentifiers=true: real name/email are attached ONLY for users who
-//   have not withdrawn consent. Users with analyticsConsent=false are still
-//   returned (their activity counts for gym-wide stats) but always
-//   pseudonymized — this is enforced inside shapeUserForAnalytics and cannot
-//   be bypassed by the caller.
-// ============================================================================
+// ADMIN: full user history/analytics export. Every row is pseudonymized via
+// shapeUserForAnalytics(), honoring analyticsConsent.
+// - includeIdentifiers=false (default): always pseudonymous (stable pseudoId only)
+// - includeIdentifiers=true: real name/email attached only if consent wasn't withdrawn
 export async function getFullHistoryAdmin({ includeIdentifiers = false } = {}) {
   const users = await prisma.user.findMany({
     where: { role: "USER" },

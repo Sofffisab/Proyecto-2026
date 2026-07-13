@@ -5,10 +5,8 @@ import { createNotification } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 import { MESSAGES } from "../locales/es.js";
 
-// Given the count of APPROVED complaints a user has (including the one
-// currently being approved), returns the penalty to apply for *this*
-// approval. Returns 0 for the free strikes; otherwise grows by STEP for
-// every complaint past the free threshold, capped at MAX_PENALTY.
+// Penalty for this approval, given the count of APPROVED complaints
+// (incl. this one). 0 for free strikes, then +STEP per complaint, capped at MAX_PENALTY.
 function calculateComplaintPenalty(approvedCount) {
   const strikesPastFree = approvedCount - COMPLAINT_PENALTY.FREE_STRIKES;
   if (strikesPastFree <= 0) return 0;
@@ -41,10 +39,8 @@ export async function createComplaint(data) {
   });
 }
 
-// Auto-generated complaint from the rate-trainer popup when the member
-// marks "No me ayudaron". One per (user, trainer, session) — if it already
-// exists (e.g. duplicate submit), just return the existing one instead of
-// throwing, since this path is triggered by the UI, not typed in by hand.
+// Auto-generated when a member marks "didn't help me" on the rate-trainer popup.
+// Idempotent per (user, trainer, session) since it's UI-triggered, not manual.
 export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gymSessionId, comment }) {
   if (reporterId === reportedUserId) {
     throw new Error("Cannot report yourself");
@@ -78,10 +74,8 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
   });
 }
 
-// Auto-generated when a MachineConflict (two people on the same machine)
-// times out without a trainer verifying who was actually there — see
-// machineConflict.service.js#expireUnverifiedConflicts. One per (reporter,
-// reported, conflict) so re-running the expiry job is safe.
+// Auto-generated when a MachineConflict times out unverified
+// (see machineConflict.service.js#expireUnverifiedConflicts). Idempotent per conflict.
 export async function createAutoMachineConflictComplaint({ reporterId, reportedUserId, conflictId }) {
   const existing = await prisma.complaint.findFirst({
     where: {
@@ -105,9 +99,7 @@ export async function createAutoMachineConflictComplaint({ reporterId, reportedU
   });
 }
 
-// Trainer/Admin reporting a member (e.g. broke a machine, misbehaved).
-// Reported user must be a regular member — trainers report members here,
-// not other staff.
+// Trainer/Admin reporting a member; reported user must be a regular member
 export async function createTrainerComplaint({ reporterId, reportedUserId, reason, message }) {
   if (reporterId === reportedUserId) {
     throw new Error("Cannot report yourself");

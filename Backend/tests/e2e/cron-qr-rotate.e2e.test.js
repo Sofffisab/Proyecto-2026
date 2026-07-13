@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 
-// rotateMachineQRCodes (src/jobs/qr.job.js) delegates entirely to
-// regenerateAllMachineQRCodes (already unit-tested in qr.job.test.js).
-// Here we only care about the HTTP wiring in routes/index.js: cronAuth +
-// the try/catch/next around the job, so we mock the service it depends on
-// the same way qr.job.test.js does.
+// rotateMachineQRCodes delegates entirely to regenerateAllMachineQRCodes
+// (already unit-tested). Here we only test the HTTP wiring: cronAuth +
+// the try/catch/next around the job.
 vi.mock('../../src/services/verification.service.js', () => ({
   regenerateAllMachineQRCodes: vi.fn(),
 }));

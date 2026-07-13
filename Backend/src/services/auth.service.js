@@ -32,18 +32,16 @@ export async function register(data) {
     logger.error(`[auth.service] Failed to send welcome email to ${email}:`, err.message)
   );
 
-  // Fix #2: use `userId` consistently in JWT payload so middleware can read it
+  // `userId` field name must stay consistent with what auth.middleware.js reads
   const accessToken = jwt.sign({ userId: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
   const refreshToken = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: "7d" });
 
   return { user: sanitizeUser(user), accessToken, refreshToken };
 }
 
-// Admin creates an account on behalf of a member/trainer. No password is
-// chosen by the admin: we generate a random unusable placeholder hash and
-// immediately issue a "set your password" token (the same mechanism as
-// forgotPassword), then email the person their account + a link to set
-// their password for the first time.
+// Admin creates an account on behalf of a member/trainer: no password is
+// chosen by the admin. Generates an unusable placeholder hash and emails a
+// "set your password" link (same mechanism as forgotPassword).
 export async function createUserByAdmin(data) {
   const { email, firstName, lastName, role = "USER" } = data;
 
@@ -83,7 +81,7 @@ export async function createUserByAdmin(data) {
   return sanitizeUser(user);
 }
 
-// Fix #1: destructure { email, password } so callers can pass the validated object directly
+// Accepts the validated { email, password } object directly
 export async function login({ email, password }) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.isActive) {
@@ -93,7 +91,7 @@ export async function login({ email, password }) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new AppError("Invalid credentials", 401);
 
-  // Fix #2: use `userId` consistently in JWT payload
+  // Keep `userId` field name consistent with the signing side
   const accessToken = jwt.sign({ userId: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
   const refreshToken = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: "7d" });
 
@@ -108,7 +106,7 @@ export async function me(userId) {
 
 export async function refreshToken(token) {
   try {
-    // Fix #2: read `userId` from payload (consistent with sign)
+    // Reads `userId` from payload (consistent with sign)
     const payload = jwt.verify(token, REFRESH_SECRET);
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
 

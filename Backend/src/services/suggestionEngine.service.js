@@ -61,9 +61,7 @@ export async function evaluateUserProgress(userId) {
       );
     }
 
-    // A goal that's been open for a long time without meaningful progress is
-    // the signal we use to recommend seeing a doctor or nutritionist — not
-    // just an in-app reminder, since the person may not be checking the app.
+    // Stalled goals trigger the health-professional recommendation below
     const daysSinceCreated = Math.floor((now - new Date(goal.createdAt)) / (1000 * 60 * 60 * 24));
     if (
       daysSinceCreated >= HEALTH_RECOMMENDATION_STALL_DAYS &&

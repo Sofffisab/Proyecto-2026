@@ -3,7 +3,6 @@ import * as gymService from "../services/gym.service.js";
 export async function checkIn(req, res, next) {
   try {
     const session = await gymService.checkIn(req.user.id);
-    // Consistent API contract: always wrap in { success, data }
     res.json({ success: true, data: session });
   } catch (err) {
     next(err);
@@ -13,7 +12,6 @@ export async function checkIn(req, res, next) {
 export async function checkOut(req, res, next) {
   try {
     const session = await gymService.checkOut(req.user.id);
-    // Consistent API contract: always wrap in { success, data }
     res.json({ success: true, data: session });
   } catch (err) {
     next(err);
@@ -72,7 +70,7 @@ export async function rateTrainer(req, res, next) {
     next(err);
   }
 }
-// Fix #13: return the authenticated user's current session status
+// Returns the authenticated user's current session status
 export async function getGymStatus(req, res, next) {
   try {
     const session = await gymService.getCurrentSession(req.user.id);

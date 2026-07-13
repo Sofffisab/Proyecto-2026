@@ -1,16 +1,14 @@
 import prisma from "../config/prisma.js";
 
-// All streak calculations work in the server's local calendar — a gym
-// session at 11pm and one at 1am the next day are still "different days",
-// same as a member would expect.
+// Streaks use the server's local calendar day/week (11pm and 1am next day
+// still count as different days), matching what a member would expect.
 
 function dateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// ISO-8601-ish week key: year + week number (Monday-start weeks). Good
-// enough for "consecutive weeks" comparisons — we only ever diff adjacent
-// keys, never parse them back into a date.
+// ISO-ish week key (year + Monday-start week number). Only ever diffed
+// against adjacent keys, never parsed back into a date.
 function weekKey(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = (date.getUTCDay() + 6) % 7; // Monday = 0
@@ -24,20 +22,17 @@ function monthKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// Counts back from `now` how many consecutive units (as produced by
-// `keyFn`) have at least one entry in `sortedDatesDesc` (already unique-ish,
-// most recent first). Stops at the first gap. `now` itself doesn't need an
-// entry — e.g. a user who came in every day up to and including yesterday,
-// but hasn't checked in yet today, still has a live streak.
+// Counts consecutive units (from keyFn) with an entry in sortedDatesDesc,
+// stopping at the first gap. `now` itself needs no entry — a user active
+// through yesterday but not yet today still has a live streak.
 function countConsecutiveStreak(datesDesc, keyFn, stepBack, now = new Date()) {
   const keysPresent = new Set(datesDesc.map(keyFn));
 
   let streak = 0;
   let cursor = now;
 
-  // If "today" (the current unit) has no activity yet, that's fine — we
-  // just start counting from the previous unit instead, so an in-progress
-  // day doesn't wrongly reset an otherwise-live streak to 0.
+  // No activity in the current unit yet? Start counting from the previous
+  // one so an in-progress day doesn't reset a live streak to 0.
   if (!keysPresent.has(keyFn(cursor))) {
     cursor = stepBack(cursor);
   }
@@ -105,10 +100,7 @@ export async function getMachineUsesCount(userId) {
   return prisma.machineUsage.count({ where: { userId, endedAt: { not: null } } });
 }
 
-/**
- * Computes every metric an Achievement can be evaluated against, in one
- * pass, so checkAndUnlockAchievements doesn't re-query per achievement row.
- */
+/** Computes every metric an Achievement can be evaluated against in one pass. */
 export async function computeUserMetrics(userId, now = new Date()) {
   const [streakDays, streakWeeks, streakMonths, socialInteractions, machineUses] = await Promise.all([
     getStreakDays(userId, now),

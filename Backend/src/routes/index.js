@@ -32,7 +32,7 @@ import * as challengeSchemas from "../validators/challenge.schemas.js";
 
 const router = express.Router();
 
-// ── CRON / JOB TRIGGER ROUTE ─────────────────────────────────────────────────
+// CRON / JOB TRIGGER ROUTE
 // Vercel Cron Jobs invoke the configured path with GET (see vercel.json);
 // POST is also kept so the job can still be triggered manually/for testing.
 const cronAuth = (req, res, next) => {
@@ -59,35 +59,30 @@ const qrRotateHandler = async (req, res, next) => {
 router.get("/cron/qr-rotate", cronAuth, qrRotateHandler);
 router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 
-// ── PUBLIC / AUTH ROUTES ──────────────────────────────────────────────────────
+// PUBLIC / AUTH ROUTES
 router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema), authController.register);
 router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema), authController.login);
 router.post("/auth/refresh-token",   validateSchema(authSchemas.refreshTokenSchema), authController.refreshToken);
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
 router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas.resetPasswordSchema), authController.resetPassword);
 
-// Scoped (not blanket) so that requests to genuinely unmatched routes
-// (e.g. GET /route-that-does-not-exist) fall through to the 404 handler
-// in server.js instead of being swallowed here as a 401. Every prefix
-// below corresponds to a route actually registered further down.
+// Scoped (not blanket) so unmatched routes still fall through to the 404
+// handler instead of a 401 here. Matches routes registered below.
 const PROTECTED_PREFIXES = [
   "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
   "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
-// First-time-login lock: blocks regular members from the rest of the API
-// until they've filled in the mandatory profile data (medical, birthday,
-// address). Runs after authenticate (needs req.user) and before the rest
-// of the protected routes; exempt paths (auth, own profile, notifications)
-// are whitelisted inside the middleware itself.
+// Blocks members from the rest of the API until required profile data is
+// filled in. Runs after authenticate; exempt paths are whitelisted inside.
 router.use(PROTECTED_PREFIXES, requireCompleteProfile);
 router.use(PROTECTED_PREFIXES, apiRateLimiter);
 
 router.post("/auth/logout", authController.logout);
 router.post("/auth/users",  authorize(["ADMIN"]), validateSchema(authSchemas.createUserByAdminSchema), authController.createUserByAdmin);
 
-// ── USERS ROUTES ──────────────────────────────────────────────────────────────
+// USERS ROUTES
 router.get("/users/me",             userController.getMe);
 // Authenticated alias for /users/me
 router.get("/user/profile",         userController.getMe);
@@ -103,11 +98,11 @@ router.patch("/users/:id/role",     authorize(["ADMIN"]), validateSchema(userSch
 router.patch("/users/:id/status",   authorize(["ADMIN"]), validateSchema(userSchemas.deactivateUserSchema), userController.deactivate);
 router.post("/users/:id/trainer-profile", authorize(["ADMIN", "TRAINER"]), validateSchema(userSchemas.trainerProfileSchema), userController.upsertTrainerProfile);
 
-// ── TRAINER ROUTES ────────────────────────────────────────────────────────────
+// TRAINER ROUTES
 router.get("/trainers",             userController.getTrainers);
 router.get("/trainers/:id",         userController.getTrainerById);
 
-// ── GYM ACCESS ROUTES ─────────────────────────────────────────────────────────
+// GYM ACCESS ROUTES
 router.get("/gym/status",           gymController.getGymStatus);
 router.post("/gym/checkin",         gymController.checkIn);
 router.post("/gym/checkout",        gymController.checkOut);
@@ -117,14 +112,14 @@ router.get("/gym/sessions",         gymController.getSessionHistory);
 router.get("/gym/sessions/:id",     gymController.getSessionById);
 router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);
 
-// ── PROGRESS & GOALS ROUTES ───────────────────────────────────────────────────
+// PROGRESS & GOALS ROUTES
 router.post("/goals",               validateSchema(progressSchemas.goalSchema), progressController.createGoal);
 router.get("/goals",                progressController.getGoals);
 router.post("/progress",            validateSchema(progressSchemas.createProgressSchema), progressController.addProgressLog);
 router.get("/progress/history",     progressController.getProgressHistory);
 router.put("/progress/:id",         validateSchema(progressSchemas.updateProgressSchema), progressController.updateProgressLog);
 
-// ── ROUTINES ROUTES ───────────────────────────────────────────────────────────
+// ROUTINES ROUTES
 router.post("/routines",                    validateSchema(progressSchemas.createRoutineSchema), routineController.create);
 router.get("/routines",                     routineController.getAll);
 router.get("/routines/suggestion",          routineController.getSuggestion);
@@ -143,17 +138,15 @@ router.patch("/routines/requests/:id/reject", routineController.rejectRequest);
 router.patch("/routines/requests/:id/complete", routineController.completeRequest);
 router.patch("/routines/:id/day/:dayIndex", routineController.completeDay);
 
-// ── REWARDS ROUTES ────────────────────────────────────────────────────────────
+// REWARDS ROUTES
 // No catalog / no user choice: rewards are granted automatically by point
 // threshold (see reward.service.js#autoGrantRewards) and shipped by the gym.
 router.get("/rewards",                      rewardController.getAvailableRewards);
 router.get("/rewards/redemptions/me",       rewardController.getUserRedemptions);
 router.get("/rewards/redemptions",          authorize(["ADMIN"]), rewardController.getAllRedemptions);
 router.patch("/rewards/redemptions/:id",    authorize(["ADMIN"]), rewardController.updateRedemptionStatus);
-// People who qualified by points but had nothing in stock to ship —
-// resolved automatically once an admin restocks a matching reward (see
-// reward.service.js#fulfillPendingGrants), but this lets admins see the
-// backlog and prioritize restocking in the meantime.
+// People who qualified by points but had nothing in stock; auto-resolved on
+// restock (reward.service.js#fulfillPendingGrants). Lets admins see the backlog.
 router.get("/rewards/pending",              authorize(["ADMIN"]), rewardController.getPendingGrants);
 
 // Admin-only catalog management: includes stock and isMarketingItem, never
@@ -163,22 +156,16 @@ router.post("/rewards",                     authorize(["ADMIN"]), validateSchema
 router.patch("/rewards/:id",                authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
 router.get("/rewards/:id",                  authorize(["ADMIN"]), rewardController.getRewardById);
 
-// ── GAMIFICATION ROUTES ───────────────────────────────────────────────────────
+// GAMIFICATION ROUTES
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
-// Personal badges (above) are auto-unlocked from activity — see
-// gamification.service.js#checkAndUnlockAchievements. There is no manual
-// claim endpoint, no browsable catalog, and no leaderboard/ranking route
-// (public, private, or per-challenge) — none of that is wanted by the
-// product. Badges are earned purely from attendance frequency/consistency,
-// social interactions, and machine usage.
+// Badges (above) auto-unlock from activity (see gamification.service.js).
+// No manual claim, catalog, or leaderboard route — by design.
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
 
-// ── CHALLENGES ROUTES ─────────────────────────────────────────────────────────
-// Challenges are never created from a form/searcher. They come to exist in
-// one of two ways: assigned automatically by the app (popup-style) via the
-// scheduled challenge job, or paired instantly through a physical QR
-// exchange (POST /challenges/scan-user, below).
+// CHALLENGES ROUTES
+// Challenges are never created from a form: auto-assigned by the scheduled
+// job, or paired instantly via QR exchange (scan-user, below).
 router.get("/challenges",                   challengeController.getAll);
 router.get("/challenges/active",            challengeController.getActive);
 // Instant pairing via QR exchange — no form/searcher. See scanUser controller.
@@ -189,7 +176,7 @@ router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.comp
 router.patch("/challenges/:id/cancel",      challengeController.cancel);
 // No per-challenge leaderboard route — no rankings anywhere in the product.
 
-// ── ASSISTANCE ROUTES ─────────────────────────────────────────────────────────
+// ASSISTANCE ROUTES
 router.post("/assistance/request",          assistanceController.request);
 router.get("/assistance/active",            assistanceController.getPending);
 router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
@@ -197,7 +184,7 @@ router.patch("/assistance/:id/complete",    assistanceController.complete);
 router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);
 
-// ── COMPLAINTS ROUTES ─────────────────────────────────────────────────────────
+// COMPLAINTS ROUTES
 router.post("/complaints",                  validateSchema(progressSchemas.createComplaintSchema), complaintController.createComplaint);
 // Trainer -> member reports (equipment damage, misconduct, etc.), separate
 // from the generic member-to-member complaint above.
@@ -207,7 +194,7 @@ router.get("/complaints",                   authorize(["ADMIN"]), complaintContr
 router.patch("/complaints/:id/resolve",     authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
 router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema(progressSchemas.rejectComplaintSchema), complaintController.rejectComplaint);
 
-// ── QR MANAGEMENT ROUTES ──────────────────────────────────────────────────────
+// QR MANAGEMENT ROUTES
 router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
 router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
@@ -219,14 +206,14 @@ router.delete("/qr/machines/:id",           authorize(["ADMIN"]), qrController.d
 router.get("/qr/machine-conflicts",             authorize(["TRAINER", "ADMIN"]), machineConflictController.getPendingConflicts);
 router.patch("/qr/machine-conflicts/:id/resolve", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.resolveMachineConflictSchema), machineConflictController.resolveConflict);
 
-// ── NOTIFICATIONS ROUTES ──────────────────────────────────────────────────────
+// NOTIFICATIONS ROUTES
 router.get("/notifications",               notificationController.getNotifications);
 router.get("/notifications/unread-count",  notificationController.getUnreadCount);
 router.patch("/notifications/read-all",    notificationController.markAllAsRead);
 router.patch("/notifications/:id/read",    notificationController.markAsRead);
 router.delete("/notifications/:id",        notificationController.deleteNotification);
 
-// ── ANALYTICS ROUTES ──────────────────────────────────────────────────────────
+// ANALYTICS ROUTES
 router.get("/analytics/me",          analyticsController.getUserAnalytics);
 router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.getGymAnalytics);
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
@@ -237,17 +224,17 @@ router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.g
 // pseudonymization layer — see insights.service.js#getFullHistoryAdmin.
 router.get("/analytics/admin/history", authorize(["ADMIN"]), analyticsController.getFullHistoryAdmin);
 
-// ── TRAINER NOTES ROUTES ──────────────────────────────────────────────────────
+// TRAINER NOTES ROUTES
 router.get("/users/:id/notes",             authorize(["TRAINER", "ADMIN"]), noteController.getNotes);
 router.post("/users/:id/notes",            authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.createNoteSchema), noteController.createNote);
 router.put("/users/:id/notes/:noteId",     authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.createNoteSchema), noteController.updateNote);
 router.delete("/users/:id/notes/:noteId",  authorize(["TRAINER", "ADMIN"]), noteController.deleteNote);
 
-// ── ADMINISTRATIVE REVIEW REQUESTS ────────────────────────────────────────────
+// ADMINISTRATIVE REVIEW REQUESTS
 router.get("/admin/review-requests",               authorize(["ADMIN"]), gamificationController.getReviewRequests);
 router.patch("/admin/review-requests/:id/resolve", authorize(["ADMIN"]), gamificationController.resolveReviewRequest);
 
-// ── OFFLINE SYNC ROUTE ────────────────────────────────────────────────────────
+// OFFLINE SYNC ROUTE
 router.post("/sync", validateSchema(progressSchemas.syncActionsSchema), syncController.syncOfflineActions);
 
 export default router;

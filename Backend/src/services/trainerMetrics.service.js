@@ -1,12 +1,7 @@
-// src/services/trainerMetrics.service.js
 import prisma from "../config/prisma.js";
 
-/**
- * Recalculates and persists trainer profile metrics:
- * total completed assistances, average rating, and total ratings count.
- * Must be called after each completeAssistance and new TrainerRating.
- * @param {string} trainerId
- */
+// Recalculates and persists trainer metrics (completed assistances, average
+// rating, ratings count). Call after each completeAssistance / new TrainerRating.
 export async function updateTrainerMetrics(trainerId) {
   const [completedAssistances, ratingsAgg] = await Promise.all([
     prisma.assistance.count({

@@ -5,15 +5,7 @@ import { POINTS, MACHINE_CONFLICT_VERIFICATION_WINDOW_MS } from "../constants/po
 import { logger } from "../utils/logger.js";
 import { MESSAGES } from "../locales/es.js";
 
-/**
- * Raises a MachineConflict when a scan opens a new MachineUsage on a machine
- * that already has a different user's usage open (two people on the same
- * machine). Idempotent per machine: if there's already an unresolved
- * conflict on it, we don't create a duplicate, just leave it open.
- * Notifies every TRAINER (in-app) to go verify in person who's actually there.
- *
- * @param {{ machineId: string, firstUsage: object, secondUsage: object }} params
- */
+/** Raises a MachineConflict for two overlapping usages on the same machine and notifies all trainers. Idempotent per machine. */
 export async function flagMachineConflict({ machineId, firstUsage, secondUsage }) {
   const existing = await prisma.machineConflict.findFirst({
     where: { machineId, resolvedAt: null },
@@ -69,9 +61,7 @@ export async function flagMachineConflict({ machineId, firstUsage, secondUsage }
   return conflict;
 }
 
-/**
- * Trainer-facing: list conflicts still awaiting verification.
- */
+/** Trainer-facing: conflicts still awaiting verification. */
 export async function getPendingConflicts() {
   return prisma.machineConflict.findMany({
     where: { resolvedAt: null },
@@ -84,17 +74,7 @@ export async function getPendingConflicts() {
   });
 }
 
-/**
- * A trainer verifies in person and reports what's actually happening.
- * Ends the MachineUsage of whichever user(s) the trainer confirms are NOT
- * actually there (no points for a usage closed this way — nothing was
- * really trained). The trainer's small contribution to keeping order is
- * rewarded — see POINTS.TRAINER_ORDER_BONUS.
- *
- * @param {string} conflictId
- * @param {string} trainerId
- * @param {"BOTH_PRESENT"|"NEITHER_PRESENT"|"ONLY_FIRST"|"ONLY_SECOND"} resolution
- */
+/** Trainer resolves the conflict in person, closing the usage(s) of whoever wasn't really there. */
 export async function resolveConflict(conflictId, trainerId, resolution) {
   const conflict = await prisma.machineConflict.findUnique({ where: { id: conflictId } });
   if (!conflict) throw new Error("Machine conflict not found");
@@ -108,7 +88,7 @@ export async function resolveConflict(conflictId, trainerId, resolution) {
   } else if (resolution === "ONLY_SECOND") {
     usersNotPresent.push(conflict.firstUsageId);
   }
-  // BOTH_PRESENT: nothing to close, both usages are legitimate.
+  // BOTH_PRESENT: nothing to close
 
   for (const usageId of usersNotPresent) {
     const usage = await prisma.machineUsage.findUnique({ where: { id: usageId } });
@@ -125,7 +105,7 @@ export async function resolveConflict(conflictId, trainerId, resolution) {
     data: { resolvedAt: new Date(), resolvedBy: trainerId, resolution },
   });
 
-  // Small points bonus for the trainer who helped keep order on the floor.
+  // Small bonus for the trainer who helped keep order
   addPoints(trainerId, POINTS.TRAINER_ORDER_BONUS, "Verified a machine-usage conflict").catch((err) =>
     logger.error("[machineConflict] Failed to award trainer order bonus:", err.message)
   );
@@ -133,13 +113,7 @@ export async function resolveConflict(conflictId, trainerId, resolution) {
   return updated;
 }
 
-/**
- * Cron-driven: any conflict still unresolved past
- * MACHINE_CONFLICT_VERIFICATION_WINDOW_MS gets auto-marked UNVERIFIED.
- * Nothing is force-closed — both usages are left as-is, "deja que figuren
- * los 2" — but a complaint (denuncia) is raised against both users so an
- * admin can review the pattern.
- */
+/** Cron: marks conflicts unresolved past the verification window as UNVERIFIED and raises a mutual complaint. */
 export async function expireUnverifiedConflicts() {
   const cutoff = new Date(Date.now() - MACHINE_CONFLICT_VERIFICATION_WINDOW_MS);
 
@@ -149,9 +123,7 @@ export async function expireUnverifiedConflicts() {
 
   if (stale.length === 0) return { expired: 0 };
 
-  // Lazy import to avoid a require-cycle at module load time
-  // (complaint.service.js doesn't depend on this module, but keeping the
-  // import local here mirrors the pattern used elsewhere in this codebase).
+  // Lazy import to avoid a require-cycle
   const { createAutoMachineConflictComplaint } = await import("./complaint.service.js");
 
   let expired = 0;
@@ -162,9 +134,7 @@ export async function expireUnverifiedConflicts() {
         data: { resolvedAt: new Date(), resolution: "UNVERIFIED" },
       });
 
-      // A denuncia for each user, reported by the other — mutual, since
-      // there's no system/staff account to attribute an automatic report to,
-      // and nobody could confirm who (if anyone) was actually at fault.
+      // Mutual complaint: no system account to attribute fault to either side
       await createAutoMachineConflictComplaint({
         reporterId: conflict.secondUserId,
         reportedUserId: conflict.firstUserId,

@@ -416,7 +416,7 @@ describe("GymService", () => {
 
       const result = await gymService.getPresentUsers();
 
-      // Same lastAssistanceAt, neither prefers this trainer => older account (user-B) first.
+      // Same lastAssistanceAt, no preference => older account (user-B) first.
       expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
     });
 

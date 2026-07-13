@@ -8,10 +8,8 @@ import {
 } from "../../../src/validators/progress.schemas.js";
 import { COMPLAINT_REASON_CODES } from "../../../src/locales/es.js";
 
-// This file does not re-test every field of every schema (that would just
-// re-describe Zod itself). It focuses on the schemas that carry actual
-// business rules: cross-field refinements, discriminated unions, and
-// defaults, where a typo or regression would silently break behavior.
+// Focuses on schemas with real business rules (cross-field refinements,
+// discriminated unions, defaults) rather than re-testing every field.
 
 describe("progress.schemas", () => {
   describe("goalSchema", () => {

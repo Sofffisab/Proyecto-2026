@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// tests/setup.js globally mocks src/config/redis.js so the rest of the
-// suite never touches the real Upstash SDK. To actually exercise this
-// module's own conditional-initialization logic, unmock it here and
-// re-import it fresh (with a mocked @upstash/redis and controlled env
-// vars) for each branch.
+// tests/setup.js globally mocks redis.js so the suite never touches the
+// real Upstash SDK. To exercise this module's own init logic, unmock it
+// and re-import fresh with a mocked @upstash/redis per branch.
 vi.unmock("../../../src/config/redis.js");
 
 const RedisConstructorMock = vi.fn();

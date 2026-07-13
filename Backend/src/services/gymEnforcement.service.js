@@ -1,11 +1,7 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/errors.js";
 
-/**
- * Enforces machine access restrictions based on active social challenges.
- * User cannot use machines if they have an active ACCEPTED_BY_BOTH social challenge.
- * Call this before allowing machine usage.
- */
+// Blocks machine usage while the user has an active ACCEPTED_BY_BOTH social challenge.
 export async function enforceNoActiveChallengeForMachineUsage(userId) {
   const activeChallenge = await prisma.socialChallenge.findFirst({
     where: {

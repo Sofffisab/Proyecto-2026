@@ -21,8 +21,7 @@ export async function getGymAnalytics(req, res, next) {
 }
 
 // Exposes the learned behavior profile (frequent days/hour, top machines,
-// detected recurring routines, consistency score) so the app can show the
-// user their own patterns and so other engines can be built on top of it.
+// consistency score) so the app and other engines can use it.
 export async function getUserPatterns(req, res, next) {
   try {
     const data = await behaviorAnalysisService.getUserBehaviorProfile(req.user.id);
@@ -32,7 +31,7 @@ export async function getUserPatterns(req, res, next) {
   }
 }
 
-// Fix #12: expose engagement metrics endpoint
+// Exposes the engagement metrics endpoint
 export async function getEngagementMetrics(req, res, next) {
   try {
     const data = await engagementService.getEngagementMetrics();
@@ -42,10 +41,8 @@ export async function getEngagementMetrics(req, res, next) {
   }
 }
 
-// Admin-only: full user history export, passed through the privacy/
-// pseudonymization layer (see utils/privacy.js + insights.service.js).
-// ?identified=true attaches real name/email, but only for users who have
-// not withdrawn analytics consent — enforced server-side, not by this flag.
+// Admin-only: full user history, pseudonymized (see utils/privacy.js).
+// ?identified=true attaches real name/email, only for users who kept consent.
 export async function getFullHistoryAdmin(req, res, next) {
   try {
     const includeIdentifiers = req.query.identified === "true";

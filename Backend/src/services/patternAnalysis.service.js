@@ -2,12 +2,7 @@ import prisma from "../config/prisma.js";
 import { createNotification } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 
-/**
- * Analyzes a user's training patterns:
- * most frequent days, most-used machines, and session sequences.
- * @param {string} userId
- * @returns {{ frequentDays: object[], topMachines: object[], sessionCount: number }}
- */
+// Analyzes training patterns: frequent days, top machines, session sequences.
 export async function analyzeUserPatterns(userId) {
   const sessions = await prisma.gymSession.findMany({
     where: { userId },
@@ -48,10 +43,7 @@ export async function analyzeUserPatterns(userId) {
   };
 }
 
-/**
- * Runs pattern analysis for all active users
- * and sends an in-app notification summary to each user.
- */
+// Runs pattern analysis for all active users and notifies each with a summary.
 export async function runPatternAnalysisForAll() {
   const users = await prisma.user.findMany({
     where: { isActive: true },

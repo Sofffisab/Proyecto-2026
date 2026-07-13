@@ -6,7 +6,7 @@ import prisma from "../config/prisma.js";
 export async function getUserPoints(req, res, next) {
   try {
     const data = await gamificationService.getPoints(req.user.id);
-    res.json({ success: true, data }); // Here `data` will be the points
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }

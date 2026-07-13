@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>83/83</span>
+                <span class='fraction'>75/75</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>83/83</span>
+                <span class='fraction'>75/75</span>
             </div>
         
             
@@ -144,15 +144,7 @@
 <a name='L79'></a><a href='#L79'>79</a>
 <a name='L80'></a><a href='#L80'>80</a>
 <a name='L81'></a><a href='#L81'>81</a>
-<a name='L82'></a><a href='#L82'>82</a>
-<a name='L83'></a><a href='#L83'>83</a>
-<a name='L84'></a><a href='#L84'>84</a>
-<a name='L85'></a><a href='#L85'>85</a>
-<a name='L86'></a><a href='#L86'>86</a>
-<a name='L87'></a><a href='#L87'>87</a>
-<a name='L88'></a><a href='#L88'>88</a>
-<a name='L89'></a><a href='#L89'>89</a>
-<a name='L90'></a><a href='#L90'>90</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L82'></a><a href='#L82'>82</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,7 +160,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -192,8 +183,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
@@ -206,8 +195,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -227,9 +214,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">8x</span>
-<span class="cline-any cline-yes">8x</span>
-<span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-yes">8x</span>
@@ -258,7 +242,6 @@ export async function generateQR(req, res, next) {
 // Validate / process a scanned QR payload
 export async function validateQR(req, res, next) {
   try {
-    // req.validatedData from validateQRSchema guarantees { payload } is a non-empty string.
     const result = await verificationService.processScan(req.user.id, req.validatedData.payload);
     res.json({ success: true, data: result });
   } catch (err) {
@@ -279,9 +262,7 @@ export async function getGymQRCodes(req, res, next) {
   }
 }
 &nbsp;
-// Manually rotate a single machine's QR token. ADMIN can always do this;
-// a TRAINER can only rotate a QR that already exists (they cannot create a
-// new machine — that stays ADMIN-only via createMachine below).
+// Rotates a machine's QR token. ADMIN always; TRAINER only for existing machines.
 export async function regenerateMachine(req, res, next) {
   try {
     const machine = await prisma.machine.findUnique({ where: { id: req.params.id } });
@@ -295,9 +276,7 @@ export async function regenerateMachine(req, res, next) {
   }
 }
 &nbsp;
-// Remove a machine from the gym floor (broken / retired). We deactivate
-// instead of hard-deleting so historical MachineUsage rows stay intact —
-// ADMIN only, same as creating one.
+// Deactivates (not deletes) a machine, preserving historical MachineUsage rows
 export async function deactivateMachine(req, res, next) {
   try {
     const machine = await prisma.machine.findUnique({ where: { id: req.params.id } });
@@ -317,14 +296,11 @@ export async function deactivateMachine(req, res, next) {
 // Create a new machine and generate its initial QR token — ADMIN only
 export async function createMachine(req, res, next) {
   try {
-    // `name` comes from req.body directly here because there is no dedicated
-    // createMachineSchema yet. The check below acts as a minimal guard until
-    // a proper schema is added to progress.schemas.js.
-  const { name } = req.validatedData; // validated &amp; trimmed by createMachineSchema
-  const qrToken = crypto.randomBytes(16).toString("hex");
-  const machine = await prisma.machine.create({
-    data: { name, qrToken },
-  });
+    const { name } = req.validatedData;
+    const qrToken = crypto.randomBytes(16).toString("hex");
+    const machine = await prisma.machine.create({
+      data: { name, qrToken },
+    });
 &nbsp;
     res.status(201).json({ success: true, data: machine });
   } catch (err) {
@@ -337,7 +313,7 @@ export async function createMachine(req, res, next) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-13T02:32:25.110Z
+                at 2026-07-13T11:32:51.465Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

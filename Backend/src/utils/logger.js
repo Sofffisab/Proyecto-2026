@@ -1,7 +1,4 @@
-// src/utils/logger.js
-// Minimal structured logger. Keeps the same transport (stdout/stderr) as
-// console.*, but gives every line a level and a timestamp so output can be
-// filtered/aggregated by a log platform later without touching call sites.
+// Minimal structured logger: adds level + timestamp to each console line.
 
 function line(level, args) {
   const timestamp = new Date().toISOString();

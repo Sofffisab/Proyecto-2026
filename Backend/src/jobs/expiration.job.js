@@ -9,13 +9,7 @@ const AUTO_CHECKOUT_HOURS = parseInt(process.env.AUTO_CHECKOUT_HOURS ?? "4", 10)
 // (user walked away without ending it and never touched another machine).
 const MACHINE_USAGE_TIMEOUT_HOURS = parseInt(process.env.MACHINE_USAGE_TIMEOUT_HOURS ?? "3", 10);
 
-/**
- * Generic "close entities that were left open past their time limit"
- * infrastructure. This is intentionally a single job rather than three
- * separate ones, since auto-checkout, abandoned-machine-usage cleanup, and
- * social-challenge expiration are all instances of the same underlying
- * problem: something was opened and never explicitly closed by the user.
- */
+/** Closes entities left open past their time limit (gym sessions, machine usage, challenges) — one job for all three, same underlying pattern. */
 export async function expireStaleEntities() {
   await Promise.all([
     autoCheckoutStaleGymSessions(),

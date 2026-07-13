@@ -1,16 +1,4 @@
-/**
- * Computes age in whole years from a birthday, as of `now`.
- *
- * This is intentionally the single source of truth for "age" in the app.
- * We never persist an `age` integer on the User model — only `birthday`.
- * A stored age field would go stale the instant a birthday passes (or
- * require a nightly script to patch every row); computing it on every read
- * instead means it is always correct, for every user, with zero drift.
- *
- * @param {Date|string|null|undefined} birthday
- * @param {Date} [now] - Injectable for tests; defaults to current time.
- * @returns {number|null} Age in whole years, or null if no birthday is set.
- */
+// Computes age in whole years. Not persisted on User, so always computed fresh.
 export function calculateAge(birthday, now = new Date()) {
   if (!birthday) return null;
 
@@ -28,16 +16,8 @@ export function calculateAge(birthday, now = new Date()) {
   return age;
 }
 
-/**
- * Whether `date`'s month/day matches `today`'s month/day (i.e. it's their
- * birthday today), regardless of year. Handles Feb 29 birthdays on non-leap
- * years by treating them as Feb 28 so leap-year users still get a yearly
- * email instead of one every four years.
- *
- * @param {Date|string|null|undefined} birthday
- * @param {Date} [today]
- * @returns {boolean}
- */
+// True if today matches the birthday's month/day. Feb 29 falls back to
+// Feb 28 on non-leap years so those users still get a yearly email.
 export function isBirthdayToday(birthday, today = new Date()) {
   if (!birthday) return false;
 

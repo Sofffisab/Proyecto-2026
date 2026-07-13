@@ -65,9 +65,7 @@ export async function getProgressHistory(userId, filters = {}) {
   });
 }
 
-// ============================================
 // Progress logs (metric time series) — addProgressLog / streaks
-// ============================================
 
 export async function addProgressLog(userId, { metric, value }, options = {}) {
   const { force } = options;
@@ -207,7 +205,7 @@ export async function getProgressStats(userId) {
   };
 }
 
-// --- Goal Management Functions ---
+// Goal management
 
 export async function createGoal(userId, data) {
   const { objectiveType, objectiveAction, targetValue, unit } = data;

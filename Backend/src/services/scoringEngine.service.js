@@ -2,18 +2,12 @@ import { POINTS } from "../constants/points.js";
 import { computeGoalDifficultyScore } from "./goalDifficultyEngine.service.js";
 
 /**
- * Computes how many points a single progress update is worth.
- *
- * Combines three inputs, as requested:
- *  1. % of the goal covered by THIS update (not just a flat per-log amount) —
- *     progress that closes 20% of the goal earns more than progress that
- *     closes 1% of it.
- *  2. Standardized difficulty per goal type/action/target magnitude.
- *  3. The user's personal case (consistency/attendance pattern), via the
- *     behavior-analysis engine.
- *
+ * Computes how many points a single progress update is worth, combining:
+ *  1. % of the goal covered by THIS update (not a flat per-log amount)
+ *  2. Standardized difficulty per goal type/action/target magnitude
+ *  3. The user's personal consistency/attendance pattern (behavior-analysis engine)
  * @param {string} userId
- * @param {object} goal - goal record (must include type, action, targetValue, difficulty)
+ * @param {object} goal - must include type, action, targetValue, difficulty
  * @param {{ previousPercent: number, newPercent: number }} progress
  * @returns {Promise<{ points: number, breakdown: object }>}
  */

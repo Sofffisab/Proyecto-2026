@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// server.js runs `if (NODE_ENV === "production" && !ALLOWED_ORIGINS) logger.warn(...)`
+// server.js warns when NODE_ENV=production and ALLOWED_ORIGINS is unset
 // at module-load time, so it must be re-imported (fresh module registry)
 // with the env vars set BEFORE the import for each scenario below.
 

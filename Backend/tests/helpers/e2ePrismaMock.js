@@ -1,21 +1,13 @@
 import crypto from "crypto";
 import { vi } from "vitest";
 
-// ==============================================================
-// A minimal, generic, stateful in-memory double for the Prisma
-// client used by our e2e suites.
-//
-// The global mock in tests/setup.js returns `undefined` for every
-// call, which is fine for unit tests (which mock exactly what they
-// need) but breaks e2e tests that need a real create -> read ->
-// update flow across several requests within the same test.
-//
-// This helper keeps an in-memory array per "model" and implements
-// just enough of the Prisma Client surface (findUnique, findFirst,
-// findMany, create, update, upsert, delete, count, aggregate,
-// groupBy) to support the flows exercised by our e2e tests. It is
-// NOT a full Prisma re-implementation.
-// ==============================================================
+// Minimal, stateful in-memory double for the Prisma client, used by e2e
+// suites. The global mock in tests/setup.js returns undefined for every
+// call (fine for unit tests), but e2e tests need a real create -> read ->
+// update flow across requests. Keeps an in-memory array per model and
+// implements just enough of the Prisma surface (findUnique/findFirst/
+// findMany/create/update/upsert/delete/count/aggregate/groupBy) — not a
+// full re-implementation.
 
 function matchesValue(actual, expected) {
   if (expected === null) return actual === null || actual === undefined;
@@ -83,7 +75,7 @@ function applyOrderBy(records, orderBy) {
   return sorted;
 }
 
-// Naive relation table: modelName -> { relationField: { model, from (fk on this record), to (field on target, default "id") } }
+// Relation map: modelName -> { field: { model, from (fk here), to (target field) } }
 const RELATIONS = {
   user: {
     trainerProfile: { model: "trainerProfile", from: "id", to: "userId" },
@@ -172,10 +164,9 @@ class ModelStore {
   }
 
   async findFirst(args = {}) {
-    // Special-case seeding: some suites need every user to appear to have
-    // an open gym session (so social-challenge creation, which requires
-    // both participants to be checked in, works without an explicit
-    // check-in call in the test).
+    // Some suites need every user to appear checked-in (so social-challenge
+    // creation, which requires both participants checked in, works without
+    // an explicit check-in call in the test).
     if (
       this.name === "gymSession" &&
       this.options.autoOpenGymSessions &&

@@ -1,10 +1,6 @@
 import * as historyService from "../services/history.service.js";
 
-/**
- * Get user's complete interaction history
- * Shows all trainers they've worked with and social challenge partners
- * Includes name, date, and type of interaction
- */
+/** User's complete interaction history: trainers worked with + social challenge partners. */
 export async function getInteractionHistory(req, res, next) {
   try {
     const data = await historyService.getInteractionHistory(req.user.id);
@@ -14,10 +10,7 @@ export async function getInteractionHistory(req, res, next) {
   }
 }
 
-/**
- * Get user's daily machine usage log
- * Groups machine usage by date, showing which machines were used and for how long
- */
+/** User's daily machine usage log, grouped by date. */
 export async function getDailyMachineUsageLog(req, res, next) {
   try {
     const data = await historyService.getDailyMachineUsageLog(req.user.id);
@@ -27,14 +20,9 @@ export async function getDailyMachineUsageLog(req, res, next) {
   }
 }
 
-/**
- * Get trainer's detailed assistance history
- * Shows student name, machine used, assistance date, and rating
- * Only trainers can access their own history
- */
+/** Trainer's own detailed assistance history. */
 export async function getTrainerAssistanceHistory(req, res, next) {
   try {
-    // Trainers can only view their own history
     const trainerId = req.user.id;
     const data = await historyService.getTrainerAssistanceHistory(trainerId);
     res.json({ success: true, data });

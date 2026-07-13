@@ -66,10 +66,7 @@ export async function getSuggestion(userId) {
   const userExists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
   if (!userExists) throw new AppError("User not found", 404);
 
-  // Real suggestion logic: pick the active goal that most needs attention —
-  // i.e. never logged / stalest progress entry first, then lowest completion %.
-  // This mirrors the "which goal is overdue/underperforming" analysis already
-  // used by suggestionEngine.service.js's evaluateUserProgress.
+  // Picks the goal most in need of attention: stalest progress first, then lowest %
   const goals = await prisma.goal.findMany({
     where: { userId, active: true },
     include: {
@@ -94,7 +91,7 @@ export async function getSuggestion(userId) {
     return { goal, daysSinceUpdate, progressPercent };
   });
 
-  // Sort by most stale first, then by lowest progress percent.
+  // Most stale first, then lowest progress percent
   scored.sort((a, b) => {
     if (b.daysSinceUpdate !== a.daysSinceUpdate) return b.daysSinceUpdate - a.daysSinceUpdate;
     return a.progressPercent - b.progressPercent;
@@ -156,15 +153,14 @@ export async function rejectRoutineRequest(requestId, callerId) {
   if (!req) throw new AppError("Routine request not found", 404);
   if (req.status !== "PENDING") throw new AppError("Request is not pending", 400);
 
-  // Fix #17: if the request is already assigned to a specific trainer, only that
-  // trainer may reject it — prevents any other trainer from hijacking the rejection.
+  // Only the assigned trainer (if any) may reject this request
   if (req.trainerId && req.trainerId !== callerId) {
     throw new AppError("Forbidden: Only the assigned trainer can reject this request", 403);
   }
 
   return prisma.routineRequest.update({
     where: { id: requestId },
-    // Do NOT overwrite trainerId — preserve whoever was assigned (or null).
+    // Preserve trainerId as-is
     data: { status: "REJECTED" },
   });
 }
@@ -182,20 +178,12 @@ export async function completeRoutineRequest(requestId, callerId) {
 }
 
 /**
- * Builds a ready-to-accept routine proposal from the user's learned training
- * patterns (see behaviorAnalysis.service.js). This is the "AI" behind the
- * suggested-routines feature: it looks at the machine-signature the user
- * already repeats most often and turns it into routine content, instead of
- * asking the user to build one from scratch.
- *
- * Returns `{ available: false, reason }` when there isn't enough history yet
- * to responsibly suggest anything.
+ * Builds a routine proposal from the user's learned training patterns
+ * (see behaviorAnalysis.service.js). Returns { available: false, reason }
+ * when there isn't enough history to suggest anything yet.
  */
 export async function getPatternSuggestion(userId) {
-  // Users who opted out of machine QR tracking don't get routines learned
-  // from their machine-usage history — even if a handful of scans slipped
-  // through (see verification.service.js#processScan), we don't build
-  // personalized suggestions out of data the user asked us not to collect.
+  // Opted-out users don't get routines learned from machine-usage data
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
     select: { machineTrackingOptOut: true },
@@ -214,9 +202,7 @@ export async function getPatternSuggestion(userId) {
     .filter((r) => r.occurrences >= MIN_OCCURRENCES_FOR_SUGGESTION)
     .sort((a, b) => b.occurrences - a.occurrences)[0];
 
-  // Fall back to the user's overall top machines if no repeating signature
-  // has been detected yet, as long as there's at least some history —
-  // better than offering nothing, but clearly marked as a lighter-weight guess.
+  // Fall back to overall top machines if no repeating pattern is detected yet
   const machines = topRoutine?.signature ?? (profile.topMachines ?? []).map((m) => m.name);
 
   if (machines.length === 0) {
@@ -246,12 +232,7 @@ export async function getPatternSuggestion(userId) {
   };
 }
 
-/**
- * Saves an AI-suggested routine into the user's own routine list (so it
- * shows up next to their other saved routines / "Rutina Libre" on the home
- * screen). If the client doesn't re-send the exact suggestion payload, we
- * recompute it fresh rather than trusting an unrelated body.
- */
+/** Saves an AI-suggested routine to the user's list; recomputes it if the client didn't resend the payload. */
 export async function acceptPatternSuggestion(userId, override = {}) {
   let { name, content } = override;
 
@@ -277,11 +258,7 @@ export async function acceptPatternSuggestion(userId, override = {}) {
   return routine;
 }
 
-/**
- * Records that the user declined the suggested routine. This doesn't delete
- * anything (nothing was saved yet) — it just lets the app avoid nagging the
- * same user with the same suggestion again right away.
- */
+/** Records that the user declined the suggestion (nothing to delete, avoids re-nagging). */
 export async function rejectPatternSuggestion(userId) {
   await createNotification(
     userId,
@@ -292,13 +269,7 @@ export async function rejectPatternSuggestion(userId) {
   return { rejected: true };
 }
 
-/**
- * What the home screen shows the user to pick "which routine today":
- * every routine they've saved (manual or previously-accepted AI ones), the
- * always-available "Rutina Libre" (free-form, no fixed plan) option, and —
- * if their pattern history supports it — a fresh AI suggestion they can
- * accept or reject on the spot.
- */
+/** Home-screen options: saved routines, the always-available free routine, and a fresh AI suggestion if available. */
 export async function getTodayOptions(userId) {
   const [routines, suggestion] = await Promise.all([
     getRoutines(userId),

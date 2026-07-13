@@ -15,7 +15,6 @@ export async function generateQR(req, res, next) {
 // Validate / process a scanned QR payload
 export async function validateQR(req, res, next) {
   try {
-    // req.validatedData from validateQRSchema guarantees { payload } is a non-empty string.
     const result = await verificationService.processScan(req.user.id, req.validatedData.payload);
     res.json({ success: true, data: result });
   } catch (err) {
@@ -36,9 +35,7 @@ export async function getGymQRCodes(req, res, next) {
   }
 }
 
-// Manually rotate a single machine's QR token. ADMIN can always do this;
-// a TRAINER can only rotate a QR that already exists (they cannot create a
-// new machine — that stays ADMIN-only via createMachine below).
+// Rotates a machine's QR token. ADMIN always; TRAINER only for existing machines.
 export async function regenerateMachine(req, res, next) {
   try {
     const machine = await prisma.machine.findUnique({ where: { id: req.params.id } });
@@ -52,9 +49,7 @@ export async function regenerateMachine(req, res, next) {
   }
 }
 
-// Remove a machine from the gym floor (broken / retired). We deactivate
-// instead of hard-deleting so historical MachineUsage rows stay intact —
-// ADMIN only, same as creating one.
+// Deactivates (not deletes) a machine, preserving historical MachineUsage rows
 export async function deactivateMachine(req, res, next) {
   try {
     const machine = await prisma.machine.findUnique({ where: { id: req.params.id } });
@@ -74,14 +69,11 @@ export async function deactivateMachine(req, res, next) {
 // Create a new machine and generate its initial QR token — ADMIN only
 export async function createMachine(req, res, next) {
   try {
-    // `name` comes from req.body directly here because there is no dedicated
-    // createMachineSchema yet. The check below acts as a minimal guard until
-    // a proper schema is added to progress.schemas.js.
-  const { name } = req.validatedData; // validated & trimmed by createMachineSchema
-  const qrToken = crypto.randomBytes(16).toString("hex");
-  const machine = await prisma.machine.create({
-    data: { name, qrToken },
-  });
+    const { name } = req.validatedData;
+    const qrToken = crypto.randomBytes(16).toString("hex");
+    const machine = await prisma.machine.create({
+      data: { name, qrToken },
+    });
 
     res.status(201).json({ success: true, data: machine });
   } catch (err) {

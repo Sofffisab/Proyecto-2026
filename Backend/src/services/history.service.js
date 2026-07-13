@@ -1,14 +1,9 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/errors.js";
 
-/**
- * Get complete interaction history for a user:
- * - Trainers who assisted them
- * - Social challenge partners they completed challenges with
- * Both include name and date of interaction
- */
+// Full interaction history for a user: trainers who assisted them, and
+// social challenge partners, each with name and date.
 export async function getInteractionHistory(userId) {
-  // Get all completed assistance records (trainer interactions)
   const trainerInteractions = await prisma.assistance.findMany({
     where: {
       userId,
@@ -27,7 +22,6 @@ export async function getInteractionHistory(userId) {
     orderBy: { completedAt: "desc" },
   });
 
-  // Get all completed social challenges
   const socialChallenges = await prisma.socialChallenge.findMany({
     where: {
       OR: [{ userId }, { partnerUserId: userId }],
@@ -52,7 +46,6 @@ export async function getInteractionHistory(userId) {
     orderBy: { completedAt: "desc" },
   });
 
-  // Format trainer interactions
   const formattedTrainerInteractions = trainerInteractions.map((assistance) => ({
     type: "TRAINER_ASSISTANCE",
     partnerId: assistance.trainer.id,
@@ -63,7 +56,6 @@ export async function getInteractionHistory(userId) {
     rating: assistance.trainerRating,
   }));
 
-  // Format social challenge interactions
   const formattedSocialInteractions = socialChallenges.map((challenge) => {
     const isOwner = challenge.userId === userId;
     const partner = isOwner ? challenge.partner : challenge.user;
@@ -77,7 +69,6 @@ export async function getInteractionHistory(userId) {
     };
   });
 
-  // Combine and sort by date
   const allInteractions = [
     ...formattedTrainerInteractions,
     ...formattedSocialInteractions,
@@ -86,10 +77,7 @@ export async function getInteractionHistory(userId) {
   return allInteractions;
 }
 
-/**
- * Get daily machine usage log grouped by date
- * Shows which machines were used on each day, duration, and times
- */
+// Daily machine usage log grouped by date (which machines, duration, times).
 export async function getDailyMachineUsageLog(userId) {
   const usages = await prisma.machineUsage.findMany({
     where: { userId },
@@ -104,7 +92,6 @@ export async function getDailyMachineUsageLog(userId) {
     orderBy: { startedAt: "desc" },
   });
 
-  // Group by date (YYYY-MM-DD)
   const groupedByDate = {};
 
   usages.forEach((usage) => {
@@ -123,7 +110,6 @@ export async function getDailyMachineUsageLog(userId) {
     });
   });
 
-  // Convert to array of days
   const dailyLog = Object.entries(groupedByDate)
     .map(([date, machines]) => ({
       date,
@@ -136,10 +122,7 @@ export async function getDailyMachineUsageLog(userId) {
   return dailyLog;
 }
 
-/**
- * Get trainer's detailed assistance history
- * Shows student name, machine used, date, and rating for each assistance session
- */
+// Trainer's detailed assistance history: student, machine, date, and rating per session.
 export async function getTrainerAssistanceHistory(trainerId) {
   const assistances = await prisma.assistance.findMany({
     where: {
@@ -176,10 +159,7 @@ export async function getTrainerAssistanceHistory(trainerId) {
   }));
 }
 
-/**
- * Check if user has an active ACCEPTED_BY_BOTH challenge
- * Used to enforce machine access restrictions
- */
+// Whether the user has an active ACCEPTED_BY_BOTH challenge.
 export async function userHasActiveChallenge(userId) {
   const challenge = await prisma.socialChallenge.findFirst({
     where: {

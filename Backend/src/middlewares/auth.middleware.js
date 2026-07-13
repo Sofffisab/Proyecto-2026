@@ -21,7 +21,7 @@ export const authenticate = async (req, res, next) => {
 
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-    // Fix #2: read payload.userId (consistent with how the token is signed)
+    // Read payload.userId (matches how the token is signed)
     const cacheKey = `user:${payload.userId}`;
 
     let user = null;

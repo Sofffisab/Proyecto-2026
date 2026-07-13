@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>129/129</span>
+                <span class='fraction'>114/114</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>129/129</span>
+                <span class='fraction'>114/114</span>
             </div>
         
             
@@ -199,21 +199,7 @@
 <a name='L134'></a><a href='#L134'>134</a>
 <a name='L135'></a><a href='#L135'>135</a>
 <a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a>
-<a name='L138'></a><a href='#L138'>138</a>
-<a name='L139'></a><a href='#L139'>139</a>
-<a name='L140'></a><a href='#L140'>140</a>
-<a name='L141'></a><a href='#L141'>141</a>
-<a name='L142'></a><a href='#L142'>142</a>
-<a name='L143'></a><a href='#L143'>143</a>
-<a name='L144'></a><a href='#L144'>144</a>
-<a name='L145'></a><a href='#L145'>145</a>
-<a name='L146'></a><a href='#L146'>146</a>
-<a name='L147'></a><a href='#L147'>147</a>
-<a name='L148'></a><a href='#L148'>148</a>
-<a name='L149'></a><a href='#L149'>149</a>
-<a name='L150'></a><a href='#L150'>150</a>
-<a name='L151'></a><a href='#L151'>151</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L137'></a><a href='#L137'>137</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -232,11 +218,6 @@
 <span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">42x</span>
-<span class="cline-any cline-yes">42x</span>
-<span class="cline-any cline-yes">42x</span>
-<span class="cline-any cline-yes">42x</span>
-<span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-yes">42x</span>
@@ -266,8 +247,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -276,9 +255,6 @@
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -314,7 +290,7 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -353,16 +329,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
 import { createNotification, sendEmail } from "./communication.service.js";
@@ -382,13 +354,8 @@ export async function addPoints(userId, points, reason) {
     data: { userId, points, reason },
   });
 &nbsp;
-  // NOTE: leaderboards/public rankings remain intentionally out of scope
-  // (see routes/index.js). Automatic achievement unlocking IS wanted, but is
-  // NOT triggered from here — it's evaluated from the specific activity
-  // that changes each metric (gym check-in/out for streaks, machine usage
-  // ending, social challenge completion) so it always sees fresh data. See
-  // checkAndUnlockAchievements below and its callers in gym.service.js,
-  // verification.service.js and challenge.service.js.
+  // Achievement unlocking is intentionally NOT triggered here — it's checked
+  // from the specific activity that changes each metric, see checkAndUnlockAchievements
   try {
     await autoGrantRewards(userId);
   } catch (err) {
@@ -414,9 +381,7 @@ export async function getPoints(userId) {
   return { totalPoints: agg._sum.points ?? 0, transactions };
 }
 &nbsp;
-// Whether a given achievement's target has been reached, given the user's
-// current totalPoints and the freshly-computed per-metric values from
-// achievementMetrics.service.js. TOTAL_POINTS keeps using the legacy
+// Whether an achievement's target is reached. TOTAL_POINTS uses the legacy
 // `pointsRequired` field; every other metric uses `threshold`.
 function isAchievementEarned(achievement, totalPoints, metrics) {
   if (achievement.metric === "TOTAL_POINTS") {
@@ -426,11 +391,8 @@ function isAchievementEarned(achievement, totalPoints, metrics) {
   return typeof value === "number" &amp;&amp; value &gt;= achievement.threshold;
 }
 &nbsp;
-// Personal badge collection: evaluates every Achievement definition against
-// this user's current stats (points, attendance streaks, social
-// interactions, machine usage) and unlocks any newly-earned ones. This is
-// purely personal — there is no public catalog to pick from and no
-// leaderboard; see routes/index.js for why those were intentionally left out.
+// Evaluates every Achievement definition against the user's current stats
+// and unlocks any newly-earned ones (purely personal, no leaderboard)
 export async function checkAndUnlockAchievements(userId) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
@@ -452,9 +414,9 @@ export async function checkAndUnlockAchievements(userId) {
   );
 &nbsp;
   for (const achievement of eligible) {
-    // Atomic: both the unlock record and the bonus points are created together
+    // Atomic: unlock record + bonus points created together
     const unlocked = await prisma.$transaction(async (tx) =&gt; {
-      // Double-check inside transaction to prevent race conditions
+      // Double-check inside the transaction to avoid race conditions
       const alreadyUnlocked = await tx.userAchievement.findFirst({
         where: { userId, achievementId: achievement.id },
       });
@@ -464,7 +426,7 @@ export async function checkAndUnlockAchievements(userId) {
         data: { userId, achievementId: achievement.id },
       });
 &nbsp;
-      // Use the constant — not a hardcoded literal
+&nbsp;
       await tx.pointTransaction.create({
         data: {
           userId,
@@ -478,7 +440,7 @@ export async function checkAndUnlockAchievements(userId) {
 &nbsp;
     if (!unlocked) continue;
 &nbsp;
-    // Notify user — non-blocking, outside the transaction
+    // Notify user (non-blocking)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, firstName: true },
@@ -501,9 +463,7 @@ export async function checkAndUnlockAchievements(userId) {
   }
 }
 &nbsp;
-// Badges are never claimed manually — only checkAndUnlockAchievements above
-// grants them, so there is no way for a user to self-award one without
-// actually meeting its threshold.
+// Badges are only ever granted by checkAndUnlockAchievements, never claimed manually
 export async function getAchievements(userId) {
   return prisma.userAchievement.findMany({
     where: { userId },
@@ -511,16 +471,14 @@ export async function getAchievements(userId) {
   });
 }
 &nbsp;
-// No leaderboard/ranking of any kind, public or private — not wanted by
-// the product. Engagement is measured entirely through personal achievement
-// badges (see checkAndUnlockAchievements above), not by comparing users.</pre></td></tr></table></pre>
+// No leaderboard/ranking by design — engagement is measured via personal badges only</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-13T02:32:25.110Z
+                at 2026-07-13T11:32:51.465Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

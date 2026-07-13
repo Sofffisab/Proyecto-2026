@@ -1,17 +1,10 @@
 import rateLimit from "express-rate-limit";
 import redis from "../config/redis.js";
 
-// The app is deployed on Vercel (serverless): each invocation can land on a
-// different / cold instance, so express-rate-limit's default in-memory store
-// does NOT reliably share counters across requests. When Upstash Redis is
-// configured (same instance already used for the JWT blacklist), back the
-// limiter with it so counts are shared across all instances. Falls back to
-// the in-memory store locally / when Redis isn't configured.
+// Serverless deploy needs a shared store across instances (Redis) instead
+// of express-rate-limit's default in-memory one; falls back locally
 function redisStore(prefix) {
-  // Guard against any redis stub/mock that's truthy but doesn't actually
-  // implement the atomic counter methods we need (e.g. the global test
-  // mock only provides get/set/setex/del) — fall back to the in-memory
-  // store rather than crashing every request with a 500.
+  // Fall back to in-memory if redis is a mock without incr/expire
   if (!redis || typeof redis.incr !== "function" || typeof redis.expire !== "function") {
     return undefined;
   }
@@ -58,8 +51,7 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisStore("api"),
-  // After authenticate runs, key on the user ID so limits are per-user
-  // not per-IP (prevents shared-IP abuse and unfair blocking)
+  // Key on user ID (post-auth) instead of IP, to avoid shared-IP blocking
   keyGenerator: (req) => req.user?.id || req.ip,
   message: {
     success: false,

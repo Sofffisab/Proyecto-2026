@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/20</span>
+                <span class='fraction'>20/20</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>0/0</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/20</span>
+                <span class='fraction'>20/20</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -88,64 +88,64 @@
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
-<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import Ably from "ably";<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
-<span class="cstat-no" title="statement not covered" >import { logger } from "../utils/logger.js";</span>
+<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import Ably from "ably";
+import { logger } from "../utils/logger.js";
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export const ABLY_CHANNELS = {</span>
-<span class="cstat-no" title="statement not covered" >  PRESENCE: "presence",</span>
-<span class="cstat-no" title="statement not covered" >  ASSISTANCE: "assistance",</span>
-<span class="cstat-no" title="statement not covered" >  SOCIAL: "social",</span>
-<span class="cstat-no" title="statement not covered" >  NOTIFICATIONS: "notifications",</span>
-<span class="cstat-no" title="statement not covered" >};</span>
+export const ABLY_CHANNELS = {
+  PRESENCE: "presence",
+  ASSISTANCE: "assistance",
+  SOCIAL: "social",
+  NOTIFICATIONS: "notifications",
+};
 &nbsp;
-<span class="cstat-no" title="statement not covered" >// REST client with optional initialization</span>
-<span class="cstat-no" title="statement not covered" >let ably = null;</span>
+// REST client with optional initialization
+let ably = null;
 &nbsp;
-<span class="cstat-no" title="statement not covered" >try {</span>
-<span class="cstat-no" title="statement not covered" >  if (!process.env.ABLY_API_KEY) {</span>
-<span class="cstat-no" title="statement not covered" >    throw new Error("ABLY_API_KEY is not set");</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+try {
+  if (!process.env.ABLY_API_KEY) {
+    throw new Error("ABLY_API_KEY is not set");
+  }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });</span>
-<span class="cstat-no" title="statement not covered" >  logger.info("[ably] REST client initialized");</span>
-<span class="cstat-no" title="statement not covered" >} catch (err) {</span>
-<span class="cstat-no" title="statement not covered" >  logger.warn("[ably] REST client unavailable:", err.message);</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+  ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
+  logger.info("[ably] REST client initialized");
+} catch (err) {
+  logger.warn("[ably] REST client unavailable:", err.message);
+}
 &nbsp;
 export { ably };
-<span class="cstat-no" title="statement not covered" >export default ably;</span></pre></td></tr></table></pre>
+export default ably;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-13T02:32:25.110Z
+                at 2026-07-13T11:32:51.465Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

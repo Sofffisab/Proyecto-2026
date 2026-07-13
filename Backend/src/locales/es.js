@@ -1,15 +1,8 @@
 /**
- * Spanish message catalog.
- *
- * All text the end user actually sees (notification titles/bodies, complaint
- * reasons, location labels) lives here, keyed in English. Code imports a key
- * — never a literal Spanish string — so the codebase itself stays 100%
- * English and every user-facing message stays in one place, ready to swap
- * for a real i18n library (or add an `en.js` sibling) without touching any
- * business logic.
- *
- * Plain strings are used as-is; functions take the variable parts and return
- * the built string.
+ * Spanish message catalog. All user-facing text lives here, keyed in
+ * English, so the codebase itself stays English and messages stay swappable
+ * for a real i18n setup. Plain strings are used as-is; functions build the
+ * string from variable parts.
  */
 export const MESSAGES = {
   // Student location shown to a trainer (communication.service.js, gym.service.js)
@@ -33,15 +26,13 @@ export const MESSAGES = {
   COMPLAINT_REASON_NO_HELP: "El entrenador no brindó la ayuda solicitada",
   COMPLAINT_REASON_MACHINE_CONFLICT: "Uso simultáneo de la misma máquina sin verificación de un entrenador",
 
-  // 403 shown when a member must finish their profile before continuing (profileCompletion.middleware.js)
+  // 403 shown when a member's profile is incomplete (profileCompletion.middleware.js)
   PROFILE_INCOMPLETE:
     "Debes completar tu perfil (datos médicos, fecha de nacimiento, dirección, objetivo principal, nivel actual, días que entrenás por semana y tipo de entrenamiento) antes de continuar.",
 };
 
-// Complaint reason codes accepted by createTrainerComplaintSchema
-// (validators/progress.schemas.js). Kept separate from MESSAGES because
-// these are enum *values*, not free text — English keys are the wire
-// format; ES_LABELS is only for anything that needs to display them.
+// Reason codes for createTrainerComplaintSchema — enum values, kept as
+// English keys (wire format). COMPLAINT_REASON_LABELS_ES is for display only.
 export const COMPLAINT_REASON_CODES = {
   MACHINE_DAMAGE: "MACHINE_DAMAGE",
   MISCONDUCT: "MISCONDUCT",

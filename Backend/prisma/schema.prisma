@@ -7,44 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Pantalla U: perfil mínimo (onboarding) ─────────────────────────────────────
-// 4 campos de opciones fijas. Los nombres/valores concretos de cada enum son
-// los que se muestran como labels en la UI (ver Frontend) — renombrarlos acá
-// no afecta ninguna otra lógica, ya que todo el resto del código los trata
-// como valores opacos.
+// Minimal-profile screen (onboarding): 4 fixed-option fields. Enum values
+// double as UI labels (see Frontend) — renaming them is safe since the
+// rest of the code treats them as opaque values.
 
-// Objetivo principal — el usuario puede elegir uno o más (multi-select).
+// Main goal — multi-select.
 enum MainGoal {
-  LOSE_WEIGHT      // Bajar de peso
-  GAIN_MUSCLE      // Ganar masa muscular
-  IMPROVE_HEALTH   // Mejorar salud general
-  INCREASE_ENDURANCE // Aumentar resistencia
+  LOSE_WEIGHT
+  GAIN_MUSCLE
+  IMPROVE_HEALTH
+  INCREASE_ENDURANCE
 }
 
-// Nivel actual — selección única.
+// Current experience level — single select.
 enum ExperienceLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
 }
 
-// Días que entrena por semana — selección única, en 6 franjas fijas.
+// Weekly training days — single select, 6 fixed buckets.
 enum TrainingFrequency {
-  ONE_TO_TWO // 1-2 días
-  THREE      // 3 días
-  FOUR       // 4 días
-  FIVE       // 5 días
-  SIX        // 6 días
-  SEVEN      // 7 días
+  ONE_TO_TWO
+  THREE
+  FOUR
+  FIVE
+  SIX
+  SEVEN
 }
 
-// Tipo de entrenamiento buscado — distinto del objetivo: esto es CÓMO quiere
-// entrenar, no PARA QUÉ. Selección única.
+// Desired training type — HOW they want to train, not WHY (that's MainGoal).
+// Single select.
 enum TrainingType {
-  STRENGTH        // Musculación / pesas
-  CARDIO          // Cardio
-  FUNCTIONAL      // Funcional / clases grupales
-  MIXED           // Combinado
+  STRENGTH
+  CARDIO
+  FUNCTIONAL
+  MIXED
 }
 
 enum Role {
@@ -177,7 +175,7 @@ model User {
   birthday             DateTime?
   gender               Gender?
   role                 Role      @default(USER)
-  // ── Pantalla U: perfil mínimo (4 campos, opciones fijas) ──────────────────
+  // Minimal-profile screen (4 fixed-option fields)
   trainingLevel        ExperienceLevel?
   objectives           MainGoal[]
   weeklyTrainingDays   TrainingFrequency?
@@ -275,13 +273,10 @@ model UserSettings {
   disableAssistance Boolean  @default(false)
   disableSocial     Boolean  @default(false)
   trainerPreference String?
-  // "No usar la app para máquinas": when true, the app only scans gym
-  // entry/exit (ENTRY_EXIT QR). Machine QR scans are not recorded — no
-  // MachineUsage rows are created, and the user's current machine/station
-  // is never resolved or shown. This also removes the user from
-  // machine-station-based social challenge matching (see challenge.service.js),
-  // but they remain visible in the trainer's assistance/help list — just
-  // without any machine/zone info attached (see gym.service.js#getUserCurrentLocation).
+  // Opt out of machine tracking: only gym entry/exit is scanned, no
+  // MachineUsage rows are created, and the user is dropped from
+  // machine-based social matching. Still visible in the trainer's help
+  // list, just without machine/zone info (gym.service.js#getUserCurrentLocation).
   machineTrackingOptOut Boolean @default(false)
   // Whether this user's activity may be included (even pseudonymized) in the
   // admin-facing full analytics/history export. See insights.service.js
@@ -353,14 +348,12 @@ model Machine {
   @@index([active])
 }
 
-// "2 personas en la misma máquina": raised the instant a scan opens a new
-// MachineUsage on a machine that already has a different user's usage open.
-// Flagged as conducta extraña and pushed to trainers to verify in person —
-// see machineConflict.service.js. If a trainer verifies, their small
-// contribution is rewarded (see POINTS.TRAINER_ORDER_BONUS); if nobody
-// verifies before the timeout, both usages are left as-is (both users keep
-// figuring as using the machine) but a complaint is auto-raised against
-// both — see machineConflict.job.js#expireUnverifiedConflicts.
+// "Two people on the same machine": raised when a scan opens a new
+// MachineUsage on a machine that already has a different user's usage
+// open. Pushed to trainers to verify in person (machineConflict.service.js);
+// verifying earns a small bonus (POINTS.TRAINER_ORDER_BONUS). If nobody
+// verifies before the timeout, both usages stand as-is but a complaint is
+// auto-raised against both (machineConflict.job.js#expireUnverifiedConflicts).
 model MachineConflict {
   id             String                     @id @default(uuid())
   machineId      String

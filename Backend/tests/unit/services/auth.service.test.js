@@ -7,7 +7,7 @@ import redis from "../../../src/config/redis.js";
 import { sendPasswordResetEmail, sendWelcomeEmail, sendEmail } from "../../../src/services/communication.service.js";
 import { AppError } from "../../../src/utils/errors.js";
 
-// Explicit local mock to make sure Redis calls are tracked in this unit test environment
+// Local mock so Redis calls are tracked in this test file
 vi.mock("../../../src/config/redis.js", () => ({
   default: {
     get: vi.fn(),

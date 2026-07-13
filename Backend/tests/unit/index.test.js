@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// src/index.js runs its startup logic as a top-level side effect on import
-// (env var check -> either process.exit(1), or app.listen(...)). To test
-// both branches we need to re-import it fresh for each case with different
-// process.env values, and mock everything it touches so nothing real
-// happens (no real server bound to a port, no real process exit).
+// src/index.js runs startup logic as a top-level side effect on import
+// (env check -> process.exit(1) or app.listen). Re-imports fresh per case
+// with different process.env, mocking everything so nothing real happens.
 
 vi.mock("dotenv/config", () => ({}));
 

@@ -64,7 +64,7 @@ export async function getStats(req, res, next) {
   }
 }
 
-// ── Goals ────────────────────────────────────────────────────────────────────
+// Goals
 
 export async function createGoal(req, res, next) {
   try {
