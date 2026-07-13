@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import prisma from "../config/prisma.js";
 import { logger } from "../utils/logger.js";
+import { MESSAGES } from "../locales/es.js";
 
 // Lazy singleton: avoids crashing at import time (e.g. in tests) when
 // RESEND_API_KEY isn't set. Only instantiated the first time an email is sent.
@@ -149,13 +150,13 @@ export async function notifyTrainerOfReturningStudent(
   const studentName = `${student.firstName} ${student.lastName}`.trim();
   // Fall back only if the caller genuinely couldn't resolve a location —
   // the whole point of this alert is telling the trainer where to go.
-  const resolvedLocation = location || "ubicación desconocida";
+  const resolvedLocation = location || MESSAGES.LOCATION_UNKNOWN;
 
-  const title = "Un alumno necesita tu atención";
+  const title = MESSAGES.TRAINER_ATTENTION_NEEDED_TITLE;
   const body =
     daysSinceLastAssistance == null
-      ? `${studentName} acaba de entrar al gimnasio y todavía no lo/la ayudaste. Está en: ${resolvedLocation}.`
-      : `${studentName} acaba de entrar al gimnasio — hace ${daysSinceLastAssistance} día(s) que no lo/la ayudás. Está en: ${resolvedLocation}.`;
+      ? MESSAGES.studentNeedsHelpFirstTime(studentName, resolvedLocation)
+      : MESSAGES.studentNeedsHelpReturning(studentName, daysSinceLastAssistance, resolvedLocation);
 
   const notification = await createNotification(trainerId, title, body);
 

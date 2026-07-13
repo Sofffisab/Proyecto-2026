@@ -4,7 +4,9 @@ import {
   createChallengeSchema,
   syncActionsSchema,
   rateTrainerSchema,
+  createTrainerComplaintSchema,
 } from "../../../src/validators/progress.schemas.js";
+import { COMPLAINT_REASON_CODES } from "../../../src/locales/es.js";
 
 // This file does not re-test every field of every schema (that would just
 // re-describe Zod itself). It focuses on the schemas that carry actual
@@ -167,6 +169,36 @@ describe("progress.schemas", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.helped).toBe(false);
+    });
+  });
+
+  describe("createTrainerComplaintSchema", () => {
+    const reportedUserId = "22222222-2222-4222-8222-222222222222";
+
+    it.each(Object.values(COMPLAINT_REASON_CODES))(
+      "accepts %s as a valid reason code",
+      (reason) => {
+        const result = createTrainerComplaintSchema.safeParse({ reportedUserId, reason });
+        expect(result.success).toBe(true);
+      }
+    );
+
+    it("rejects a reason code that isn't in COMPLAINT_REASON_CODES", () => {
+      const result = createTrainerComplaintSchema.safeParse({
+        reportedUserId,
+        reason: "SOMETHING_ELSE",
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects the old Spanish enum values (no longer valid)", () => {
+      const result = createTrainerComplaintSchema.safeParse({
+        reportedUserId,
+        reason: "DAÑO_DE_MAQUINA",
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

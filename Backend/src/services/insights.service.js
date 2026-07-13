@@ -3,7 +3,7 @@ import { shapeUserForAnalytics } from "../utils/privacy.js";
 
 // Midpoint (in days/week) used to compare actual attendance against the
 // fixed TrainingFrequency bucket the user picked in pantalla U (perfil
-// mínimo). SEVEN has no upper bound to average against, so it maps to 7.
+// profile). SEVEN has no upper bound to average against, so it maps to 7.
 const TRAINING_FREQUENCY_TARGET_DAYS = {
   ONE_TO_TWO: 1.5,
   THREE: 3,
@@ -45,7 +45,7 @@ export async function getUserAnalytics(userId) {
       where: { userId }, 
       include: { machine: true }
     }),
-    // Perfil mínimo (pantalla U) — feeds the goal-adherence comparison below.
+    // Minimal-profile data — feeds the goal-adherence comparison below.
     prisma.user.findUnique({
       where: { id: userId },
       select: { objectives: true, trainingLevel: true, weeklyTrainingDays: true, trainingType: true },

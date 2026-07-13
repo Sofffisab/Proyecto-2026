@@ -33,8 +33,7 @@
 
 // Duration-weighted tiers for a single machine-usage cycle: the longer a
 // user actually trains on a machine (real minutes, measured start-scan to
-// end-scan/auto-close), the more the cycle is worth — "estar mucho tiempo
-// en una máquina cuenta más que estar poco tiempo en la misma máquina".
+// end-scan/auto-close), the more the cycle is worth.
 // Read top-to-bottom, first tier whose minMinutes the duration meets or
 // exceeds wins (see verification.service.js#computeMachineUsagePoints).
 // Capped at MACHINE_USAGE_MAX so one very long usage still can't dominate
@@ -53,7 +52,7 @@ export const MACHINE_USAGE_MAX = 22;
 // — see reward.service.js#enforcePointsCeiling.
 export const POINTS_HARD_CAP = 9999;
 
-// How long a MachineConflict ("2 personas en la misma máquina") stays open
+// How long a MachineConflict (two people on the same machine) stays open
 // waiting for a trainer to verify in person before it's auto-marked
 // UNVERIFIED and a complaint is raised against both users — see
 // machineConflict.job.js#expireUnverifiedConflicts.
@@ -67,18 +66,18 @@ export const POINTS = {
   // Base award for a machine-usage cycle that clears the minimum duration
   // (on the "end" scan only — see MIN_MACHINE_USAGE_MINUTES_FOR_POINTS in
   // verification.service.js). This is the floor; the real award scales up
-  // with time actually spent, see MACHINE_USAGE_DURATION_TIERS below and
-  // verification.service.js#computeMachineUsagePoints. "Estar mucho tiempo
-  // en una máquina cuenta más que estar poco tiempo": a quick tap in/out
+  // with time actually spent (longer usage earns more), see
+  // MACHINE_USAGE_DURATION_TIERS below and
+  // verification.service.js#computeMachineUsagePoints. A quick tap in/out
   // that barely clears the minimum earns this base value, a long real set
   // earns progressively more, capped at MACHINE_USAGE_MAX so one usage can
   // never dominate the weekly points budget.
   MACHINE_USAGE: 8,
 
-  // Small bonus paid to a TRAINER who verifies a MachineConflict ("2
-  // personas en la misma máquina") in person. Deliberately small — "sube
-  // calificación mínimamente" — recognition for helping keep order on the
-  // floor, not a way to farm points.
+  // Small bonus paid to a TRAINER who verifies a MachineConflict (two
+  // people on the same machine) in person. Deliberately small —
+  // recognition for helping keep order on the floor, not a way to farm
+  // points.
   TRAINER_ORDER_BONUS: 5,
 
   PROGRESS_UPDATE: 20,

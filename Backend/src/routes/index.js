@@ -215,7 +215,7 @@ router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchema
 router.patch("/qr/machines/:id/regenerate", authorize(["ADMIN", "TRAINER"]), qrController.regenerateMachine);
 router.delete("/qr/machines/:id",           authorize(["ADMIN"]), qrController.deactivateMachine);
 
-// "2 personas en la misma máquina": trainer-facing verification queue.
+// Machine conflicts (two people on the same machine): trainer-facing verification queue.
 router.get("/qr/machine-conflicts",             authorize(["TRAINER", "ADMIN"]), machineConflictController.getPendingConflicts);
 router.patch("/qr/machine-conflicts/:id/resolve", authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.resolveMachineConflictSchema), machineConflictController.resolveConflict);
 

@@ -33,6 +33,8 @@ const REQUIRED_ENV_VARS = [
   "RESEND_API_KEY",
   "RESEND_FROM_EMAIL",
   "CRON_SECRET",
+  "UPSTASH_REDIS_REST_URL",
+  "UPSTASH_REDIS_REST_TOKEN",
 ];
 
 function setAllRequiredEnvVars() {

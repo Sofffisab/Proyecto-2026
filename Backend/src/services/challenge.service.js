@@ -25,9 +25,8 @@ async function assertChallengeEligibility(userIdA, userIdB) {
 
   // Social challenges are station/machine-based (they're assigned at a
   // machine and completed by scanning there). Users who opted out of
-  // machine tracking ("no usar la app para máquinas") are excluded from
-  // this matching entirely — they keep interacting with trainers, just not
-  // with other members at a machine.
+  // machine tracking are excluded from this matching entirely — they keep
+  // interacting with trainers, just not with other members at a machine.
   if (settingsA?.machineTrackingOptOut || settingsB?.machineTrackingOptOut) {
     throw new AppError("One or both users have machine tracking disabled and cannot be matched for a station challenge", 400);
   }

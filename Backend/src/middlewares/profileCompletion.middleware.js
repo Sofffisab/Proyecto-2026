@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import redis from "../config/redis.js";
 import { AppError } from "../utils/errors.js";
+import { MESSAGES } from "../locales/es.js";
 
 // Routes a member must still be able to reach even with an incomplete
 // profile: finishing/editing the profile itself, session/account basics,
@@ -37,7 +38,7 @@ function isExemptPath(req) {
 
 // Required for a profile to be considered complete: medical info, birthday,
 // delivery address (needed to ship reward redemptions), and the 4 pantalla U
-// fields (objetivo principal, nivel actual, días que entrena por semana,
+// fields (main goal, current level, weekly training days,
 // tipo de entrenamiento buscado) — without these, goal-progress/insights and
 // trainer-matching logic can't run for the user (see insights.service.js
 // and gym.service.js#studentGoalTypes).
@@ -93,8 +94,7 @@ export async function requireCompleteProfile(req, res, next) {
       return res.status(403).json({
         success: false,
         code: "PROFILE_INCOMPLETE",
-        message:
-          "Debes completar tu perfil (datos médicos, fecha de nacimiento, dirección, objetivo principal, nivel actual, días que entrenás por semana y tipo de entrenamiento) antes de continuar.",
+        message: MESSAGES.PROFILE_INCOMPLETE,
       });
     }
 

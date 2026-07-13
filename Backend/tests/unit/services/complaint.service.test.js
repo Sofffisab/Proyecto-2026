@@ -347,7 +347,7 @@ describe('ComplaintService', () => {
       const result = await complaintService.createTrainerComplaint({
         reporterId: 'trainer-1',
         reportedUserId: 'user-2',
-        reason: 'DAÑO_DE_MAQUINA',
+        reason: 'MACHINE_DAMAGE',
         message: 'Rompió la cinta',
       });
 
@@ -355,7 +355,7 @@ describe('ComplaintService', () => {
         data: expect.objectContaining({
           reporterId: 'trainer-1',
           reportedUserId: 'user-2',
-          reason: 'DAÑO_DE_MAQUINA',
+          reason: 'MACHINE_DAMAGE',
           message: 'Rompió la cinta',
           source: 'TRAINER_REPORT',
           status: 'PENDING',
@@ -371,7 +371,7 @@ describe('ComplaintService', () => {
       await complaintService.createTrainerComplaint({
         reporterId: 'trainer-1',
         reportedUserId: 'user-2',
-        reason: 'DAÑO_DE_MAQUINA',
+        reason: 'MACHINE_DAMAGE',
       });
 
       expect(prisma.complaint.create).toHaveBeenCalledWith({
@@ -386,7 +386,7 @@ describe('ComplaintService', () => {
         complaintService.createTrainerComplaint({
           reporterId: 'trainer-1',
           reportedUserId: 'trainer-2',
-          reason: 'MAL_COMPORTAMIENTO',
+          reason: 'MISCONDUCT',
         })
       ).rejects.toThrow('Trainers can only report regular members through this endpoint');
       expect(prisma.complaint.create).not.toHaveBeenCalled();
@@ -399,7 +399,7 @@ describe('ComplaintService', () => {
         complaintService.createTrainerComplaint({
           reporterId: 'trainer-1',
           reportedUserId: 'ghost',
-          reason: 'MAL_COMPORTAMIENTO',
+          reason: 'MISCONDUCT',
         })
       ).rejects.toThrow('Reported user not found');
     });

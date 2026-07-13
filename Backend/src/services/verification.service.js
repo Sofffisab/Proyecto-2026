@@ -138,8 +138,7 @@ export function validateQRPayload(rawPayload) {
   return parsed;
 }
 
-// "Estar mucho tiempo en una máquina cuenta más que estar poco tiempo":
-// walks MACHINE_USAGE_DURATION_TIERS (longest minimum first) and returns the
+// Walks MACHINE_USAGE_DURATION_TIERS (longest minimum first) and returns the
 // points for the first tier the duration qualifies for. Falls back to 0 for
 // anything under the shortest tier (callers already gate on
 // MIN_MACHINE_USAGE_MINUTES_FOR_POINTS before calling this, so in practice
@@ -275,8 +274,8 @@ export async function processScan(scannerId, rawPayload) {
       }
     }
 
-    // "No usar la app para máquinas": the user said they didn't want machine
-    // QRs tracked. That preference still governs whether *unprompted* machine
+    // The user opted out of having machine QRs tracked. That preference
+    // still governs whether *unprompted* machine
     // data gets used for anything (e.g. AI routine suggestions — see
     // routine.service.js#getPatternSuggestion), but if they go ahead and
     // scan a machine QR anyway, we don't silently drop it: the scan is
@@ -311,8 +310,8 @@ export async function processScan(scannerId, rawPayload) {
 
     // Scanning a *different* machine without ending the previous one used to
     // leave that MachineUsage open forever. Close it out first (also
-    // handles "se cierra sola la sesión de una máquina al entrar a otra
-    // máquina") so every usage record is properly bounded.
+    // handles the "starting a different machine auto-closes the previous
+    // one" rule) so every usage record is properly bounded.
     const otherOpenUsage = await prisma.machineUsage.findFirst({
       where: { userId: scannerId, endedAt: null, machineId: { not: machineId } },
       orderBy: { startedAt: "desc" },
@@ -322,8 +321,8 @@ export async function processScan(scannerId, rawPayload) {
       await closeOpenMachineUsage(scannerId, "Machine usage auto-closed (started a different machine)");
     }
 
-    // "2 personas en la misma máquina": another user's usage is still open
-    // on THIS machine right now. Flag it as conducta extraña and let
+    // Another user's usage is still open on THIS machine right now (two
+    // people on the same machine). Flag it as suspicious and let
     // trainers verify — the new usage is still created below (both keep
     // figuring as using it until a trainer resolves it, or it auto-expires
     // into a mutual complaint — see machineConflict.service.js).
@@ -337,8 +336,9 @@ export async function processScan(scannerId, rawPayload) {
       orderBy: { checkInAt: "desc" },
     });
 
-    // "Si no escanea entrada pero sí máquina, marca ese escaneo como
-    // máquina Y entrada": a machine scan that starts a new usage implies
+    // If the user never scanned a check-in but did scan a machine, mark
+    // that scan as both a machine usage AND a check-in: a machine scan
+    // that starts a new usage implies
     // the user is physically in the gym right now, so if they never
     // scanned/checked in, open a gym session for them here instead of
     // leaving the machine usage orphaned (gymSessionId: null).

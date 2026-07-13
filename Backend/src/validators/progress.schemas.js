@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COMPLAINT_REASON_CODES } from "../locales/es.js";
 
 // ── Goal / Progress ──────────────────────────────────────────────────────────
 
@@ -193,13 +194,19 @@ export const rateTrainerSchema = z.object({
   comment: z.string().trim().max(1000).optional(),
 });
 
+// Enum values are the wire-format contract with the Frontend. As of this
+// writing the Frontend has no complaint-creation screen yet referencing
+// them, so these are defined here as plain English codes (see
+// COMPLAINT_REASON_CODES in src/locales/es.js) rather than Spanish text —
+// if a UI is built to display them, use COMPLAINT_REASON_LABELS_ES to map
+// each code to its Spanish label instead of changing the codes themselves.
 export const createTrainerComplaintSchema = z.object({
   reportedUserId: z.string().uuid(),
   reason: z.enum([
-    "DAÑO_DE_MAQUINA",
-    "MAL_COMPORTAMIENTO",
-    "INCUMPLIMIENTO_DE_NORMAS",
-    "OTRO",
+    COMPLAINT_REASON_CODES.MACHINE_DAMAGE,
+    COMPLAINT_REASON_CODES.MISCONDUCT,
+    COMPLAINT_REASON_CODES.RULE_VIOLATION,
+    COMPLAINT_REASON_CODES.OTHER,
   ]),
   message: z.string().trim().max(2000).optional(),
 });
@@ -209,7 +216,7 @@ export const createMachineSchema = z.object({
   name: z.string().trim().min(1).max(200),
 });
 
-// ── Machine conflicts ("2 personas en la misma máquina") ──────────────────────
+// ── Machine conflicts (two people on the same machine) ─────────────────────────
 
 export const resolveMachineConflictSchema = z.object({
   resolution: z.enum(["BOTH_PRESENT", "NEITHER_PRESENT", "ONLY_FIRST", "ONLY_SECOND"]),

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// ── Pantalla U: perfil mínimo — opciones fijas ────────────────────────────────
+// ── Minimal-profile screen: fixed option sets ──────────────────────────────────
 export const MAIN_GOAL_OPTIONS = ["LOSE_WEIGHT", "GAIN_MUSCLE", "IMPROVE_HEALTH", "INCREASE_ENDURANCE"];
 export const EXPERIENCE_LEVEL_OPTIONS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
 export const TRAINING_FREQUENCY_OPTIONS = ["ONE_TO_TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN"];
@@ -11,14 +11,14 @@ export const updateUserSchema = z.object({
   lastName: z.string().trim().min(1).max(100).optional(),
   birthday: z.string().datetime().optional(),
   gender: z.string().max(50).optional(),
-  // Nivel actual — 3 opciones fijas.
+  // Current level — 3 fixed options.
   trainingLevel: z.enum(EXPERIENCE_LEVEL_OPTIONS).optional(),
   medicalConditions: z.array(z.string()).optional(),
-  // Objetivo principal — 4 opciones fijas, multi-select.
+  // Main goal — 4 fixed options, multi-select.
   objectives: z.array(z.enum(MAIN_GOAL_OPTIONS)).optional(),
-  // Días que entrena por semana — 6 opciones fijas.
+  // Weekly training days — 6 fixed options.
   weeklyTrainingDays: z.enum(TRAINING_FREQUENCY_OPTIONS).optional(),
-  // Tipo de entrenamiento buscado — 4 opciones fijas.
+  // Desired training type — 4 fixed options.
   trainingType: z.enum(TRAINING_TYPE_OPTIONS).optional(),
   deliveryAddress: z.string().max(500).optional(),
 });
@@ -29,7 +29,7 @@ export const updateSettingsSchema = z.object({
   disableAssistance: z.boolean().optional(),
   disableSocial: z.boolean().optional(),
   trainerPreference: z.string().nullable().optional(),
-  // "No usar la app para máquinas": only entry/exit is scanned, no machine
+  // Opt out of machine tracking: only entry/exit is scanned, no machine
   // QR is recorded, and the user is dropped from machine-based social
   // matching. They stay in the trainer's help list, just without any
   // machine/zone info attached.

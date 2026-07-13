@@ -7,6 +7,7 @@ import { notifyTrainerOfReturningStudent } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 import { createAutoNoHelpComplaint } from "./complaint.service.js";
+import { MESSAGES } from "../locales/es.js";
 
 // Emit USER_NEEDS_ATTENTION when a user has been waiting this many minutes without assistance
 const ATTENTION_THRESHOLD_MINUTES = parseInt(process.env.ATTENTION_THRESHOLD_MINUTES ?? "30", 10);
@@ -84,7 +85,7 @@ export async function checkIn(userId, options = {}) {
  * "just checked in" location if they haven't started using a machine yet.
  */
 export async function getUserCurrentLocation(userId) {
-  // "No usar la app para máquinas": these users are never tracked at
+  // Users who opted out of machine tracking are never tracked at
   // machine/zone granularity — trainers still see them on the help list,
   // just without any machine info, only that they're present in the gym.
   const settings = await prisma.userSettings.findUnique({
@@ -111,11 +112,11 @@ export async function getUserCurrentLocation(userId) {
     orderBy: { checkInAt: "desc" },
   });
 
-  if (!activeSession) return "ubicación desconocida";
+  if (!activeSession) return MESSAGES.LOCATION_UNKNOWN;
 
   return settings?.machineTrackingOptOut
-    ? "en el gimnasio (máquina no rastreada por preferencia del usuario)"
-    : "entrada del gimnasio (recién ingresó)";
+    ? MESSAGES.LOCATION_GYM_UNTRACKED_MACHINE
+    : MESSAGES.LOCATION_JUST_CHECKED_IN;
 }
 
 /**
@@ -211,7 +212,7 @@ export async function checkOut(userId) {
     data: { checkOutAt, durationMinutes, autoClosed: false },
   });
 
-  // "Se cierra sola la sesión de una máquina ... al irse": leaving the gym
+  // A machine session auto-closes when leaving the gym
   // implies whatever machine the user was on is done too. Dynamic import to
   // avoid a require-cycle (verification.service.js imports checkIn/checkOut
   // from this module).

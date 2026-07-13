@@ -43,7 +43,7 @@ describe("ComplaintController", () => {
     req.user = { id: "trainer-1", role: "TRAINER" };
     req.validatedData = {
       reportedUserId: "user-2",
-      reason: "DAÑO_DE_MAQUINA",
+      reason: "MACHINE_DAMAGE",
       message: "Rompió la cinta",
     };
     const created = { id: "complaint-9", ...req.validatedData, reporterId: "trainer-1", source: "TRAINER_REPORT" };
@@ -54,7 +54,7 @@ describe("ComplaintController", () => {
     expect(complaintService.createTrainerComplaint).toHaveBeenCalledWith({
       reporterId: "trainer-1",
       reportedUserId: "user-2",
-      reason: "DAÑO_DE_MAQUINA",
+      reason: "MACHINE_DAMAGE",
       message: "Rompió la cinta",
     });
     expect(res.status).toHaveBeenCalledWith(201);

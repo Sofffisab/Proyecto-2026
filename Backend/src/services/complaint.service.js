@@ -3,6 +3,7 @@ import { addPoints } from "./gamification.service.js";
 import { POINTS, COMPLAINT_PENALTY } from "../constants/points.js";
 import { createNotification } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
+import { MESSAGES } from "../locales/es.js";
 
 // Given the count of APPROVED complaints a user has (including the one
 // currently being approved), returns the penalty to apply for *this*
@@ -69,7 +70,7 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
       reporterId,
       reportedUserId,
       gymSessionId: gymSessionId ?? null,
-      reason: "El entrenador no brindó la ayuda solicitada",
+      reason: MESSAGES.COMPLAINT_REASON_NO_HELP,
       message: comment ?? null,
       status: "PENDING",
       source: "AUTO_NO_HELP",
@@ -77,7 +78,7 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
   });
 }
 
-// Auto-generated when a MachineConflict ("2 personas en la misma máquina")
+// Auto-generated when a MachineConflict (two people on the same machine)
 // times out without a trainer verifying who was actually there — see
 // machineConflict.service.js#expireUnverifiedConflicts. One per (reporter,
 // reported, conflict) so re-running the expiry job is safe.
@@ -96,7 +97,7 @@ export async function createAutoMachineConflictComplaint({ reporterId, reportedU
     data: {
       reporterId,
       reportedUserId,
-      reason: "Uso simultáneo de la misma máquina sin verificación de un entrenador",
+      reason: MESSAGES.COMPLAINT_REASON_MACHINE_CONFLICT,
       message: conflictId,
       status: "PENDING",
       source: "AUTO_MACHINE_CONFLICT",

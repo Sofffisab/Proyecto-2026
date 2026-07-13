@@ -3,12 +3,13 @@ import { createNotification } from "./communication.service.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS, MACHINE_CONFLICT_VERIFICATION_WINDOW_MS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
+import { MESSAGES } from "../locales/es.js";
 
 /**
  * Raises a MachineConflict when a scan opens a new MachineUsage on a machine
- * that already has a different user's usage open — "2 personas en la misma
- * máquina". Idempotent per machine: if there's already an unresolved
- * conflict on this machine, we don't create a duplicate, just leave it open.
+ * that already has a different user's usage open (two people on the same
+ * machine). Idempotent per machine: if there's already an unresolved
+ * conflict on it, we don't create a duplicate, just leave it open.
  * Notifies every TRAINER (in-app) to go verify in person who's actually there.
  *
  * @param {{ machineId: string, firstUsage: object, secondUsage: object }} params
@@ -36,8 +37,8 @@ export async function flagMachineConflict({ machineId, firstUsage, secondUsage }
       select: { id: true },
     });
 
-    const title = "Conducta extraña: 2 personas en la misma máquina";
-    const body = `Se detectaron 2 usos abiertos simultáneos en "${machine?.name ?? machineId}". Verificá en persona quién está realmente usándola.`;
+    const title = MESSAGES.MACHINE_CONFLICT_TITLE;
+    const body = MESSAGES.machineConflictBody(machine?.name ?? machineId);
 
     await Promise.all(
       trainers.map((t) => createNotification(t.id, title, body))
@@ -124,8 +125,7 @@ export async function resolveConflict(conflictId, trainerId, resolution) {
     data: { resolvedAt: new Date(), resolvedBy: trainerId, resolution },
   });
 
-  // "El entrenador sube calificación mínimamente al ayudar a mantener el
-  // orden contribuyendo" — small points bonus for the trainer.
+  // Small points bonus for the trainer who helped keep order on the floor.
   addPoints(trainerId, POINTS.TRAINER_ORDER_BONUS, "Verified a machine-usage conflict").catch((err) =>
     logger.error("[machineConflict] Failed to award trainer order bonus:", err.message)
   );
