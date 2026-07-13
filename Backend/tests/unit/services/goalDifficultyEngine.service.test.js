@@ -22,6 +22,16 @@ describe("goalDifficultyEngine", () => {
       expect(largeScore).toBeGreaterThan(smallScore);
     });
 
+    it("scores a small FAT-loss goal as easier than a large one", () => {
+      const smallGoal = { type: "FAT", action: "LOSE", targetValue: 1, difficulty: "MEDIUM" };
+      const largeGoal = { type: "FAT", action: "LOSE", targetValue: 12, difficulty: "MEDIUM" };
+
+      const smallScore = difficultyEngine.computeStandardDifficulty(smallGoal);
+      const largeScore = difficultyEngine.computeStandardDifficulty(largeGoal);
+
+      expect(largeScore).toBeGreaterThan(smallScore);
+    });
+
     it("scores gaining muscle as harder than losing the equivalent weight", () => {
       const gainMuscle = { type: "MUSCLE", action: "GAIN", targetValue: 5, difficulty: "MEDIUM" };
       const loseWeight = { type: "WEIGHT", action: "LOSE", targetValue: 5, difficulty: "MEDIUM" };

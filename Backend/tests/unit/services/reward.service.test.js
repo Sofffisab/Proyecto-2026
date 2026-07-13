@@ -88,6 +88,15 @@ describe("RewardService", () => {
       expect(mockTx.rewardRedemption.create).not.toHaveBeenCalled();
     });
 
+    it("treats a null aggregate sum (user with no point transactions yet) as 0 points", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: null } });
+
+      const result = await rewardService.autoGrantRewards("user-123");
+
+      expect(result).toBeNull();
+      expect(prisma.reward.findMany).not.toHaveBeenCalled();
+    });
+
     it("does nothing when total points is 0 or negative", async () => {
       prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 0 } });
 
@@ -281,6 +290,14 @@ describe("RewardService", () => {
         where: { id: "redemption-1" },
         data: expect.objectContaining({ status: "DELIVERED" }),
       });
+    });
+
+    it("rejects delivering a redemption that does not exist", async () => {
+      prisma.rewardRedemption.findUnique.mockResolvedValue(null);
+
+      await expect(rewardService.deliverReward("missing-redemption")).rejects.toThrow(
+        "Redemption not found"
+      );
     });
 
     it("rejects delivering a redemption that isn't SHIPPED", async () => {

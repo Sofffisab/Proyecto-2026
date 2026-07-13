@@ -40,6 +40,51 @@ describe("VerificationService", () => {
 
       process.env.QR_HMAC_SECRET = originalSecret;
     });
+
+    it("throws if neither QR_HMAC_SECRET nor JWT_ACCESS_SECRET is configured", () => {
+      const originalQr = process.env.QR_HMAC_SECRET;
+      const originalJwt = process.env.JWT_ACCESS_SECRET;
+      delete process.env.QR_HMAC_SECRET;
+      delete process.env.JWT_ACCESS_SECRET;
+
+      expect(() => verificationService.getUserQR("user-123")).toThrow(
+        "QR_HMAC_SECRET is not configured"
+      );
+
+      process.env.QR_HMAC_SECRET = originalQr;
+      process.env.JWT_ACCESS_SECRET = originalJwt;
+    });
+  });
+
+  describe("processScan validation", () => {
+    it("rejects a USER scan with no userId in the payload", async () => {
+      const rest = { type: "USER", ts: Date.now() };
+      const payload = { ...rest, signature: signPayload(rest) };
+
+      await expect(
+        verificationService.processScan("scanner-1", payload)
+      ).rejects.toThrow("Missing userId in QR payload");
+    });
+
+    it("rejects a MACHINE scan with no machineId in the payload", async () => {
+      const rest = { type: "MACHINE", ts: Date.now() };
+      const payload = { ...rest, signature: signPayload(rest) };
+
+      await expect(
+        verificationService.processScan("scanner-1", payload)
+      ).rejects.toThrow("Missing machineId in QR payload");
+    });
+
+    it("rejects a MACHINE scan when the machine does not exist", async () => {
+      const rest = { type: "MACHINE", machineId: "ghost-machine", qrToken: "any-token", ts: Date.now() };
+      const payload = { ...rest, signature: signPayload(rest) };
+
+      prisma.machine.findUnique.mockResolvedValue(null);
+
+      await expect(
+        verificationService.processScan("scanner-1", payload)
+      ).rejects.toThrow("Invalid machine token");
+    });
   });
 
   describe("regenerateMachineQR", () => {

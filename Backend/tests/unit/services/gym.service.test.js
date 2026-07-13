@@ -282,6 +282,15 @@ describe("GymService", () => {
       );
     });
 
+    it("returns an empty list when nobody is currently checked in", async () => {
+      prisma.gymSession.findMany.mockResolvedValue([]);
+
+      const result = await gymService.getPresentUsers();
+
+      expect(result).toEqual([]);
+      expect(prisma.assistance.findMany).not.toHaveBeenCalled();
+    });
+
     it("sorts by most urgent (longest without assistance) and then by trainerPreference", async () => {
       const result = await gymService.getPresentUsers();
 
@@ -470,6 +479,64 @@ describe("GymService", () => {
       const result = await gymService.getPriorityAssistanceList("trainer-1");
 
       expect(result.map((r) => r.userId)).toEqual(["user-B", "user-A"]);
+    });
+
+    it("treats a trainer with no TrainerProfile as having no specialties (no crash, no false match)", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-A",
+          user: {
+            id: "user-A",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: ["STRENGTH"],
+            settings: {},
+          },
+        },
+      ]);
+      prisma.assistance.findMany.mockResolvedValue([]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-no-profile");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].specialtyMatch).toBe(false);
+    });
+
+    it("puts a never-assisted student ahead of one who waited a long (but finite) time", async () => {
+      const now = Date.now();
+      prisma.trainerProfile.findUnique.mockResolvedValue({ specialties: [] });
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          userId: "user-waited-long",
+          user: {
+            id: "user-waited-long",
+            role: "USER",
+            createdAt: new Date(now - 1000),
+            objectives: [],
+            settings: {},
+          },
+        },
+        {
+          userId: "user-never-helped",
+          user: {
+            id: "user-never-helped",
+            role: "USER",
+            createdAt: new Date(now - 500),
+            objectives: [],
+            settings: {},
+          },
+        },
+      ]);
+      // Only the first user has ever been helped, and it was a long time ago.
+      prisma.assistance.findMany.mockResolvedValue([
+        { userId: "user-waited-long", completedAt: new Date(now - 10 * 24 * 60 * 60000) },
+      ]);
+
+      const result = await gymService.getPriorityAssistanceList("trainer-1");
+
+      expect(result.map((r) => r.userId)).toEqual(["user-never-helped", "user-waited-long"]);
     });
 
     it("still puts real wait-time gaps ahead of specialty when buckets differ", async () => {

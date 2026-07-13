@@ -162,6 +162,43 @@ describe("behaviorAnalysis.service", () => {
       expect(result).toBeNull();
       expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
     });
+
+    it("does not award when consistencyScore is present but avgSessionsPerWeek is null", async () => {
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.9,
+        avgSessionsPerWeek: null,
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("computes the ISO week key correctly when 'today' is a Sunday", async () => {
+      // Sunday needs the `getUTCDay() || 7` special case in isoWeekKey,
+      // since JS's getUTCDay() returns 0 for Sunday instead of ISO's 7.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-12T12:00:00Z")); // a Sunday
+
+      prisma.pointTransaction.findFirst.mockResolvedValue(null);
+      prisma.pointTransaction.create.mockResolvedValue({});
+      prisma.reward.findMany.mockResolvedValue([]);
+
+      const result = await behaviorAnalysis.awardConsistencyBonus("user-1", {
+        consistencyScore: 0.9,
+        avgSessionsPerWeek: 3,
+      });
+
+      expect(result).not.toBeNull();
+      expect(prisma.pointTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            reason: expect.stringContaining("2026-W28"),
+          }),
+        })
+      );
+
+      vi.useRealTimers();
+    });
   });
 
   describe("refreshUserBehaviorProfile", () => {
