@@ -177,5 +177,94 @@ describe("GamificationService", () => {
 
       expect(prisma.userAchievement.create).not.toHaveBeenCalled();
     });
+
+    it("does not double-unlock or double-award points when the achievement was already unlocked concurrently inside the transaction", async () => {
+      // Simulates a race: the outer unlockedSet check passed, but by the
+      // time the transaction runs, another request already created the
+      // UserAchievement row. The transaction's own re-check must bail out
+      // without creating a duplicate unlock or a duplicate point award.
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 30 } });
+      const today = new Date();
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: today },
+        { checkInAt: new Date(today.getTime() - 86400000) },
+        { checkInAt: new Date(today.getTime() - 2 * 86400000) },
+      ]);
+      prisma.socialInteraction.count.mockResolvedValue(0);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-streak-3",
+          name: "3 días seguidos",
+          category: "CONSISTENCY",
+          metric: "STREAK_DAYS",
+          threshold: 3,
+          pointsRequired: 0,
+        },
+      ]);
+      // Re-check inside the transaction finds it already unlocked.
+      prisma.userAchievement.findFirst.mockResolvedValue({ id: "already-there" });
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).not.toHaveBeenCalled();
+      expect(prisma.pointTransaction.create).not.toHaveBeenCalled();
+      // The post-transaction notification step is also skipped.
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("unlocks a TOTAL_POINTS achievement using pointsRequired instead of threshold", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 500 } });
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.socialInteraction.count.mockResolvedValue(0);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-points-500",
+          name: "500 puntos",
+          category: "POINTS",
+          metric: "TOTAL_POINTS",
+          threshold: null,
+          pointsRequired: 500,
+        },
+      ]);
+      prisma.userAchievement.findFirst.mockResolvedValue(null);
+      prisma.userAchievement.create.mockResolvedValue({ id: "ua-2" });
+      prisma.pointTransaction.create.mockResolvedValue({ id: "txn-2" });
+      prisma.user.findUnique.mockResolvedValue({ email: "a@b.com", firstName: "Ana" });
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).toHaveBeenCalledWith({
+        data: { userId: "user-123", achievementId: "ach-points-500" },
+      });
+    });
+
+    it("does not unlock a TOTAL_POINTS achievement below its pointsRequired", async () => {
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 100 } });
+      prisma.gymSession.findMany.mockResolvedValue([]);
+      prisma.socialInteraction.count.mockResolvedValue(0);
+      prisma.machineUsage.count.mockResolvedValue(0);
+
+      prisma.userAchievement.findMany.mockResolvedValue([]);
+      prisma.achievement.findMany.mockResolvedValue([
+        {
+          id: "ach-points-500",
+          name: "500 puntos",
+          category: "POINTS",
+          metric: "TOTAL_POINTS",
+          threshold: null,
+          pointsRequired: 500,
+        },
+      ]);
+
+      await gamificationService.checkAndUnlockAchievements("user-123");
+
+      expect(prisma.userAchievement.create).not.toHaveBeenCalled();
+    });
   });
 });

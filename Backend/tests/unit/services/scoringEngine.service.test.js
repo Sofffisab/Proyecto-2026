@@ -25,6 +25,26 @@ describe("scoringEngine", () => {
     expect(points).toBe(POINTS.PROGRESS_UPDATE);
   });
 
+  it("treats a falsy newPercent (0) as 0 rather than NaN", async () => {
+    const { points, breakdown } = await scoringEngine.computeProgressPoints("user-1", goal, {
+      previousPercent: 0,
+      newPercent: 0,
+    });
+
+    expect(breakdown.deltaPercent).toBe(0);
+    expect(points).toBe(POINTS.PROGRESS_UPDATE);
+  });
+
+  it("clamps deltaPercent to 0 (never negative) when progress goes backward", async () => {
+    const { breakdown } = await scoringEngine.computeProgressPoints("user-1", goal, {
+      previousPercent: 60,
+      newPercent: 40,
+    });
+
+    expect(breakdown.deltaPercent).toBe(0);
+    expect(breakdown.proportionalPoints).toBe(0);
+  });
+
   it("awards more points for a bigger jump in progress percentage", async () => {
     const small = await scoringEngine.computeProgressPoints("user-1", goal, {
       previousPercent: 0,

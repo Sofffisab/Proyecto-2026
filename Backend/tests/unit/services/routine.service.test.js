@@ -310,6 +310,14 @@ describe("RoutineService", () => {
       );
     });
 
+    it("throws if the request is not pending when rejecting", async () => {
+      prisma.routineRequest.findUnique.mockResolvedValue({ id: "req-1", status: "COMPLETED" });
+
+      await expect(
+        routineService.rejectRoutineRequest("req-1", "trainer-1")
+      ).rejects.toThrow("Request is not pending");
+    });
+
     it("rejects an unassigned pending request without requiring a specific trainer", async () => {
       prisma.routineRequest.findUnique.mockResolvedValue({
         id: "req-1",
@@ -444,9 +452,33 @@ describe("RoutineService", () => {
       expect(result.content.basedOn).toEqual({ type: "TOP_MACHINES" });
       expect(result.content.exercises).toEqual([{ machine: "Treadmill" }, { machine: "Rowing" }]);
     });
+    it("treats a behavior profile with null routines/topMachines/frequentDays (not yet computed) as empty", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.userBehaviorProfile.findUnique.mockResolvedValue({
+        routines: null,
+        topMachines: null,
+        frequentDays: null,
+      });
+
+      const result = await routineService.getPatternSuggestion("user-1");
+
+      expect(result.available).toBe(false);
+    });
   });
 
   describe("acceptPatternSuggestion", () => {
+    it("defaults the routine name to 'Suggested Routine' when an override supplies content but no name", async () => {
+      prisma.routine.create.mockResolvedValue({ id: "r1", name: "Suggested Routine", isCustom: false });
+
+      const result = await routineService.acceptPatternSuggestion("user-1", {
+        content: { exercises: [{ machine: "Treadmill" }] },
+      });
+
+      expect(prisma.routine.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: "Suggested Routine" }) })
+      );
+    });
+
     it("saves an override name/content directly without recomputing a suggestion", async () => {
       prisma.routine.create.mockResolvedValue({ id: "r1", name: "Custom name", isCustom: false });
 

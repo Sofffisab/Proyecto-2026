@@ -90,6 +90,25 @@ describe("PatternAnalysisService", () => {
       expect(communicationService.createNotification).not.toHaveBeenCalled();
     });
 
+    it("summarizes only the top day when the user has sessions but no machine usage", async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }]);
+      prisma.gymSession.findMany.mockResolvedValue([
+        {
+          checkInAt: new Date("2026-01-05T10:00:00Z"),
+          machineUsages: [],
+        },
+      ]);
+      communicationService.createNotification.mockResolvedValue(undefined);
+
+      await patternAnalysisService.runPatternAnalysisForAll();
+
+      expect(communicationService.createNotification).toHaveBeenCalledWith(
+        "user-1",
+        "Your training patterns",
+        "Your favourite training day is Monday."
+      );
+    });
+
     it("does not let one user's failure stop the batch", async () => {
       prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
       prisma.gymSession.findMany

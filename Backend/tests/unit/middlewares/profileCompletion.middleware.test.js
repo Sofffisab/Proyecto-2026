@@ -61,6 +61,15 @@ describe("requireCompleteProfile middleware", () => {
     expect(prisma.user.findUnique).toHaveBeenCalled();
   });
 
+  it("throws a 404 when the authenticated user's record no longer exists in the DB", async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await requireCompleteProfile(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "User not found", statusCode: 404 }));
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("blocks the request with 403 when the profile is incomplete", async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: "user-1",
@@ -173,5 +182,52 @@ describe("isProfileDataComplete", () => {
         ...fullPantallaU,
       })
     ).toBe(true);
+  });
+});
+
+describe("requireCompleteProfile middleware — redis unavailable", () => {
+  // The global test setup always mocks redis.js with a truthy client, so
+  // the `if (redis) await redis.del(...)` branch guarding a missing/
+  // unconfigured Redis instance is never exercised there. Re-import the
+  // middleware with a fresh module registry and redis mocked as `null`
+  // (its real shape when UPSTASH_* env vars aren't set — see
+  // src/config/redis.js) to confirm the cache-invalidation step is safely
+  // skipped instead of throwing.
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("still syncs the stale isProfileComplete flag and calls next() when redis is null", async () => {
+    vi.doMock("../../../src/config/redis.js", () => ({ default: null }));
+
+    const { prisma: prismaMock } = await import("../../../src/config/prisma.js");
+    const { requireCompleteProfile: freshRequireCompleteProfile } = await import(
+      "../../../src/middlewares/profileCompletion.middleware.js"
+    );
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      birthday: new Date("1990-01-01"),
+      medicalConditions: [],
+      deliveryAddress: "Main St 123",
+      trainingLevel: "BEGINNER",
+      objectives: ["LOSE_WEIGHT"],
+      weeklyTrainingDays: "THREE",
+      trainingType: "STRENGTH",
+      isProfileComplete: false,
+    });
+    prismaMock.user.update.mockResolvedValue({});
+
+    const req = { user: { id: "user-1", role: "USER" }, path: "/goals" };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+
+    await freshRequireCompleteProfile(req, res, next);
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { isProfileComplete: true },
+    });
+    expect(next).toHaveBeenCalledWith();
   });
 });

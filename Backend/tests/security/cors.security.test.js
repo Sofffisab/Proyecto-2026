@@ -62,6 +62,19 @@ describe("CORS Security", () => {
       .toBeUndefined();
   });
 
+  it("rejects any Origin when ALLOWED_ORIGINS is unset (falls back to an empty allowlist)", async () => {
+    const previous = process.env.ALLOWED_ORIGINS;
+    delete process.env.ALLOWED_ORIGINS;
+
+    const res = await request(app)
+      .get("/api/v1/unknown")
+      .set("Origin", "http://localhost:3000");
+
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+
+    process.env.ALLOWED_ORIGINS = previous;
+  });
+
   it("returns Access-Control-Allow-Credentials", async () => {
     const res = await request(app)
       .get("/api/v1/unknown")

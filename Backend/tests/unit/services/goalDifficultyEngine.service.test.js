@@ -83,6 +83,11 @@ describe("goalDifficultyEngine", () => {
       expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
     });
 
+    it("treats a missing/non-numeric targetValue as 0 (lowest magnitude tier) instead of throwing", () => {
+      const goal = { type: "WEIGHT", action: "LOSE", targetValue: undefined, difficulty: "MEDIUM" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(0.7);
+    });
+
     it("falls back to a neutral 1.0 score for a completely unrecognized goal type", () => {
       const goal = { type: "SOME_FUTURE_TYPE", action: "GAIN", targetValue: 5, difficulty: "MEDIUM" };
       expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);

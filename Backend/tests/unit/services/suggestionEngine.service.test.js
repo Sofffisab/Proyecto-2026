@@ -110,6 +110,78 @@ describe("SuggestionEngineService", () => {
 
       expect(sendEmail).not.toHaveBeenCalled();
     });
+
+    it("sends a preventive health reminder when no goal is stalled and the user has never been emailed", async () => {
+      const recent = new Date();
+      prisma.goal.findMany.mockResolvedValue([
+        {
+          id: "goal-1",
+          type: "MUSCLE_GAIN",
+          createdAt: recent,
+          progress: [{ progressPercent: 80, createdAt: recent }],
+        },
+      ]);
+      prisma.user.findUnique.mockResolvedValue({
+        email: "user@test.com",
+        firstName: "Ana",
+        lastHealthEmailAt: null,
+      });
+      prisma.user.update.mockResolvedValue({});
+
+      await suggestionEngine.evaluateUserProgress("user-1");
+
+      expect(sendEmail).toHaveBeenCalledWith(
+        "user@test.com",
+        expect.stringContaining("preventive"),
+        expect.any(String)
+      );
+    });
+
+    it("does nothing (no throw) when the user record disappears before the preventive-email check runs", async () => {
+      prisma.goal.findMany.mockResolvedValue([]);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(suggestionEngine.evaluateUserProgress("user-1")).resolves.toBeUndefined();
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("does nothing (no throw) when the user record disappears before the stalled-goal health email is sent", async () => {
+      const oldDate = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000); // 40 days ago, past the 30-day stall threshold
+      prisma.goal.findMany.mockResolvedValue([
+        {
+          id: "goal-1",
+          type: "WEIGHT_LOSS",
+          createdAt: oldDate,
+          progress: [{ progressPercent: 5, createdAt: oldDate }],
+        },
+      ]);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(suggestionEngine.evaluateUserProgress("user-1")).resolves.toBeUndefined();
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("skips the preventive health reminder when the last email was sent recently", async () => {
+      const recent = new Date();
+      const recentEmail = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // 5 days ago, well under the 90-day reminder window
+      prisma.goal.findMany.mockResolvedValue([
+        {
+          id: "goal-1",
+          type: "MUSCLE_GAIN",
+          createdAt: recent,
+          progress: [{ progressPercent: 80, createdAt: recent }],
+        },
+      ]);
+      prisma.user.findUnique.mockResolvedValue({
+        email: "user@test.com",
+        firstName: "Ana",
+        lastHealthEmailAt: recentEmail,
+      });
+
+      await suggestionEngine.evaluateUserProgress("user-1");
+
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
   });
 
   describe("runSuggestionEngineForAll", () => {

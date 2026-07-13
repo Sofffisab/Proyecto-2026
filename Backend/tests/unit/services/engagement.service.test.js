@@ -24,5 +24,15 @@ describe("EngagementService", () => {
         totalPointsAwarded: 9000,
       });
     });
+
+    it("reports 0 total points awarded when there are no point transactions yet (aggregate sum is null)", async () => {
+      prisma.user.count.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
+      prisma.gymSession.count.mockResolvedValue(0);
+      prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: null } });
+
+      const result = await engagementService.getEngagementMetrics();
+
+      expect(result.totalPointsAwarded).toBe(0);
+    });
   });
 });

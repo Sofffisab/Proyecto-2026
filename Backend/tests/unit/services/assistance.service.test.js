@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as assistanceService from '../../../src/services/assistance.service.js';
 import { prisma } from '../../../src/config/prisma.js';
+import * as pushNotificationService from '../../../src/services/pushNotification.service.js';
+
+vi.mock('../../../src/services/pushNotification.service.js');
 
 describe('AssistanceService', () => {
   beforeEach(() => {
@@ -408,6 +411,53 @@ describe('AssistanceService', () => {
         expect.objectContaining({
           where: expect.objectContaining({ role: 'TRAINER', isActive: true }),
         })
+      );
+    });
+
+    it('sends a push alert to every available trainer when at least one exists', async () => {
+      prisma.user.findUnique.mockResolvedValue({ firstName: 'Ana', lastName: 'Gomez' });
+      const requestedAt = new Date();
+      prisma.assistance.create.mockResolvedValue({
+        id: 'a1',
+        userId: 'user-1',
+        status: 'PENDING',
+        requestedAt,
+      });
+      prisma.user.findMany.mockResolvedValue([{ id: 'trainer-1' }, { id: 'trainer-2' }]);
+      pushNotificationService.sendTrainerAlert.mockResolvedValue(undefined);
+
+      await assistanceService.requestAssistance('user-1');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(pushNotificationService.sendTrainerAlert).toHaveBeenCalledWith({
+        trainerIds: ['trainer-1', 'trainer-2'],
+        type: 'SOS_ENTRENADOR',
+        payload: {
+          assistanceId: 'a1',
+          userId: 'user-1',
+          userName: 'Ana Gomez',
+          requestedAt: requestedAt.toISOString(),
+        },
+      });
+    });
+
+    it("falls back to 'Un socio' as the userName when the requester can't be found", async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      const requestedAt = new Date();
+      prisma.assistance.create.mockResolvedValue({
+        id: 'a1',
+        userId: 'user-1',
+        status: 'PENDING',
+        requestedAt,
+      });
+      prisma.user.findMany.mockResolvedValue([{ id: 'trainer-1' }]);
+      pushNotificationService.sendTrainerAlert.mockResolvedValue(undefined);
+
+      await assistanceService.requestAssistance('user-1');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(pushNotificationService.sendTrainerAlert).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: expect.objectContaining({ userName: 'Un socio' }) })
       );
     });
 

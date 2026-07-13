@@ -430,6 +430,17 @@ describe("RewardService", () => {
 
       expect(prisma.rewardPendingGrant.findMany).not.toHaveBeenCalled();
     });
+
+    it("does not let a failure in the fire-and-forget restock fulfillment reject updateReward", async () => {
+      prisma.reward.findUnique.mockResolvedValue({ id: "r1", stock: 0 });
+      prisma.reward.update.mockResolvedValue({ id: "r1", stock: 10 });
+      prisma.rewardPendingGrant.findMany.mockRejectedValue(new Error("db down"));
+
+      const result = await rewardService.updateReward("r1", { stock: 10 });
+      await new Promise((r) => setImmediate(r));
+
+      expect(result).toEqual({ id: "r1", stock: 10 });
+    });
   });
 
   describe("getAllRedemptions", () => {

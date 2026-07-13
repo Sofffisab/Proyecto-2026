@@ -205,6 +205,32 @@ describe("GymService", () => {
       expect(prisma.gymSession.update).not.toHaveBeenCalled();
     });
 
+    it("still completes the check-out even if auto-closing the open machine usage fails", async () => {
+      // closeOpenMachineUsage() is dynamically imported and awaited inside
+      // checkOut(); a failure there (e.g. a DB error) must be caught and
+      // logged, never allowed to fail the check-out itself.
+      const now = new Date();
+      const mockSession = {
+        id: "session-123",
+        userId: "user-123",
+        checkInAt: new Date(now.getTime() - 60000),
+        checkOutAt: null,
+      };
+      prisma.gymSession.findFirst.mockResolvedValue(mockSession);
+      prisma.gymSession.update.mockResolvedValue({
+        ...mockSession,
+        checkOutAt: now,
+        durationMinutes: 1,
+      });
+      // verification.service's closeOpenMachineUsage looks this up first;
+      // making it reject exercises the try/catch in checkOut().
+      prisma.machineUsage.findFirst.mockRejectedValue(new Error("db down"));
+
+      const result = await gymService.checkOut("user-123");
+
+      expect(result.checkOutAt).toEqual(now);
+    });
+
     it("also finds and closes a session the expiration job auto-closed (user is checking out for real now)", async () => {
       const mockSession = {
         id: "session-123",

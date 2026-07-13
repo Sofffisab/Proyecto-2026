@@ -69,6 +69,14 @@ describe("WrappedService", () => {
       expect(result.totalPoints).toBe(0);
     });
 
+    it("treats a session with a null/undefined durationMinutes (still open) as 0 when summing totalMinutes", async () => {
+      mockYearData({ sessions: [{ durationMinutes: null }, { durationMinutes: 30 }] });
+
+      const result = await wrappedService.generateWrapped("user-1", 2026);
+
+      expect(result.totalMinutes).toBe(30);
+    });
+
     it("labels a trainer as Unknown if their profile can't be resolved", async () => {
       mockYearData({
         assistances: [{ trainerId: "trainer-ghost" }],

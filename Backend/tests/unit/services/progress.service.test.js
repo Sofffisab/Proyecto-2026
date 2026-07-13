@@ -179,6 +179,21 @@ describe("ProgressService", () => {
         data: expect.objectContaining({ value: 20, progressPercent: 40 }),
       });
     });
+
+    it("uses progressPercent 0 when the goal's targetValue is 0 (avoids division by zero)", async () => {
+      const zeroTargetGoal = { id: "goal-1", userId: "user-123", currentValue: 30, targetValue: 0 };
+      prisma.progressEntry.findUnique.mockResolvedValue(entry);
+      prisma.goal.findUnique.mockResolvedValue(zeroTargetGoal);
+      prisma.goal.update.mockResolvedValue({ ...zeroTargetGoal, currentValue: 40 });
+      prisma.progressEntry.update.mockResolvedValue({ ...entry, value: 20 });
+
+      await progressService.updateProgressEntry("entry-1", "user-123", { value: 20, note: "n" });
+
+      expect(prisma.progressEntry.update).toHaveBeenCalledWith({
+        where: { id: "entry-1" },
+        data: expect.objectContaining({ value: 20, progressPercent: 0 }),
+      });
+    });
   });
 
   describe("deleteProgressEntry", () => {
@@ -502,6 +517,14 @@ describe("ProgressService", () => {
 
       expect(result).toBeGreaterThanOrEqual(0);
     });
+
+    it("treats a row with a null maxStreak as 0 when computing the longest streak", async () => {
+      prisma.progressMetric.findMany.mockResolvedValue([{ maxStreak: null }, { maxStreak: 5 }]);
+
+      const result = await progressService.getLongestStreak("user-123", "weight");
+
+      expect(result).toBe(5);
+    });
   });
 
   describe("getProgressHistory", () => {
@@ -531,6 +554,51 @@ describe("ProgressService", () => {
         take: 10,
         skip: 0,
       });
+    });
+
+    it("omits the date filter entirely when neither startDate nor endDate is given", async () => {
+      prisma.progressLog.findMany.mockResolvedValue([]);
+
+      await progressService.getProgressHistory("user-123", { metric: "weight" });
+
+      expect(prisma.progressLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "user-123", metric: "weight" },
+        })
+      );
+      const calledWhere = prisma.progressLog.findMany.mock.calls[0][0].where;
+      expect(calledWhere.date).toBeUndefined();
+    });
+
+    it("applies default limit/offset and no metric filter when none are provided", async () => {
+      prisma.progressLog.findMany.mockResolvedValue([]);
+
+      await progressService.getProgressHistory("user-123");
+
+      expect(prisma.progressLog.findMany).toHaveBeenCalledWith({
+        where: { userId: "user-123" },
+        orderBy: { date: "desc" },
+        take: 20,
+        skip: 0,
+      });
+    });
+  });
+
+  describe("getCurrentStreak / getLongestStreak with no data", () => {
+    it("getCurrentStreak returns 0 when there are no logs", async () => {
+      prisma.progressLog.findMany.mockResolvedValue([]);
+
+      const result = await progressService.getCurrentStreak("user-123", "weight");
+
+      expect(result).toBe(0);
+    });
+
+    it("getLongestStreak returns 0 when there are no progress metric rows", async () => {
+      prisma.progressMetric.findMany.mockResolvedValue([]);
+
+      const result = await progressService.getLongestStreak("user-123", "weight");
+
+      expect(result).toBe(0);
     });
   });
 });

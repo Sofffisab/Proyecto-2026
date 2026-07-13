@@ -147,6 +147,27 @@ describe("InsightsService", () => {
       expect(result[0].totalMinutes).toBe(30);
     });
 
+    it("treats a session with a null durationMinutes (e.g. still open) as 0 when summing totalMinutes", async () => {
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: "user-3",
+          firstName: "Cam",
+          lastName: "Diaz",
+          email: "cam@example.com",
+          settings: { analyticsConsent: true },
+          gymSessions: [
+            { id: "s2", checkInAt: new Date(), checkOutAt: null, durationMinutes: null },
+            { id: "s3", checkInAt: new Date(), checkOutAt: new Date(), durationMinutes: 20 },
+          ],
+          machineUsages: [],
+        },
+      ]);
+
+      const result = await insightsService.getFullHistoryAdmin();
+
+      expect(result[0].totalMinutes).toBe(20);
+    });
+
     it("attaches real identifiers only for consented users when includeIdentifiers=true", async () => {
       prisma.user.findMany.mockResolvedValue(baseUsers);
 

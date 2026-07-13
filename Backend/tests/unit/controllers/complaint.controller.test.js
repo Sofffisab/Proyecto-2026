@@ -159,4 +159,40 @@ describe("ComplaintController", () => {
 
     expect(next).toHaveBeenCalledWith(error);
   });
+
+  it("createTrainerComplaint calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    complaintService.createTrainerComplaint.mockRejectedValue(error);
+
+    await complaintController.createTrainerComplaint(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getMyComplaints calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    complaintService.getUserComplaints.mockRejectedValue(error);
+
+    await complaintController.getMyComplaints(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("resolveComplaint calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    complaintService.approveComplaint.mockRejectedValue(error);
+
+    await complaintController.resolveComplaint(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("rejectComplaint calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    complaintService.rejectComplaint.mockRejectedValue(error);
+
+    await complaintController.rejectComplaint(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });

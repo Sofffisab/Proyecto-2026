@@ -87,6 +87,15 @@ describe("GamificationController", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: requests });
   });
 
+  it("getReviewRequests calls next(err) on failure", async () => {
+    const error = new Error("boom");
+    prisma.pointReviewRequest.findMany.mockRejectedValue(error);
+
+    await gamificationController.getReviewRequests(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
   describe("resolveReviewRequest", () => {
     it("returns 404 via next() when the review request does not exist", async () => {
       req.params.id = "missing";
@@ -121,6 +130,44 @@ describe("GamificationController", () => {
     gamificationService.getPoints.mockRejectedValue(error);
 
     await gamificationController.getUserPoints(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getUserBadges calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    gamificationService.getAchievements.mockRejectedValue(error);
+
+    await gamificationController.getUserBadges(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getWrapped calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    wrappedService.generateWrapped.mockRejectedValue(error);
+
+    await gamificationController.getWrapped(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("createReviewRequest calls next(err) on failure", async () => {
+    req.validatedData = { reason: "Points seem wrong" };
+    const error = new Error("boom");
+    prisma.pointReviewRequest.create.mockRejectedValue(error);
+
+    await gamificationController.createReviewRequest(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("resolveReviewRequest calls next(err) on failure", async () => {
+    req.params.id = "review-1";
+    const error = new Error("boom");
+    prisma.pointReviewRequest.findUnique.mockRejectedValue(error);
+
+    await gamificationController.resolveReviewRequest(req, res, next);
 
     expect(next).toHaveBeenCalledWith(error);
   });

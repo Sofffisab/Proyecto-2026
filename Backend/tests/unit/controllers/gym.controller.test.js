@@ -87,6 +87,15 @@ describe("GymController", () => {
 
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUsers });
     });
+
+    it("calls next(err) on service failure", async () => {
+      const error = new Error("boom");
+      vi.spyOn(gymService, "getPresentUsers").mockRejectedValue(error);
+
+      await gymController.presentUsers(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
 
   describe("rateTrainer", () => {
@@ -160,6 +169,15 @@ describe("GymController", () => {
       await gymController.getSessionHistory(req, res, next);
 
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSessions });
+    });
+
+    it("calls next(err) on service failure", async () => {
+      const error = new Error("boom");
+      vi.spyOn(gymService, "getSessionHistory").mockRejectedValue(error);
+
+      await gymController.getSessionHistory(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 

@@ -53,4 +53,23 @@ describe("HistoryController", () => {
 
     expect(next).toHaveBeenCalledWith(error);
   });
+
+  it("getDailyMachineUsageLog calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    historyService.getDailyMachineUsageLog.mockRejectedValue(error);
+
+    await historyController.getDailyMachineUsageLog(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getTrainerAssistanceHistory calls next(err) on service failure", async () => {
+    req.user = { id: "trainer-1", role: "TRAINER" };
+    const error = new Error("boom");
+    historyService.getTrainerAssistanceHistory.mockRejectedValue(error);
+
+    await historyController.getTrainerAssistanceHistory(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });

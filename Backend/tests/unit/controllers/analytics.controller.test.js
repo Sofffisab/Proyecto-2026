@@ -96,4 +96,31 @@ describe("AnalyticsController", () => {
     expect(next).toHaveBeenCalledWith(error);
     expect(res.json).not.toHaveBeenCalled();
   });
+
+  it("getGymAnalytics calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    insightsService.getGymAnalytics.mockRejectedValue(error);
+
+    await analyticsController.getGymAnalytics(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getUserPatterns calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    behaviorAnalysisService.getUserBehaviorProfile.mockRejectedValue(error);
+
+    await analyticsController.getUserPatterns(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("getEngagementMetrics calls next(err) on service failure", async () => {
+    const error = new Error("boom");
+    engagementService.getEngagementMetrics.mockRejectedValue(error);
+
+    await analyticsController.getEngagementMetrics(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });

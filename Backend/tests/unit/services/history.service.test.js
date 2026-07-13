@@ -67,6 +67,23 @@ describe("HistoryService", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("falls back to a null machineName when the assistance record has no machine", async () => {
+      prisma.assistance.findMany.mockResolvedValue([
+        {
+          trainer: { id: "trainer-1", firstName: "Ana", lastName: "Gomez" },
+          completedAt: new Date("2026-01-01"),
+          machineId: null,
+          machine: null,
+          trainerRating: 5,
+        },
+      ]);
+      prisma.socialChallenge.findMany.mockResolvedValue([]);
+
+      const result = await historyService.getInteractionHistory("user-1");
+
+      expect(result[0].machineName).toBeNull();
+    });
   });
 
   describe("getDailyMachineUsageLog", () => {

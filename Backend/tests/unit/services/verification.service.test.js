@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 import * as verificationService from "../../../src/services/verification.service.js";
 import * as machineConflictService from "../../../src/services/machineConflict.service.js";
+import * as challengeService from "../../../src/services/challenge.service.js";
 import prisma from "../../../src/config/prisma.js";
 
 vi.mock("../../../src/services/machineConflict.service.js");
@@ -98,6 +99,18 @@ describe("VerificationService", () => {
   });
 
   describe("validateQRPayload", () => {
+    it("rejects a malformed JSON string", () => {
+      expect(() => verificationService.validateQRPayload("{not valid json")).toThrow(
+        "Invalid QR payload"
+      );
+    });
+
+    it("rejects a payload that isn't an object (e.g. a bare number)", () => {
+      expect(() => verificationService.validateQRPayload("42")).toThrow(
+        "Invalid QR payload"
+      );
+    });
+
     it("rejects a payload without a type", () => {
       const payload = { userId: "user-123", ts: Date.now() };
 
@@ -152,6 +165,21 @@ describe("VerificationService", () => {
       await expect(
         verificationService.processScan("scanner-user", payload)
       ).rejects.toThrow("No active challenge");
+    });
+
+    it("type USER: completes the challenge via QR and returns success when an ACCEPTED challenge exists", async () => {
+      const rest = { type: "USER", userId: "target-user", ts: Date.now() };
+      const payload = { ...rest, signature: signPayload(rest) };
+
+      prisma.socialChallenge.findFirst.mockResolvedValue({ id: "challenge-1", status: "ACCEPTED" });
+      const spy = vi
+        .spyOn(challengeService, "completeChallengeByQR")
+        .mockResolvedValue({ id: "challenge-1", status: "COMPLETED" });
+
+      const result = await verificationService.processScan("scanner-user", payload);
+
+      expect(result).toEqual({ success: true, message: "Challenge completed via QR scan" });
+      expect(spy).toHaveBeenCalledWith("challenge-1", "scanner-user", "target-user");
     });
 
     it("type USER: throws if there is no active challenge", async () => {
@@ -527,6 +555,40 @@ describe("VerificationService", () => {
       expect(prisma.machineUsage.update).not.toHaveBeenCalled();
     });
 
+    it("type MACHINE: does not let a failure while flagging a machine conflict break the scan response", async () => {
+      const payload = {
+        type: "MACHINE",
+        machineId: "machine-B",
+        ts: Date.now(),
+      };
+      const concurrentUsageByOther = {
+        id: "usage-other",
+        userId: "other-user",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      };
+
+      prisma.userSettings.findUnique.mockResolvedValue({ machineTrackingOptOut: false });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(concurrentUsageByOther);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session-1", userId: "user-123" });
+      prisma.machineUsage.create.mockResolvedValue({
+        id: "usage-new",
+        machineId: "machine-B",
+        startedAt: new Date(),
+        endedAt: null,
+      });
+      vi.spyOn(machineConflictService, "flagMachineConflict").mockRejectedValue(new Error("db down"));
+
+      const result = await verificationService.processScan("user-123", payload);
+      await new Promise((r) => setImmediate(r));
+
+      expect(result.suspiciousActivity).toBe(true);
+    });
+
     it("type MACHINE: flags a conflict and marks the response suspicious when another user already has this machine open", async () => {
       const payload = {
         type: "MACHINE",
@@ -603,6 +665,18 @@ describe("VerificationService", () => {
       await expect(
         verificationService.processScan("user-123", payload)
       ).rejects.toThrow("Unknown QR type");
+    });
+  });
+
+  describe("computeMachineUsagePoints", () => {
+    it("returns 0 for a duration under the shortest tier's minimum", () => {
+      expect(verificationService.computeMachineUsagePoints(5)).toBe(0);
+    });
+
+    it("returns the matching tier's points at each tier boundary", () => {
+      expect(verificationService.computeMachineUsagePoints(10)).toBe(8);
+      expect(verificationService.computeMachineUsagePoints(25)).toBe(15);
+      expect(verificationService.computeMachineUsagePoints(45)).toBe(22);
     });
   });
 });

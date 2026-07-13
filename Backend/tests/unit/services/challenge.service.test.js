@@ -24,6 +24,16 @@ describe("ChallengeService", () => {
       ).rejects.toThrow("social challenges disabled");
     });
 
+    it("rejects if only the second user has social challenges disabled", async () => {
+      prisma.userSettings.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ disableSocial: true });
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("social challenges disabled");
+    });
+
     it("rejects if either user does not have an active gym session", async () => {
       prisma.userSettings.findUnique.mockResolvedValue(null);
       prisma.gymSession.findFirst
@@ -35,10 +45,31 @@ describe("ChallengeService", () => {
       ).rejects.toThrow("does not have an active gym session");
     });
 
+    it("rejects if only the second user does not have an active gym session", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst
+        .mockResolvedValueOnce({ id: "session-a" })
+        .mockResolvedValueOnce(null); // userB has no active session
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("The second user does not have an active gym session");
+    });
+
     it("rejects if either user opted out of machine tracking", async () => {
       prisma.userSettings.findUnique
         .mockResolvedValueOnce({ machineTrackingOptOut: true })
         .mockResolvedValueOnce(null);
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("machine tracking disabled");
+    });
+
+    it("rejects if only the second user opted out of machine tracking", async () => {
+      prisma.userSettings.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ machineTrackingOptOut: true });
 
       await expect(
         challengeService.assignChallenge("user-1", "user-2", "STATION_A")
@@ -55,6 +86,18 @@ describe("ChallengeService", () => {
       await expect(
         challengeService.assignChallenge("user-1", "user-2", "STATION_A")
       ).rejects.toThrow("mid-exercise");
+    });
+
+    it("rejects if only the second user is currently mid-exercise", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "usage-b" });
+
+      await expect(
+        challengeService.assignChallenge("user-1", "user-2", "STATION_A")
+      ).rejects.toThrow("The second user is mid-exercise");
     });
 
     it("creates an ASSIGNED challenge when both users are eligible", async () => {
@@ -251,6 +294,28 @@ describe("ChallengeService", () => {
       expect(result.status).toBe("COMPLETED");
       expect(prisma.socialInteraction.create).toHaveBeenCalledTimes(2);
     });
+
+    it("completes the challenge when the caller is the challenge's partner scanning the original requester's QR", async () => {
+      prisma.socialChallenge.findUnique.mockResolvedValue({
+        id: "challenge-1",
+        userId: "user-1",
+        partnerUserId: "user-2",
+        status: "ACCEPTED",
+      });
+      prisma.socialChallenge.update.mockResolvedValue({ id: "challenge-1", status: "COMPLETED" });
+      prisma.pointTransaction.create.mockResolvedValue({});
+      prisma.socialInteraction.create.mockResolvedValue({});
+
+      // callerId is the partner (user-2), scanning userId (user-1) — the
+      // opposite direction from the previous test.
+      const result = await challengeService.completeChallengeByQR(
+        "challenge-1",
+        "user-2",
+        "user-1"
+      );
+
+      expect(result.status).toBe("COMPLETED");
+    });
   });
 
   describe("pairFromScan", () => {
@@ -278,6 +343,20 @@ describe("ChallengeService", () => {
             status: "ACCEPTED",
           }),
         })
+      );
+    });
+
+    it("defaults station to null when none is provided and no existing challenge exists", async () => {
+      prisma.userSettings.findUnique.mockResolvedValue(null);
+      prisma.gymSession.findFirst.mockResolvedValue({ id: "session" });
+      prisma.machineUsage.findFirst.mockResolvedValue(null);
+      prisma.socialChallenge.findFirst.mockResolvedValue(null);
+      prisma.socialChallenge.create.mockResolvedValue({ id: "challenge-2", status: "ACCEPTED", station: null });
+
+      await challengeService.pairFromScan("user-1", "user-2");
+
+      expect(prisma.socialChallenge.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ station: null }) })
       );
     });
 

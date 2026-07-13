@@ -78,4 +78,25 @@ describe("NoteController", () => {
 
     expect(next).toHaveBeenCalledWith(error);
   });
+
+  it("createNote calls next(err) on service failure", async () => {
+    req.params.id = "user-1";
+    req.validatedData = { note: "Great session", visibility: "TRAINERS_ONLY" };
+    const error = new Error("boom");
+    noteService.createNote.mockRejectedValue(error);
+
+    await noteController.createNote(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
+
+  it("deleteNote calls next(err) on service failure", async () => {
+    req.params.noteId = "note-1";
+    const error = new Error("boom");
+    noteService.deleteNote.mockRejectedValue(error);
+
+    await noteController.deleteNote(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });

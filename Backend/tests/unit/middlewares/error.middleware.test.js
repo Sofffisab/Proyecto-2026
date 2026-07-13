@@ -35,6 +35,16 @@ describe("errorHandler middleware", () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
+  it("falls back to a generic message when the error has no message (4xx)", async () => {
+    const error = new AppError("", 400);
+
+    await errorHandler(error, req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Internal server error" })
+    );
+  });
+
   it("hides the real message on 5xx errors ('Internal server error')", async () => {
     const error = new AppError("Database connection failed", 500);
 

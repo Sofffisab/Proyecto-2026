@@ -228,6 +228,17 @@ describe("GymService — trainer abandonment alert (checkIn side-effect)", () =>
     expect(alertedTrainerIds).not.toContain("trainer-2");
   });
 
+  it("does not let a failure while notifying trainers break the check-in itself", async () => {
+    // notifyAbandoningTrainersOnCheckIn() is fired with `.catch(...)` from
+    // checkIn() and must never surface as a rejection of checkIn() itself.
+    prisma.user.findUnique.mockRejectedValue(new Error("db down"));
+
+    await expect(gymService.checkIn("user-123")).resolves.toBeDefined();
+    await flushMicrotasks();
+
+    expect(communicationService.notifyTrainerOfReturningStudent).not.toHaveBeenCalled();
+  });
+
   it("does not fire any alert when alertNow is explicitly disabled", async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: "user-123",
