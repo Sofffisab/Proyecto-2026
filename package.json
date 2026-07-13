@@ -3,5 +3,8 @@
     "@vitest/ui": "^4.1.9",
     "supertest": "^7.2.2",
     "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "expo": "^57.0.4"
   }
 }
