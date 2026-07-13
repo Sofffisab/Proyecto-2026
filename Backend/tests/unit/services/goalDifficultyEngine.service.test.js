@@ -37,6 +37,11 @@ describe("goalDifficultyEngine", () => {
       expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
     });
 
+    it("falls back to a neutral 1.0 score for a goal.type not present in STANDARD_DIFFICULTY_TIERS (defensive default)", () => {
+      const goal = { type: "SOME_FUTURE_GOAL_TYPE", action: "GAIN", targetValue: 10, difficulty: "HARD" };
+      expect(difficultyEngine.computeStandardDifficulty(goal)).toBe(1.0);
+    });
+
     it("scores losing muscle (action !== GAIN) using the gentler curve", () => {
       const loseMuscle = { type: "MUSCLE", action: "LOSE", targetValue: 5, difficulty: "MEDIUM" };
       const gainMuscle = { type: "MUSCLE", action: "GAIN", targetValue: 5, difficulty: "MEDIUM" };
