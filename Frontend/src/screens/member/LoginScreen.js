@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import globals from '../../styles/globals';
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onForgotPassword, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -74,7 +74,17 @@ export default function LoginScreen({ onLogin }) {
             <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
+
+        {/* Botón Recuperar contraseña (spec: Pantalla Inicial) - estático, sin lógica */}
+        <TouchableOpacity style={styles.linkButton} onPress={onForgotPassword}>
+          <Text style={styles.linkText}>Recuperar contraseña</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Botón de Volver (regla global: presente en todas las pantallas) - estático */}
+      <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <Text style={styles.linkText}>Volver</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -136,5 +146,17 @@ const styles = StyleSheet.create({
     fontSize: globals.fontSize.sm,
     textAlign: 'center',
     marginVertical: globals.spacing.sm,
+  },
+  linkButton: {
+    alignItems: 'center',
+    marginTop: globals.spacing.sm,
+  },
+  linkText: {
+    color: globals.colors.primary,
+    fontSize: globals.fontSize.sm,
+  },
+  backButton: {
+    alignItems: 'center',
+    paddingVertical: globals.spacing.md,
   },
 });
