@@ -5,7 +5,7 @@
  Si en el futuro cambia el nombre de un rol, lo cambiás en UN solo lugar.
  */
 const ROLES = {
-  MEMBER: 'member',
+  USER: 'user',
   TRAINER: 'trainer',
   ADMIN: 'admin',
 };
