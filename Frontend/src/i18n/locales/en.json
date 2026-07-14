@@ -1,0 +1,218 @@
+{
+  "common": {
+    "back": "Back",
+    "close": "Close",
+    "save": "Save",
+    "yes": "Yes",
+    "no": "No",
+    "staticList": "(Static list)"
+  },
+  "footer": {
+    "home": "Home",
+    "search": "Search",
+    "scan": "Scan",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": {
+      "appName": "GymBros",
+      "subtitle": "Login to your account",
+      "emailPlaceholder": "Email",
+      "passwordPlaceholder": "Password",
+      "loginButton": "Login",
+      "forgotPassword": "Forgot password",
+      "back": "Back",
+      "errorFillFields": "Please fill in all fields",
+      "errorLoginFailed": "Login failed",
+      "provisionalTitle": "Provisional access for testing (no backend)",
+      "provisionalNewUser": "For testing: successful new user registration (first time, incomplete profile)",
+      "provisionalUser": "For testing: successful user login (profile already complete)",
+      "provisionalTrainer": "For testing: successful trainer login",
+      "provisionalAdmin": "For testing: successful admin user registration"
+    }
+  },
+  "user": {
+    "onboarding": {
+      "mainGoal": "Main goal",
+      "currentLevel": "Current level",
+      "daysPerWeek": "How many days do you train per week",
+      "trainingType": "What type of training are you looking for",
+      "continue": "Continue",
+      "back": "Back",
+      "option": "Option {{number}}"
+    },
+    "home": {
+      "title": "Home",
+      "subtitle": "Your summary for today",
+      "pointsAccumulated": "Points accumulated",
+      "scanQR": "Scan QR (Camera)",
+      "history": "History",
+      "routines": "Routines",
+      "achievementsGoals": "Achievements & Goals",
+      "reports": "Reports",
+      "pedirAyuda": "Ask for help",
+      "settings": "Settings & customization",
+      "wrapped": "Year Wrapped",
+      "logout": "Log out / Switch account",
+      "back": "Back",
+      "testSocialInteraction": "For testing: Social Interaction pop-up",
+      "testRateTrainer": "For testing: Rate Trainer(s) pop-up"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Session data and customization",
+      "mail": "Email",
+      "medicalConditions": "Medical conditions",
+      "dateOfBirth": "Date of birth",
+      "exactAddress": "Exact address",
+      "inputPlaceholder": "Enter {{field}}...",
+      "preferencesTitle": "Preferences",
+      "noTrainerHelp": "Do not receive help from trainer",
+      "noMachineApp": "Do not use the app for machines (only for check-in/check-out)",
+      "save": "Save",
+      "back": "Back"
+    },
+    "history": {
+      "title": "History",
+      "staticList": "(Static history list)",
+      "back": "Back"
+    },
+    "routines": {
+      "title": "Routine selector",
+      "options": {
+        "preMade": "Pre-made",
+        "custom": "Custom",
+        "recommended": "Recommended by the App",
+        "none": "Don't follow a routine"
+      },
+      "displayMode": "Display mode",
+      "stepByStepGuide": "Step-by-step guide",
+      "readOnYourOwn": "Read on your own",
+      "back": "Back"
+    },
+    "achievementsGoals": {
+      "title": "Achievements & Goals",
+      "staticPanel": "(Static status panel)",
+      "back": "Back"
+    },
+    "reports": {
+      "target": "Report target",
+      "selectTarget": "Select target",
+      "reason": "Reason",
+      "reasonPlaceholder": "Why?",
+      "send": "Send",
+      "back": "Back"
+    },
+    "wrapped": {
+      "title": "Year Wrapped",
+      "staticStats": "(Static yearly statistics)",
+      "back": "Back"
+    },
+    "popups": {
+      "socialInteraction": {
+        "question": "Do you want to?",
+        "no": "No",
+        "yes": "Yes",
+        "close": "Close"
+      },
+      "rateTrainer": {
+        "title": "Rate Trainer(s)",
+        "rate": "Rate",
+        "reportNotHelped": "They didn't help me / Report",
+        "close": "Close"
+      }
+    }
+  },
+  "trainer": {
+    "home": {
+      "generateQR": "Generate new QR",
+      "history": "History",
+      "reports": "Reports",
+      "help": "Help",
+      "back": "Back"
+    },
+    "history": {
+      "title": "History",
+      "staticLog": "(Static activity log)",
+      "back": "Back"
+    },
+    "reports": {
+      "personToReport": "Person to report",
+      "selectPerson": "Select person",
+      "reason": "Reason",
+      "reasonPlaceholder": "Why?",
+      "send": "Send",
+      "back": "Back"
+    },
+    "help": {
+      "title": "People at the gym",
+      "clickableProfile": "(Name and profile photo - clickable)",
+      "selectUser": "Select user",
+      "back": "Back"
+    },
+    "popups": {
+      "profileData": {
+        "title": "User data",
+        "medicalConditions": "Medical conditions: -",
+        "notes": "Notes: -",
+        "publicNotes": "Public notes: -",
+        "close": "Close"
+      }
+    }
+  },
+  "admin": {
+    "home": {
+      "generateQR": "Generate new QR",
+      "viewGym": "View Gym",
+      "back": "Back"
+    },
+    "viewGym": {
+      "statistics": "Statistics",
+      "members": "Members",
+      "rewards": "Rewards",
+      "reviewReports": "Review Reports",
+      "history": "History",
+      "back": "Back"
+    },
+    "statistics": {
+      "overviewTitle": "Gym overview",
+      "overviewStatic": "(Machine usage percentages - static)",
+      "trainersTitle": "Trainers",
+      "trainersStatic": "(Average rating and other data - static)",
+      "usersTitle": "Users",
+      "usersStatic": "(Deactivated, activated, goal completion - static)",
+      "back": "Back"
+    },
+    "members": {
+      "createNewSession": "Create new session",
+      "mailPlaceholder": "Person's email",
+      "deactivateAccount": "Deactivate account",
+      "sessionViewer": "Session viewer",
+      "sessionViewerStatic": "(Static session list: role, name, email, data, seniority, status, score if trainer)",
+      "activateAccount": "Activate account",
+      "back": "Back"
+    },
+    "rewards": {
+      "stockStatusTitle": "Stock status",
+      "stockStatusStatic": "(Available stock and current reward - static)",
+      "shipmentsInProgressTitle": "Shipments in progress",
+      "waitlistTitle": "Waitlist due to lack of stock",
+      "back": "Back"
+    },
+    "reviewReports": {
+      "approvedTitle": "Reports made and approved",
+      "approvedStatic": "(Static list - allows viewing and deciding whether to remove)",
+      "requestsTitle": "Review requests",
+      "requestsStatic": "(Static list - verify if a report was misapplied)",
+      "behaviorTitle": "Suspicious behavior",
+      "behaviorStatic": "(Static list - too many reports received/made)",
+      "back": "Back"
+    },
+    "fullHistory": {
+      "title": "Full system log",
+      "privacyFilters": "Privacy filters",
+      "back": "Back"
+    }
+  }
+}

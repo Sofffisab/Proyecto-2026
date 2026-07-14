@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
+import { useTranslation } from '../../i18n/I18nContext';
 
 /**
- * Footer de navegación reutilizable.
- * Versión estática: no depende de expo-router ni de AuthContext todavía
- * (no hay conexión a backend en esta etapa del proyecto). La navegación
- * y el logout se resuelven vía callbacks recibidos por props, igual que
- * en el resto de las pantallas ya corregidas.
+ * Reusable navigation footer.
+ * Static version: doesn't depend on expo-router or AuthContext yet
+ * (no backend connection at this stage of the project). Navigation
+ * and logout are resolved via callbacks received as props, same as
+ * the rest of the already-updated screens.
  *
  * @param {function} [onNavigateHome]
  * @param {function} [onNavigateSearch]
@@ -16,18 +17,20 @@ import globals from '../../styles/globals';
  * @param {function} [onLogout]
  */
 function Footer({ onNavigateHome, onNavigateSearch, onNavigateScan, onNavigateProfile, onLogout }) {
+  const { t } = useTranslation();
+
   const navItems = [
-    { label: 'Home', onPress: onNavigateHome },
-    { label: 'Search', onPress: onNavigateSearch },
-    { label: 'Scan', onPress: onNavigateScan },
-    { label: 'Profile', onPress: onNavigateProfile },
+    { key: 'home', label: t('footer.home'), onPress: onNavigateHome },
+    { key: 'search', label: t('footer.search'), onPress: onNavigateSearch },
+    { key: 'scan', label: t('footer.scan'), onPress: onNavigateScan },
+    { key: 'profile', label: t('footer.profile'), onPress: onNavigateProfile },
   ];
 
   return (
     <View style={styles.footer}>
       {navItems.map((item) => (
         <TouchableOpacity
-          key={item.label}
+          key={item.key}
           onPress={item.onPress}
           style={styles.navItem}
         >
@@ -36,7 +39,7 @@ function Footer({ onNavigateHome, onNavigateSearch, onNavigateScan, onNavigatePr
       ))}
 
       <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutLabel}>Logout</Text>
+        <Text style={styles.logoutLabel}>{t('footer.logout')}</Text>
       </TouchableOpacity>
     </View>
   );

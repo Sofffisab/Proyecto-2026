@@ -1,24 +1,28 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useTranslation } from '../../i18n/I18nContext';
 
 /**
- * Pantallas de Personalizar Mínimamente el Perfil (Usuario) - spec sección 2.
- * Solo aparece la primera vez que el rol usuario se loguea.
- * Componentes estáticos, sin lógica de selección real todavía.
+ * Minimal Profile Personalization Screens (User) - spec section 2.
+ * Only appears the first time the user role logs in.
+ * Static components, no real selection logic yet.
  *
- * @param {function} [onBack] - Botón de Volver (regla global).
+ * @param {function} [onBack] - Back button (global rule).
+ * @param {function} [onContinue] - After finishing the forms, redirects to
+ *   Settings to complete the remaining data (spec section 2).
  */
-export default function OnboardingScreen({ onBack }) {
-  const objetivoOptions = ['Opción 1', 'Opción 2', 'Opción 3', 'Opción 4'];
-  const nivelOptions = ['Opción 1', 'Opción 2', 'Opción 3'];
-  const diasOptions = ['1', '2', '3', '4', '5', '6'];
-  const tipoEntrenamientoOptions = ['Opción 1', 'Opción 2', 'Opción 3', 'Opción 4'];
+export default function OnboardingScreen({ onBack, onContinue }) {
+  const { t } = useTranslation();
+  const goalOptions = [1, 2, 3, 4].map((n) => t('user.onboarding.option', { number: n }));
+  const levelOptions = [1, 2, 3].map((n) => t('user.onboarding.option', { number: n }));
+  const daysOptions = ['1', '2', '3', '4', '5', '6'];
+  const trainingTypeOptions = [1, 2, 3, 4].map((n) => t('user.onboarding.option', { number: n }));
 
   return (
     <ScrollView>
       <View>
-        <Text>Objetivo principal</Text>
-        {objetivoOptions.map((opt) => (
+        <Text>{t('user.onboarding.mainGoal')}</Text>
+        {goalOptions.map((opt) => (
           <TouchableOpacity key={opt}>
             <Text>{opt}</Text>
           </TouchableOpacity>
@@ -26,8 +30,8 @@ export default function OnboardingScreen({ onBack }) {
       </View>
 
       <View>
-        <Text>Nivel actual</Text>
-        {nivelOptions.map((opt) => (
+        <Text>{t('user.onboarding.currentLevel')}</Text>
+        {levelOptions.map((opt) => (
           <TouchableOpacity key={opt}>
             <Text>{opt}</Text>
           </TouchableOpacity>
@@ -35,8 +39,8 @@ export default function OnboardingScreen({ onBack }) {
       </View>
 
       <View>
-        <Text>Cuántos días entrenas por semana</Text>
-        {diasOptions.map((opt) => (
+        <Text>{t('user.onboarding.daysPerWeek')}</Text>
+        {daysOptions.map((opt) => (
           <TouchableOpacity key={opt}>
             <Text>{opt}</Text>
           </TouchableOpacity>
@@ -44,16 +48,20 @@ export default function OnboardingScreen({ onBack }) {
       </View>
 
       <View>
-        <Text>Qué tipo de entrenamiento estás buscando</Text>
-        {tipoEntrenamientoOptions.map((opt) => (
+        <Text>{t('user.onboarding.trainingType')}</Text>
+        {trainingTypeOptions.map((opt) => (
           <TouchableOpacity key={opt}>
             <Text>{opt}</Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity onPress={onContinue}>
+        <Text>{t('user.onboarding.continue')}</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity onPress={onBack}>
-        <Text>Volver</Text>
+        <Text>{t('user.onboarding.back')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

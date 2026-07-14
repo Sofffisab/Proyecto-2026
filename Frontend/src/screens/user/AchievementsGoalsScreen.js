@@ -3,23 +3,23 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useTranslation } from '../../i18n/I18nContext';
 
 /**
- * Year Wrapped Screen (User - Eventually) - spec section 8.
- * Spotify-style yearly stats. Accessible for 1 month.
+ * Achievements & Goals Screen (User) - spec section 6.
+ * Status panel: achievements, points accumulated, goal progress.
  *
  * @param {function} [onBack]
  */
-export default function WrappedScreen({ onBack }) {
+export default function AchievementsGoalsScreen({ onBack }) {
   const { t } = useTranslation();
   return (
     <ScrollView>
-      <Text>{t('user.wrapped.title')}</Text>
+      <Text>{t('user.achievementsGoals.title')}</Text>
 
       <View>
-        <Text>{t('user.wrapped.staticStats')}</Text>
+        <Text>{t('user.achievementsGoals.staticPanel')}</Text>
       </View>
 
       <TouchableOpacity onPress={onBack}>
-        <Text>{t('user.wrapped.back')}</Text>
+        <Text>{t('user.achievementsGoals.back')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

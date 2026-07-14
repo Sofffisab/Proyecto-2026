@@ -10,33 +10,35 @@ import {
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import Button from '../../components/common/Button';
+import { useTranslation } from '../../i18n/I18nContext';
 
 /**
- * Pantalla Configuración y personalizaciones (Usuario) - spec sección 7.
- * Si es la primera vez, el sistema redirige aquí y no permite salir hasta
- * completar todo. Campos obligatorios (menos el mail, que no se edita):
- * temas médicos, fecha de nacimiento, dirección exacta, etc.
- * Cada fila es un acordeón: se toca la fila para revelar el input.
+ * Settings & customization Screen (User) - spec section 7.
+ * If it's the first time, the system redirects here and doesn't allow
+ * leaving until everything is completed. Required fields (except email,
+ * which isn't editable): medical conditions, date of birth, exact address, etc.
+ * Each row is an accordion: tap the row to reveal the input.
  *
- * @param {string}   [email] - Mail de sesión, no editable.
- * @param {function} [onSave] - Guarda los datos en la DB.
+ * @param {string}   [email] - Session email, not editable.
+ * @param {function} [onSave] - Saves the data to the DB.
  * @param {function} [onBack]
  */
 const FIELDS = [
-  { key: 'temasMedicos', label: 'Temas médicos' },
-  { key: 'fechaNacimiento', label: 'Fecha de nacimiento' },
-  { key: 'direccionExacta', label: 'Dirección exacta' },
+  { key: 'medicalConditions', labelKey: 'user.settings.medicalConditions' },
+  { key: 'dateOfBirth', labelKey: 'user.settings.dateOfBirth' },
+  { key: 'exactAddress', labelKey: 'user.settings.exactAddress' },
 ];
 
-const PREFERENCIAS = [
-  { key: 'noAyudaEntrenador', label: 'No recibir ayuda del entrenador' },
-  { key: 'noUsarAppMaquinas', label: 'No usar la app para máquinas (sí para entrada y salida)' },
+const PREFERENCES = [
+  { key: 'noTrainerHelp', labelKey: 'user.settings.noTrainerHelp' },
+  { key: 'noMachineApp', labelKey: 'user.settings.noMachineApp' },
 ];
 
-export default function ConfiguracionScreen({ email = '', onSave, onBack }) {
+export default function SettingsScreen({ email = '', onSave, onBack }) {
+  const { t } = useTranslation();
   const [openField, setOpenField] = useState(null);
   const [values, setValues] = useState({});
-  const [preferencias, setPreferencias] = useState({});
+  const [preferences, setPreferences] = useState({});
 
   const toggle = (key) =>
     setOpenField((prev) => (prev === key ? null : key));
@@ -44,26 +46,27 @@ export default function ConfiguracionScreen({ email = '', onSave, onBack }) {
   const handleChange = (key, text) =>
     setValues((prev) => ({ ...prev, [key]: text }));
 
-  const togglePreferencia = (key) =>
-    setPreferencias((prev) => ({ ...prev, [key]: !prev[key] }));
+  const togglePreference = (key) =>
+    setPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Header pageTitle="Configuración" subtitle="Datos de sesión y personalizaciones" />
+      <Header pageTitle={t('user.settings.title')} subtitle={t('user.settings.subtitle')} />
 
-      {/* Mail: no editable */}
+      {/* Email: not editable */}
       <View style={styles.fieldBlock}>
         <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>Mail</Text>
+          <Text style={styles.fieldLabel}>{t('user.settings.mail')}</Text>
         </View>
         <View style={styles.inputWrapper}>
           <TextInput style={styles.input} value={email} editable={false} />
         </View>
       </View>
 
-      {/* Campos obligatorios en formato acordeón */}
-      {FIELDS.map(({ key, label }) => {
+      {/* Required fields in accordion format */}
+      {FIELDS.map(({ key, labelKey }) => {
         const isOpen = openField === key;
+        const label = t(labelKey);
         return (
           <View key={key} style={styles.fieldBlock}>
             <TouchableOpacity
@@ -79,7 +82,7 @@ export default function ConfiguracionScreen({ email = '', onSave, onBack }) {
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  placeholder={`Ingresá ${label.toLowerCase()}...`}
+                  placeholder={t('user.settings.inputPlaceholder', { field: label.toLowerCase() })}
                   placeholderTextColor={globals.colors.textMuted}
                   value={values[key] ?? ''}
                   onChangeText={(text) => handleChange(key, text)}
@@ -90,22 +93,22 @@ export default function ConfiguracionScreen({ email = '', onSave, onBack }) {
         );
       })}
 
-      {/* Preferencias */}
-      <Text style={styles.sectionTitle}>Preferencias</Text>
-      {PREFERENCIAS.map(({ key, label }) => (
+      {/* Preferences */}
+      <Text style={styles.sectionTitle}>{t('user.settings.preferencesTitle')}</Text>
+      {PREFERENCES.map(({ key, labelKey }) => (
         <TouchableOpacity
           key={key}
-          style={styles.preferenciaRow}
-          onPress={() => togglePreferencia(key)}
+          style={styles.preferenceRow}
+          onPress={() => togglePreference(key)}
         >
-          <Text style={styles.fieldLabel}>{label}</Text>
-          <Text style={styles.checkbox}>{preferencias[key] ? '☑' : '☐'}</Text>
+          <Text style={styles.fieldLabel}>{t(labelKey)}</Text>
+          <Text style={styles.checkbox}>{preferences[key] ? '☑' : '☐'}</Text>
         </TouchableOpacity>
       ))}
 
       <View style={styles.buttonGroup}>
-        <Button label="Guardar" onPress={onSave} />
-        <Button label="Volver" onPress={onBack} variant="secondary" />
+        <Button label={t('user.settings.save')} onPress={onSave} />
+        <Button label={t('user.settings.back')} onPress={onBack} variant="secondary" />
       </View>
     </ScrollView>
   );
@@ -166,7 +169,7 @@ const styles = StyleSheet.create({
     color: globals.colors.text,
     backgroundColor: globals.colors.background,
   },
-  preferenciaRow: {
+  preferenceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

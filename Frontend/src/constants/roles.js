@@ -1,8 +1,8 @@
 /*
- Roles disponibles en la aplicacion.
- Se usan en toda la app para identificar al usuario logueado.
- Este archivo define los 3 roles como constantes. 
- Si en el futuro cambia el nombre de un rol, lo cambiás en UN solo lugar.
+ Roles available in the application.
+ Used throughout the app to identify the logged-in user.
+ This file defines the 3 roles as constants.
+ If a role's name ever changes, update it in ONE single place.
  */
 const ROLES = {
   USER: 'user',
