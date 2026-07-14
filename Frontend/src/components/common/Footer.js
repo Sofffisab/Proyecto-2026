@@ -1,27 +1,26 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../../context/AuthContext';
 import globals from '../../styles/globals';
 
-function Footer() {
-  const router = useRouter();
-  const { logout } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push('login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
+/**
+ * Footer de navegación reutilizable.
+ * Versión estática: no depende de expo-router ni de AuthContext todavía
+ * (no hay conexión a backend en esta etapa del proyecto). La navegación
+ * y el logout se resuelven vía callbacks recibidos por props, igual que
+ * en el resto de las pantallas ya corregidas.
+ *
+ * @param {function} [onNavigateHome]
+ * @param {function} [onNavigateSearch]
+ * @param {function} [onNavigateScan]
+ * @param {function} [onNavigateProfile]
+ * @param {function} [onLogout]
+ */
+function Footer({ onNavigateHome, onNavigateSearch, onNavigateScan, onNavigateProfile, onLogout }) {
   const navItems = [
-    { label: 'Home', route: 'index' },
-    { label: 'Search', route: 'index' },
-    { label: 'Scan', route: 'index' },
-    { label: 'Profile', route: 'profile' },
+    { label: 'Home', onPress: onNavigateHome },
+    { label: 'Search', onPress: onNavigateSearch },
+    { label: 'Scan', onPress: onNavigateScan },
+    { label: 'Profile', onPress: onNavigateProfile },
   ];
 
   return (
@@ -29,14 +28,14 @@ function Footer() {
       {navItems.map((item) => (
         <TouchableOpacity
           key={item.label}
-          onPress={() => router.push(item.route)}
+          onPress={item.onPress}
           style={styles.navItem}
         >
           <Text style={styles.navLabel}>{item.label}</Text>
         </TouchableOpacity>
       ))}
-      
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+
+      <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
         <Text style={styles.logoutLabel}>Logout</Text>
       </TouchableOpacity>
     </View>

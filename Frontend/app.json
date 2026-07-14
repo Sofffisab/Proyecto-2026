@@ -25,10 +25,6 @@
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
-    },
-    "scheme": "tu-app-scheme",
-    "plugins": [
-      "expo-router"
-    ]
+    }
   }
 }
