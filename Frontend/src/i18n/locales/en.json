@@ -144,15 +144,29 @@
     },
     "routines": {
       "title": "Routine selector",
+      "loadError": "Couldn't load your routines. Pull to try again.",
       "options": {
         "preMade": "Pre-made",
         "custom": "Custom",
         "recommended": "Recommended by the App",
         "none": "Don't follow a routine"
       },
+      "freeRoutineName": "Free Routine",
+      "savedTitle": "Your saved routines",
+      "savedEmpty": "You haven't saved any routines yet.",
+      "suggestionTitle": "Recommended by the App",
+      "suggestionUnavailable": "Not enough workout history yet to suggest a routine.",
+      "suggestionAccept": "Accept suggestion",
+      "suggestionReject": "Not now",
+      "suggestionAccepted": "Suggestion saved to your routines.",
+      "suggestionRejected": "Suggestion dismissed.",
       "displayMode": "Display mode",
       "stepByStepGuide": "Step-by-step guide",
       "readOnYourOwn": "Read on your own",
+      "selectRoutineFirst": "Select a routine above first.",
+      "requestFromTrainer": "Request a routine from a trainer",
+      "requestSent": "Request sent. A trainer will build your routine soon.",
+      "requestError": "Could not send the request. Please try again.",
       "back": "Back"
     },
     "achievementsGoals": {
