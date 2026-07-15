@@ -8,12 +8,13 @@ import globals from '../../styles/globals';
  * @param {function} onPress  - Callback fired when the button is pressed.
  * @param {string}   [variant='primary'] - Visual style: 'primary' | 'secondary' | 'danger'.
  */
-function Button({ label, onPress, variant = 'primary' }) {
+function Button({ label, onPress, variant = 'primary', disabled = false }) {
   return (
     <TouchableOpacity
-      style={[styles.base, styles[variant]]}
+      style={[styles.base, styles[variant], disabled && styles.disabled]}
       onPress={onPress}
       activeOpacity={0.8}
+      disabled={disabled}
     >
       <Text style={[styles.label, styles[`${variant}Label`]]}>{label}</Text>
     </TouchableOpacity>
@@ -38,6 +39,9 @@ const styles = StyleSheet.create({
   },
   danger: {
     backgroundColor: globals.colors.danger,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   label: {
     fontSize: globals.fontSize.md,

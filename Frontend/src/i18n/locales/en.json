@@ -5,7 +5,9 @@
     "save": "Save",
     "yes": "Yes",
     "no": "No",
-    "staticList": "(Static list)"
+    "staticList": "(Static list)",
+    "cameraPermissionRequired": "Camera access is needed to scan QR codes.",
+    "grantCameraAccess": "Grant camera access"
   },
   "footer": {
     "home": "Home",
@@ -35,23 +37,58 @@
   "user": {
     "onboarding": {
       "mainGoal": "Main goal",
+      "mainGoalHint": "Select one or more",
       "currentLevel": "Current level",
       "daysPerWeek": "How many days do you train per week",
       "trainingType": "What type of training are you looking for",
       "continue": "Continue",
       "back": "Back",
-      "option": "Option {{number}}"
+      "option": "Option {{number}}",
+      "saving": "Saving...",
+      "errorSaving": "Could not save your answers. Please try again.",
+      "goals": {
+        "LOSE_WEIGHT": "Lose weight",
+        "GAIN_MUSCLE": "Gain muscle",
+        "IMPROVE_HEALTH": "Improve health",
+        "INCREASE_ENDURANCE": "Increase endurance"
+      },
+      "levels": {
+        "BEGINNER": "Beginner",
+        "INTERMEDIATE": "Intermediate",
+        "ADVANCED": "Advanced"
+      },
+      "days": {
+        "ONE_TO_TWO": "1-2 days",
+        "THREE": "3 days",
+        "FOUR": "4 days",
+        "FIVE": "5 days",
+        "SIX": "6 days",
+        "SEVEN": "7 days"
+      },
+      "trainingTypes": {
+        "STRENGTH": "Strength",
+        "CARDIO": "Cardio",
+        "FUNCTIONAL": "Functional",
+        "MIXED": "Mixed"
+      }
     },
     "home": {
       "title": "Home",
       "subtitle": "Your summary for today",
       "pointsAccumulated": "Points accumulated",
+      "pointsLoading": "Loading...",
       "scanQR": "Scan QR (Camera)",
+      "scanning": "Processing scan...",
+      "scanSuccess": "Scan processed successfully.",
+      "scanError": "Could not process the scan. Please try again.",
       "history": "History",
       "routines": "Routines",
       "achievementsGoals": "Achievements & Goals",
       "reports": "Reports",
       "pedirAyuda": "Ask for help",
+      "pedirAyudaLoading": "Requesting help...",
+      "helpRequested": "A trainer has been notified and is on the way.",
+      "helpError": "Could not request help. Please try again.",
       "settings": "Settings & customization",
       "wrapped": "Year Wrapped",
       "logout": "Log out / Switch account",
@@ -65,17 +102,44 @@
       "mail": "Email",
       "medicalConditions": "Medical conditions",
       "dateOfBirth": "Date of birth",
+      "dateOfBirthPlaceholder": "YYYY-MM-DD",
       "exactAddress": "Exact address",
       "inputPlaceholder": "Enter {{field}}...",
       "preferencesTitle": "Preferences",
       "noTrainerHelp": "Do not receive help from trainer",
       "noMachineApp": "Do not use the app for machines (only for check-in/check-out)",
       "save": "Save",
-      "back": "Back"
+      "saving": "Saving...",
+      "back": "Back",
+      "errorSaving": "Could not save your data. Please check the fields and try again.",
+      "requiredNotice": "This is your first time here — please complete every field before continuing.",
+      "invalidDate": "Enter the date of birth as YYYY-MM-DD."
     },
     "history": {
       "title": "History",
-      "staticList": "(Static history list)",
+      "loading": "Loading...",
+      "loadError": "Some history sections could not be loaded.",
+      "sessionsTitle": "Gym visits",
+      "sessionsEmpty": "No gym visits yet.",
+      "arrivedAt": "Arrived",
+      "leftAt": "Left",
+      "stillCheckedIn": "Still checked in",
+      "autoClosed": "(auto-closed)",
+      "machineUsageTitle": "Machines used by day",
+      "machineUsageEmpty": "No machine usage logged yet.",
+      "machinesUsedCount": "{{count}} machine(s), {{minutes}} min total",
+      "interactionsTitle": "Social & trainer interactions",
+      "interactionsEmpty": "No interactions yet.",
+      "trainerInteraction": "Helped by {{name}}",
+      "socialInteraction": "Social challenge with {{name}}",
+      "achievementsTitle": "Achievements",
+      "achievementsEmpty": "No achievements unlocked yet.",
+      "rewardsTitle": "Rewards received",
+      "rewardsEmpty": "No rewards yet.",
+      "pointsTitle": "Points log",
+      "pointsEmpty": "No point activity yet.",
+      "reportsTitle": "Reports made",
+      "reportsEmpty": "No reports made.",
       "back": "Back"
     },
     "routines": {
@@ -214,5 +278,35 @@
       "privacyFilters": "Privacy filters",
       "back": "Back"
     }
+  },
+  "qrGeneration": {
+    "title": "Generate new QR",
+    "subtitle": "Choose whether this is for a machine, entry or exit.",
+    "typeMachine": "Machine",
+    "typeEntryExit": "Entry / Exit",
+    "entryExitTitle": "Entry / Exit QR",
+    "entryExitExplanation": "Entry and exit codes aren't tied to a stored, rotating token on the backend, so there's nothing here to manually regenerate — they're validated the same way every time.",
+    "createNewMachine": "Create a new machine",
+    "machineNamePlaceholder": "Machine name (e.g. Treadmill 3)",
+    "createButton": "Create machine",
+    "creating": "Creating...",
+    "createSuccess": "Machine created. Its QR is ready below.",
+    "createError": "Could not create the machine. Please try again.",
+    "selectMachine": "Select a machine",
+    "noMachines": "No active machines yet.",
+    "regenerateButton": "Regenerate QR",
+    "regenerating": "Regenerating...",
+    "regenerateSuccess": "QR regenerated. The old code stops working after a short grace window.",
+    "regenerateError": "Could not regenerate this QR. Please try again.",
+    "deactivateButton": "Deactivate",
+    "deactivating": "Deactivating...",
+    "deactivateSuccess": "Machine deactivated.",
+    "deactivateError": "Could not deactivate this machine. Please try again.",
+    "trainerManualIdLabel": "Machine ID",
+    "trainerManualIdHint": "Trainers don't have access to the full machine list — enter the ID of the machine you're standing next to.",
+    "machineIdPlaceholder": "Machine ID",
+    "qrReady": "QR ready",
+    "qrReadyFor": "QR ready for {{name}}",
+    "qrPrintHint": "Print or display this code at the machine."
   }
 }
