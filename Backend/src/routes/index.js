@@ -23,6 +23,7 @@ import * as notificationController from "../controllers/notification.controller.
 import * as analyticsController    from "../controllers/analytics.controller.js";
 import * as syncController         from "../controllers/sync.controller.js";
 import * as noteController         from "../controllers/note.controller.js";
+import * as historyController      from "../controllers/history.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
@@ -60,7 +61,13 @@ router.get("/cron/qr-rotate", cronAuth, qrRotateHandler);
 router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 
 // PUBLIC / AUTH ROUTES
-router.post("/auth/register",        authRateLimiter, validateSchema(authSchemas.registerSchema), authController.register);
+// NOTE: there is intentionally no public self-registration route. Accounts
+// are created exclusively by an Admin via POST /auth/users below (spec
+// section 15, "Botón Crear sesión nueva"), which emails the person a link
+// to set their own password (see Mail de Sesión Nueva in the spec). The
+// authController.register/registerSchema code is left in place (unused)
+// rather than deleted, in case it's needed again, but it is not reachable
+// from any route.
 router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema), authController.login);
 router.post("/auth/refresh-token",   validateSchema(authSchemas.refreshTokenSchema), authController.refreshToken);
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
@@ -71,7 +78,7 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 const PROTECTED_PREFIXES = [
   "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
-  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin",
+  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
 // Blocks members from the rest of the API until required profile data is
@@ -112,12 +119,27 @@ router.get("/gym/sessions",         gymController.getSessionHistory);
 router.get("/gym/sessions/:id",     gymController.getSessionById);
 router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);
 
+// HISTORY ROUTES
+// These map to an already-implemented history.controller.js/history.service.js
+// that was never mounted here — adding only the route registrations below,
+// no controller/service logic changed.
+router.get("/history/interactions",         historyController.getInteractionHistory);
+router.get("/history/machine-usage",        historyController.getDailyMachineUsageLog);
+router.get("/history/trainer-assistance",   authorize(["TRAINER", "ADMIN"]), historyController.getTrainerAssistanceHistory);
+
+
 // PROGRESS & GOALS ROUTES
 router.post("/goals",               validateSchema(progressSchemas.goalSchema), progressController.createGoal);
 router.get("/goals",                progressController.getGoals);
+router.get("/goals/:id",            progressController.getGoalById);
+router.patch("/goals/:id",          validateSchema(progressSchemas.goalSchema.partial()), progressController.updateGoal);
+router.delete("/goals/:id",         progressController.deleteGoal);
 router.post("/progress",            validateSchema(progressSchemas.createProgressSchema), progressController.addProgressLog);
 router.get("/progress/history",     progressController.getProgressHistory);
+router.get("/progress/stats",       progressController.getStats);
+router.get("/progress/:id",         progressController.getProgressById);
 router.put("/progress/:id",         validateSchema(progressSchemas.updateProgressSchema), progressController.updateProgressLog);
+router.delete("/progress/:id",      progressController.deleteProgress);
 
 // ROUTINES ROUTES
 router.post("/routines",                    validateSchema(progressSchemas.createRoutineSchema), routineController.create);
@@ -179,7 +201,8 @@ router.patch("/challenges/:id/cancel",      challengeController.cancel);
 // ASSISTANCE ROUTES
 router.post("/assistance/request",          assistanceController.request);
 router.get("/assistance/active",            assistanceController.getPending);
-router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.assignAssistanceSchema), assistanceController.assign);
+router.get("/assistance/history",           assistanceController.getHistory);
+router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
 router.patch("/assistance/:id/complete",    assistanceController.complete);
 router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);

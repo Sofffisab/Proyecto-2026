@@ -30,26 +30,19 @@ export function cancelAssistance(assistanceId) {
   return apiClient.patch(`/assistance/${assistanceId}/cancel`);
 }
 
+// GET /assistance/history — this user's own COMPLETED assistance records
+// (assistance.service.js#getAssistanceHistory). Used at check-out time to
+// know whether/which trainer(s) to show in the Rate Trainer(s) pop-up
+// (spec section 3) — the Assistance model has no gymSessionId link, so
+// this is filtered client-side to "today" rather than by session id.
+export function getMyAssistanceHistory() {
+  return apiClient.get('/assistance/history');
+}
+
 // PATCH /assistance/trainer/availability — TRAINER/ADMIN only. Lets the
 // authenticated trainer toggle whether they're available to be prioritized
 // for new "Pedir Ayuda" requests. Powers an availability switch on the
 // Trainer Home screen (spec section 9).
 export function setTrainerAvailability(availability) {
   return apiClient.patch('/assistance/trainer/availability', { availability });
-}
-
-// PATCH /assistance/:id/assign — TRAINER/ADMIN only. Trainer takes ownership
-// of a pending "Pedir Ayuda" request. Powers "Seleccionar Usuario" on the
-// Trainer Help screen (spec section 12): "marca al usuario en la app
-// indicando que este entrenador fue a ayudarlo".
-export function assignAssistance(assistanceId, trainerId) {
-  return apiClient.patch(`/assistance/${assistanceId}/assign`, { trainerId });
-}
-
-// PATCH /assistance/:id/complete — marks the assistance as done. Called
-// right after assign so the request leaves the pending queue and the
-// student's session records that they were helped (feeds the end-of-day
-// Rate Trainer pop-up and the trainer's own History screen).
-export function completeAssistance(assistanceId) {
-  return apiClient.patch(`/assistance/${assistanceId}/complete`);
 }

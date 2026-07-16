@@ -10,9 +10,13 @@ import QRScanner from '../../components/common/QRScanner';
 import SocialInteractionPopup from './popups/SocialInteractionPopup';
 import RateTrainerPopup from './popups/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
+import { useAuth } from '../../context/AuthContext';
 import * as gamificationApi from '../../api/services/gamification.api';
 import * as qrApi from '../../api/services/qr.api';
 import * as assistanceApi from '../../api/services/assistance.api';
+import * as notificationApi from '../../api/services/notification.api';
+import * as challengeApi from '../../api/services/challenge.api';
+import { flushQueue } from '../../offline/offlineQueue';
 
 /**
  * Main Screen (User) - spec section 3.
@@ -20,10 +24,16 @@ import * as assistanceApi from '../../api/services/assistance.api';
  * Routines, Achievements & Goals, Reports, Ask for Help, Settings, Wrapped,
  * and log out / switch account.
  *
- * Points (GET /gamification/points), QR scan (POST /qr/scan) and Ask for
- * Help (POST /assistance/request) are fetched/called directly from this
- * screen, same convention as Onboarding/Settings own their PUT /users/me
- * calls — the navigator only wires plain navigation callbacks.
+ * QR scan (POST /qr/scan, via qr.api.js) auto-detects entry/exit/machine/
+ * interaction server-side (verification.service.js#processScan) and
+ * returns which one it was:
+ *   - ENTRY_EXIT -> { action: 'CHECK_IN' | 'CHECK_OUT', session }
+ *     CHECK_IN shows a plain "arrival successful" pop-up (spec section 3's
+ *     scan logic). CHECK_OUT triggers the Rate Trainer(s) pop-up chain,
+ *     but only if this user actually received help today (checked via
+ *     GET /assistance/history) — matches "si recibió ayuda" in the spec.
+ *   - MACHINE / USER (social challenge pairing) -> generic success/error
+ *     feedback bar, same as before.
  *
  * @param {function} [onGoToHistory]
  * @param {function} [onGoToRoutines]
@@ -31,6 +41,7 @@ import * as assistanceApi from '../../api/services/assistance.api';
  * @param {function} [onGoToReports] - navigates to the Reports Screen (spec section 3)
  * @param {function} [onGoToSettings]
  * @param {function} [onGoToWrapped]
+ * @param {function} [onGoToNotifications]
  * @param {function} [onLogout] - opens "are you sure?" pop-up
  * @param {function} [onBack]
  */
@@ -41,22 +52,36 @@ export default function HomeScreen({
   onGoToReports,
   onGoToSettings,
   onGoToWrapped,
+  onGoToNotifications,
   onLogout,
   onBack,
 }) {
   const { t } = useTranslation();
-  // These 2 pop-ups appear at moments decided by the backend (random /
-  // end of day), there's no real trigger button for them yet. They're
-  // handled here as local state, since they're pop-ups (not screens)
-  // and don't need their own entry in the navigation stack.
+  const { user } = useAuth();
+
+  // The Social Interaction pop-up appears at a random moment decided by
+  // the Backend (jobs/challenge.job.js assigns a SocialChallenge); there's
+  // no real trigger button for it. It's surfaced here by polling the
+  // active-challenge endpoint on focus, same idea as unread notifications.
+  const [activeChallenge, setActiveChallenge] = useState(null);
   const [showSocialInteraction, setShowSocialInteraction] = useState(false);
+
+  // Rate Trainer(s) pop-up state — opened from the CHECK_OUT branch of
+  // handleScanned below, not from a button.
   const [showRateTrainer, setShowRateTrainer] = useState(false);
+  const [rateTrainerSessionId, setRateTrainerSessionId] = useState(null);
+  const [rateTrainerList, setRateTrainerList] = useState([]);
+
+  // "Arrival successful" pop-up — CHECK_IN branch of handleScanned.
+  const [showCheckInSuccess, setShowCheckInSuccess] = useState(false);
 
   // GET /gamification/points — refetched every time this screen regains
   // focus (e.g. coming back from Routines after a machine scan awarded
   // points), not just on first mount.
   const [points, setPoints] = useState(0);
   const [pointsLoading, setPointsLoading] = useState(true);
+
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadPoints = useCallback(async () => {
     try {
@@ -71,16 +96,37 @@ export default function HomeScreen({
     }
   }, []);
 
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const { data } = await notificationApi.getUnreadCount();
+      setUnreadCount(data?.count ?? 0);
+    } catch {
+      // Silent — the bell just won't show a badge this time.
+    }
+  }, []);
+
+  const loadActiveChallenge = useCallback(async () => {
+    try {
+      const { data } = await challengeApi.getActiveChallenges();
+      const assigned = (data ?? []).find((c) => c.status === 'ASSIGNED');
+      setActiveChallenge(assigned ?? null);
+      setShowSocialInteraction(Boolean(assigned));
+    } catch {
+      // Silent — no pop-up if we can't tell.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadPoints();
-    }, [loadPoints])
+      loadUnreadCount();
+      loadActiveChallenge();
+      // Best-effort silent retry of anything queued while offline.
+      flushQueue();
+    }, [loadPoints, loadUnreadCount, loadActiveChallenge])
   );
 
   // QR scan flow — real camera via expo-camera (see QRScanner component).
-  // The Backend auto-detects entry/exit/machine/interaction from the
-  // scanned payload itself (see Backend/src/services/verification.service.js
-  // #processScan); the client only forwards the raw scanned string.
   const [showScanQR, setShowScanQR] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanFeedback, setScanFeedback] = useState(null); // { type: 'success' | 'error', message }
@@ -95,8 +141,52 @@ export default function HomeScreen({
       setScanLoading(true);
       setScanFeedback(null);
       const { data } = await qrApi.scanQR(payload);
-      setScanFeedback({ type: 'success', message: data?.message || t('user.home.scanSuccess') });
       loadPoints();
+
+      if (data?.action === 'CHECK_IN') {
+        setShowScanQR(false);
+        setShowCheckInSuccess(true);
+        return;
+      }
+
+      if (data?.action === 'CHECK_OUT') {
+        setShowScanQR(false);
+        try {
+          const { data: history } = await assistanceApi.getMyAssistanceHistory();
+          const todayStr = new Date().toDateString();
+          // Backend/src/services/assistance.service.js#getAssistanceHistory
+          // returns raw Assistance rows (no joined trainer name), for every
+          // status — filter to COMPLETED + today client-side.
+          const helpedToday = (history ?? []).filter(
+            (a) =>
+              a.status === 'COMPLETED' &&
+              a.trainerId &&
+              a.completedAt &&
+              new Date(a.completedAt).toDateString() === todayStr
+          );
+          if (helpedToday.length > 0) {
+            const uniqueTrainers = [];
+            const seen = new Set();
+            for (const a of helpedToday) {
+              if (!seen.has(a.trainerId)) {
+                seen.add(a.trainerId);
+                // No trainer name available from this endpoint (data gap);
+                // RateTrainerPopup falls back to showing the id.
+                uniqueTrainers.push({ id: a.trainerId, name: a.trainerId });
+              }
+            }
+            setRateTrainerSessionId(data.session?.id ?? null);
+            setRateTrainerList(uniqueTrainers);
+            setShowRateTrainer(true);
+          }
+        } catch {
+          // If we can't tell whether they were helped, skip the pop-up
+          // rather than block checkout on it.
+        }
+        return;
+      }
+
+      setScanFeedback({ type: 'success', message: data?.message || t('user.home.scanSuccess') });
     } catch (err) {
       setScanFeedback({ type: 'error', message: err.message || t('user.home.scanError') });
     } finally {
@@ -125,7 +215,12 @@ export default function HomeScreen({
 
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('user.home.title')} subtitle={t('user.home.subtitle')} />
+      <Header
+        pageTitle={t('user.home.title')}
+        subtitle={t('user.home.subtitle')}
+        onPressNotifications={onGoToNotifications}
+        unreadCount={unreadCount}
+      />
 
       <ScrollView style={styles.content}>
         <Card
@@ -152,23 +247,8 @@ export default function HomeScreen({
           )}
           <Button label={t('user.home.settings')} onPress={onGoToSettings} variant="secondary" />
           <Button label={t('user.home.wrapped')} onPress={onGoToWrapped} variant="secondary" />
+          <Button label={t('user.home.notifications')} onPress={onGoToNotifications} variant="secondary" />
           <Button label={t('user.home.logout')} onPress={onLogout} variant="danger" />
-        </View>
-
-        {/* For testing: these pop-ups don't have a real trigger yet
-            (the backend decides when to show them), so these buttons
-            are added just to be able to see and test them. */}
-        <View style={styles.buttonGroup}>
-          <Button
-            label={t('user.home.testSocialInteraction')}
-            onPress={() => setShowSocialInteraction(true)}
-            variant="secondary"
-          />
-          <Button
-            label={t('user.home.testRateTrainer')}
-            onPress={() => setShowRateTrainer(true)}
-            variant="secondary"
-          />
         </View>
 
         <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
@@ -180,31 +260,53 @@ export default function HomeScreen({
         onLogout={onLogout}
       />
 
+      {/* Check-in success pop-up (spec section 3 QR logic). */}
       <Modal
-        visible={showSocialInteraction}
+        visible={showCheckInSuccess}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowSocialInteraction(false)}
+        onRequestClose={() => setShowCheckInSuccess(false)}
       >
-        <SocialInteractionPopup
-          onNo={() => setShowSocialInteraction(false)}
-          onYes={() => setShowSocialInteraction(false)}
-          onClose={() => setShowSocialInteraction(false)}
-        />
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('user.home.checkInSuccessTitle')}</Text>
+            <Text>{t('user.home.checkInSuccessBody')}</Text>
+            <Button label={t('common.close')} onPress={() => setShowCheckInSuccess(false)} />
+          </View>
+        </View>
       </Modal>
 
-      <Modal
-        visible={showRateTrainer}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowRateTrainer(false)}
-      >
-        <RateTrainerPopup
-          onRate={() => setShowRateTrainer(false)}
-          onReportNotHelped={() => setShowRateTrainer(false)}
-          onClose={() => setShowRateTrainer(false)}
-        />
-      </Modal>
+      {showSocialInteraction && activeChallenge && (
+        <Modal
+          visible={showSocialInteraction}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSocialInteraction(false)}
+        >
+          <SocialInteractionPopup
+            challenge={activeChallenge}
+            currentUserId={user?.id}
+            onDone={() => setShowSocialInteraction(false)}
+            onClose={() => setShowSocialInteraction(false)}
+          />
+        </Modal>
+      )}
+
+      {showRateTrainer && (
+        <Modal
+          visible={showRateTrainer}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowRateTrainer(false)}
+        >
+          <RateTrainerPopup
+            sessionId={rateTrainerSessionId}
+            trainers={rateTrainerList}
+            onRated={() => setShowRateTrainer(false)}
+            onClose={() => setShowRateTrainer(false)}
+          />
+        </Modal>
+      )}
 
       {/* QR scan pop-up — real camera (expo-camera) via the QRScanner
           component; POST /qr/scan is called as soon as a code is read. */}
@@ -281,5 +383,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: globals.colors.text,
     marginBottom: globals.spacing.sm,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    width: '85%',
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.lg,
+    padding: globals.spacing.lg,
+  },
+  cardTitle: {
+    fontSize: globals.fontSize.lg,
+    fontWeight: 'bold',
+    color: globals.colors.text,
+    marginBottom: globals.spacing.md,
   },
 });

@@ -32,6 +32,7 @@ export default function TrainerHomeScreen({
   onGoToHistory,
   onGoToReports,
   onGoToHelp,
+  onGoToNotifications,
   onBack,
 }) {
   const { t } = useTranslation();
@@ -134,6 +135,12 @@ export default function TrainerHomeScreen({
       <TouchableOpacity style={styles.navButton} onPress={onGoToHelp}>
         <Text style={styles.navButtonText}>{t('trainer.home.help')}</Text>
       </TouchableOpacity>
+
+      {onGoToNotifications && (
+        <TouchableOpacity style={styles.navButton} onPress={onGoToNotifications}>
+          <Text style={styles.navButtonText}>{t('trainer.home.notifications')}</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.backLink}>{t('trainer.home.back')}</Text>

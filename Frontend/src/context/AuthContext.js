@@ -10,7 +10,8 @@
 // falls back to the Login screen.
 //
 // Real backend routes used (see Backend/src/routes/index.js):
-//   POST /auth/register, POST /auth/login, POST /auth/logout,
+//   POST /auth/login, POST /auth/logout,
+//   (there is no self-registration endpoint — accounts are admin-created only)
 //   POST /auth/refresh-token, GET /users/me
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -36,7 +37,6 @@ const AuthContext = createContext({
   refreshToken: null,
   isAuthenticated: false,
   login: async () => {},
-  register: async () => {},
   logout: async () => {},
   refreshMe: async () => {},
   updateLocalUser: () => {},
@@ -124,16 +124,6 @@ export function AuthProvider({ children }) {
     [applySession]
   );
 
-  const register = useCallback(
-    async ({ email, password, firstName, lastName }) => {
-      // POST /auth/register also returns { user, accessToken, refreshToken },
-      // same shape as login (see Backend/src/services/auth.service.js#register).
-      const { data } = await authApi.register({ email, password, firstName, lastName });
-      await applySession(data);
-      return data.user;
-    },
-    [applySession]
-  );
 
   const logout = useCallback(async () => {
     try {
@@ -208,7 +198,6 @@ export function AuthProvider({ children }) {
       refreshToken: refreshTokenValue,
       isAuthenticated: Boolean(accessToken && user),
       login,
-      register,
       logout,
       refreshMe,
       updateLocalUser,
@@ -221,7 +210,6 @@ export function AuthProvider({ children }) {
       accessToken,
       refreshTokenValue,
       login,
-      register,
       logout,
       refreshMe,
       updateLocalUser,

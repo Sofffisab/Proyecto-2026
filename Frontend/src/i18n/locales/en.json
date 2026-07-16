@@ -94,7 +94,10 @@
       "logout": "Log out / Switch account",
       "back": "Back",
       "testSocialInteraction": "For testing: Social Interaction pop-up",
-      "testRateTrainer": "For testing: Rate Trainer(s) pop-up"
+      "testRateTrainer": "For testing: Rate Trainer(s) pop-up",
+      "checkInSuccessTitle": "Welcome!",
+      "checkInSuccessBody": "Your arrival has been checked in successfully.",
+      "notifications": "Notifications"
     },
     "settings": {
       "title": "Settings",
@@ -180,7 +183,21 @@
       "goalsTitle": "Goals",
       "goalsEmpty": "No active goals.",
       "goalProgress": "{{current}} / {{target}} {{unit}}",
-      "goalPercent": "{{percent}}% complete"
+      "goalPercent": "{{percent}}% complete",
+      "manageGoals": "Manage goals (debug/manual)",
+      "manageGoalsNote": "Goals are normally created automatically as you use the gym. This unstyled panel is a manual fallback to add/edit/remove one.",
+      "newGoalAction": "Action (GAIN/LOSE/MAINTAIN)",
+      "newGoalType": "Type (e.g. WEIGHT, STRENGTH...)",
+      "newGoalTarget": "Target value",
+      "newGoalUnit": "Unit (optional)",
+      "addGoal": "Add goal",
+      "updateGoal": "Save",
+      "deleteGoal": "Delete",
+      "logProgress": "Log progress value",
+      "logProgressAction": "Log",
+      "goalSaved": "Saved.",
+      "goalDeleted": "Deleted.",
+      "goalError": "Something went wrong."
     },
     "reports": {
       "target": "Report target",
@@ -262,7 +279,8 @@
       "busy": "Busy",
       "pendingHelpTitle": "Pending help requests",
       "pendingHelpCount": "{{count}} waiting",
-      "pendingHelpEmpty": "No one is waiting for help right now."
+      "pendingHelpEmpty": "No one is waiting for help right now.",
+      "notifications": "Notifications"
     },
     "history": {
       "title": "History",
@@ -301,39 +319,17 @@
     },
     "help": {
       "title": "People at the gym",
-      "clickableProfile": "View profile data",
+      "clickableProfile": "(Name and profile photo - clickable)",
       "selectUser": "Select user",
-      "selectUserHint": "Mark as helped",
-      "back": "Back",
-      "loading": "Loading people at the gym...",
-      "loadError": "Could not load the priority list.",
-      "empty": "No one is currently checked in.",
-      "specialtyMatch": "Matches your specialty",
-      "preferenceMatch": "Prefers you",
-      "noPendingRequest": "Not requesting help",
-      "waitingSince": "Waiting since {{time}}",
-      "assigning": "Assigning...",
-      "assignError": "Could not assign this request. Please try again."
+      "back": "Back"
     },
     "popups": {
       "profileData": {
         "title": "User data",
-        "close": "Close",
-        "loading": "Loading notes...",
-        "loadError": "Could not load notes.",
-        "medicalConditionsTitle": "Medical conditions",
-        "medicalConditionsEmpty": "None reported.",
-        "levelTitle": "Level",
-        "objectivesTitle": "Objectives",
-        "myNotesTitle": "My notes",
-        "myNotesEmpty": "You have not written any notes for this user yet.",
-        "publicNotesTitle": "Public notes from other trainers",
-        "publicNotesEmpty": "No public notes from other trainers.",
-        "addNotePlaceholder": "Add a note about this user...",
-        "addNotePublic": "Make this note public to other trainers",
-        "addNoteSubmit": "Save note",
-        "addNoteSaving": "Saving...",
-        "addNoteError": "Could not save the note."
+        "medicalConditions": "Medical conditions: -",
+        "notes": "Notes: -",
+        "publicNotes": "Public notes: -",
+        "close": "Close"
       }
     }
   },
@@ -353,49 +349,20 @@
     },
     "statistics": {
       "overviewTitle": "Gym overview",
-      "usageEmpty": "No machine usage recorded yet.",
-      "machineUsageLabel": "{{name}}: {{percentage}}% ({{count}} uses)",
+      "overviewStatic": "(Machine usage percentages - static)",
       "trainersTitle": "Trainers",
-      "trainerCountLabel": "Trainers: {{count}}",
-      "averageRatingLabel": "Average rating: {{rating}} / 5",
-      "noRatings": "No trainer ratings yet.",
+      "trainersStatic": "(Average rating and other data - static)",
       "usersTitle": "Users",
-      "activeUsersLabel": "Active: {{count}}",
-      "inactiveUsersLabel": "Deactivated: {{count}}",
-      "goalsMetLabel": "Meeting their goal: {{count}}",
-      "goalsNotMetLabel": "Not meeting their goal yet: {{count}}",
-      "loading": "Loading statistics...",
-      "loadError": "Could not load gym statistics.",
+      "usersStatic": "(Deactivated, activated, goal completion - static)",
       "back": "Back"
     },
     "members": {
       "createNewSession": "Create new session",
-      "firstNamePlaceholder": "First name",
-      "lastNamePlaceholder": "Last name",
       "mailPlaceholder": "Person's email",
-      "roleLabel": "Role",
-      "roleUser": "User",
-      "roleTrainer": "Trainer",
-      "roleAdmin": "Admin",
-      "createSubmit": "Send invite",
-      "creating": "Sending...",
-      "createSuccess": "Invite sent. The account was created and a mail was sent to set the password.",
-      "createError": "Could not create the account.",
-      "emailRequired": "Please enter an email.",
-      "nameRequired": "Please enter a first and last name.",
+      "deactivateAccount": "Deactivate account",
       "sessionViewer": "Session viewer",
-      "loading": "Loading members...",
-      "loadError": "Could not load members.",
-      "empty": "No members found.",
-      "since": "Since {{date}}",
-      "ratingLabel": "Rating: {{rating}} / 5",
-      "noRating": "Not rated yet",
-      "statusActive": "Active",
-      "statusInactive": "Deactivated",
-      "deactivateAccount": "Deactivate",
-      "activateAccount": "Activate",
-      "updatingStatus": "Updating...",
-      "statusUpdateError": "Could not update this account's status.",
+      "sessionViewerStatic": "(Static session list: role, name, email, data, seniority, status, score if trainer)",
+      "activateAccount": "Activate account",
       "back": "Back"
     },
     "rewards": {
@@ -449,5 +416,13 @@
     "qrReady": "QR ready",
     "qrReadyFor": "QR ready for {{name}}",
     "qrPrintHint": "Print or display this code at the machine."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "back": "Back",
+    "loadError": "Could not load notifications.",
+    "empty": "No notifications yet.",
+    "markAllRead": "Mark all as read",
+    "delete": "Delete"
   }
 }

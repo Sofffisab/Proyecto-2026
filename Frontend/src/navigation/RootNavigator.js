@@ -299,7 +299,14 @@ export default function RootNavigator() {
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.ADMIN_MEMBERS}>
-        {({ navigation }) => <MembersScreen onBack={goBack(navigation)} />}
+        {({ navigation }) => (
+          <MembersScreen
+            onCreateSession={undefined}
+            onDeactivateAccount={undefined}
+            onActivateAccount={undefined}
+            onBack={goBack(navigation)}
+          />
+        )}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.ADMIN_REWARDS}>

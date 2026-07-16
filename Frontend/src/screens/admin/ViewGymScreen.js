@@ -4,9 +4,6 @@ import { useTranslation } from '../../i18n/I18nContext';
 
 /**
  * "View Gym" Screen (Admin) - spec section 14.
- * Pure navigation hub: no own data to fetch. Each destination screen
- * (Statistics, Members, Rewards, Review Reports, Full History) owns its
- * own data fetching and actions.
  *
  * @param {function} [onGoToStatistics]
  * @param {function} [onGoToMembers]

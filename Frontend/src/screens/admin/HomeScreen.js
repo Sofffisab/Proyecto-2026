@@ -4,9 +4,6 @@ import { useTranslation } from '../../i18n/I18nContext';
 
 /**
  * Main Screen (Admin) - spec section 13.
- * Pure navigation hub: no own data to fetch. QR generation and "Ver Gym"
- * are separate screens (GenerateQRScreen, ViewGymScreen) that own their
- * own data/actions.
  *
  * @param {function} [onGenerateQR]
  * @param {function} [onGoToViewGym]

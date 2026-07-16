@@ -11,13 +11,126 @@
 // Promise.allSettled so one failing section doesn't blank the rest.
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as gamificationApi from '../../api/services/gamification.api';
 import * as progressApi from '../../api/services/progress.api';
+
+// Unstyled manual goal-management panel — spec section 6 goals are
+// normally created/completed automatically as the user progresses through
+// their normal gym routine (see goalDifficultyEngine.service.js and the
+// suggestion engine), not entered by hand. This panel is an explicit
+// manual fallback (create/edit/delete a goal, log a progress value)
+// wired to the now-mounted PATCH/DELETE /goals/:id and PUT /progress/:id
+// endpoints, left intentionally bare (no visual design pass) since it's
+// a debug/manual escape hatch rather than the primary flow.
+function ManualGoalPanel({ goals, onChanged }) {
+  const { t } = useTranslation();
+  const [objectiveAction, setObjectiveAction] = useState('GAIN');
+  const [objectiveType, setObjectiveType] = useState('WEIGHT');
+  const [targetValue, setTargetValue] = useState('');
+  const [unit, setUnit] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [progressDrafts, setProgressDrafts] = useState({});
+
+  const handleCreate = async () => {
+    if (!targetValue) return;
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await progressApi.createGoal({
+        objectiveAction,
+        objectiveType,
+        targetValue: Number(targetValue),
+        unit: unit || undefined,
+      });
+      setTargetValue('');
+      setUnit('');
+      setFeedback(t('user.achievementsGoals.goalSaved'));
+      onChanged();
+    } catch (err) {
+      setFeedback(err.message || t('user.achievementsGoals.goalError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async (goalId) => {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await progressApi.deleteGoal(goalId);
+      setFeedback(t('user.achievementsGoals.goalDeleted'));
+      onChanged();
+    } catch (err) {
+      setFeedback(err.message || t('user.achievementsGoals.goalError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleLogProgress = async (goalId) => {
+    const value = Number(progressDrafts[goalId]);
+    if (!value && value !== 0) return;
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await progressApi.addProgressLog({ goalId, value });
+      setProgressDrafts((prev) => ({ ...prev, [goalId]: '' }));
+      setFeedback(t('user.achievementsGoals.goalSaved'));
+      onChanged();
+    } catch (err) {
+      setFeedback(err.message || t('user.achievementsGoals.goalError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, marginTop: 16 }}>
+      <Text style={{ fontWeight: 'bold' }}>{t('user.achievementsGoals.manageGoals')}</Text>
+      <Text style={{ fontSize: 12, color: '#666' }}>{t('user.achievementsGoals.manageGoalsNote')}</Text>
+
+      {feedback && <Text>{feedback}</Text>}
+      {busy && <ActivityIndicator />}
+
+      <Text>{t('user.achievementsGoals.newGoalAction')}</Text>
+      <TextInput value={objectiveAction} onChangeText={setObjectiveAction} style={styles.debugInput} />
+      <Text>{t('user.achievementsGoals.newGoalType')}</Text>
+      <TextInput value={objectiveType} onChangeText={setObjectiveType} style={styles.debugInput} />
+      <Text>{t('user.achievementsGoals.newGoalTarget')}</Text>
+      <TextInput value={targetValue} onChangeText={setTargetValue} keyboardType="numeric" style={styles.debugInput} />
+      <Text>{t('user.achievementsGoals.newGoalUnit')}</Text>
+      <TextInput value={unit} onChangeText={setUnit} style={styles.debugInput} />
+      <TouchableOpacity onPress={handleCreate}>
+        <Text>{t('user.achievementsGoals.addGoal')}</Text>
+      </TouchableOpacity>
+
+      {goals.map((goal) => (
+        <View key={goal.id} style={{ borderTopWidth: 1, borderColor: '#eee', marginTop: 8, paddingTop: 8 }}>
+          <Text>{goal.subType || goal.type} — {goal.currentValue}/{goal.targetValue} {goal.unit || ''}</Text>
+          <TextInput
+            placeholder={t('user.achievementsGoals.logProgress')}
+            value={progressDrafts[goal.id] ?? ''}
+            onChangeText={(v) => setProgressDrafts((prev) => ({ ...prev, [goal.id]: v }))}
+            keyboardType="numeric"
+            style={styles.debugInput}
+          />
+          <TouchableOpacity onPress={() => handleLogProgress(goal.id)}>
+            <Text>{t('user.achievementsGoals.logProgressAction')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDelete(goal.id)}>
+            <Text>{t('user.achievementsGoals.deleteGoal')}</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function Section({ title, loading, empty, emptyLabel, children }) {
   return (
@@ -147,6 +260,8 @@ export default function AchievementsGoalsScreen({ onBack }) {
         </Section>
 
         <Text style={styles.backLink} onPress={onBack}>{t('user.achievementsGoals.back')}</Text>
+
+        <ManualGoalPanel goals={goals} onChanged={loadAll} />
       </ScrollView>
     </View>
   );
@@ -223,5 +338,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: globals.colors.textMuted,
     marginVertical: globals.spacing.lg,
+  },
+  debugInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 4,
+    marginBottom: 4,
   },
 });

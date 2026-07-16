@@ -26,15 +26,6 @@ export function getPresentUsers() {
   return apiClient.get('/gym/occupancy/live');
 }
 
-// GET /gym/priority-assistance — TRAINER/ADMIN only. Powers the Trainer Help
-// screen (spec section 12): currently checked-in members (who haven't opted
-// out of assistance), ordered by backend priority, each with the profile
-// data needed for the pop-up (medical conditions, level, objectives,
-// trainer preference). See Backend/src/services/gym.service.js#getPriorityAssistanceList.
-export function getPriorityAssistanceList() {
-  return apiClient.get('/gym/priority-assistance');
-}
-
 // POST /gym/sessions/:id/rate — body validated against
 // Backend/src/validators/progress.schemas.js#rateTrainerSchema:
 // { trainerId, rating (1-5), helped (default true), comment? }.

@@ -2,21 +2,16 @@
 //
 // Maps 1:1 to Backend/src/routes/index.js "PUBLIC / AUTH ROUTES" section
 // and Backend/src/controllers/auth.controller.js.
+// There is intentionally no register() here — accounts are created only
+// by an Admin (see admin/MembersScreen's "Crear sesión nueva", module 15,
+// which calls POST /auth/users). Self-registration was removed from the
+// Backend entirely per that business rule; see routes/index.js's comment
+// at the top of the "PUBLIC / AUTH ROUTES" section.
 // None of these calls attach the Authorization header (auth: false) except
 // logout, which needs the current access token so the Backend can
 // blacklist it (see Backend/src/services/auth.service.js#logout).
 
 import { apiClient } from '../client';
-
-// POST /auth/register — public registration always creates role USER
-// (Backend/src/validators/auth.schemas.js#registerSchema).
-export function register({ email, password, firstName, lastName }) {
-  return apiClient.post(
-    '/auth/register',
-    { email, password, firstName, lastName },
-    { auth: false }
-  );
-}
 
 // POST /auth/login
 export function login({ email, password }) {
@@ -52,12 +47,4 @@ export function resetPassword({ token, newPassword }) {
 // GET /user/profile server-side, see routes/index.js).
 export function getMe() {
   return apiClient.get('/users/me');
-}
-
-// POST /auth/users — ADMIN only. Powers "Crear sesión nueva" on the
-// Admin Members screen (spec section 15): creates the account and,
-// per Backend/src/services/auth.service.js#createUserByAdmin, sends the
-// "Mail de Sesión Nueva" so the person can accept and set a password.
-export function createUserByAdmin({ email, firstName, lastName, role }) {
-  return apiClient.post('/auth/users', { email, firstName, lastName, role });
 }

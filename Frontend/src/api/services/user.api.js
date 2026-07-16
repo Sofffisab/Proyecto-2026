@@ -50,23 +50,3 @@ export function deactivateSelf() {
 export function getTrainers() {
   return apiClient.get('/trainers');
 }
-
-// GET /users — ADMIN/TRAINER only. Powers the Admin Members screen's
-// "Visor de sesiones" (spec section 15): role, name, email, seniority
-// (createdAt), active/inactive status, and trainerProfile.averageRating
-// when the row is a trainer. See Backend/src/services/user.service.js#getAll.
-export function getUsers({ limit, offset } = {}) {
-  const params = new URLSearchParams();
-  if (limit != null) params.set('limit', limit);
-  if (offset != null) params.set('offset', offset);
-  const query = params.toString();
-  return apiClient.get(`/users${query ? `?${query}` : ''}`);
-}
-
-// PATCH /users/:id/status — ADMIN only. Body validated against
-// Backend/src/validators/user.schemas.js#deactivateUserSchema: { isActive }.
-// Powers both "Desactivar cuenta" (isActive: false) and "Activar cuenta"
-// (isActive: true) on the Admin Members screen.
-export function setUserActive(userId, isActive) {
-  return apiClient.patch(`/users/${userId}/status`, { isActive });
-}
