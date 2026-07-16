@@ -9,11 +9,6 @@ import { sendTrainerAlert } from "./pushNotification.service.js";
 export async function requestAssistance(userId) {
   // disableAssistance only blocks proactive outreach (see gym.service.js);
   // an explicit help request always goes through regardless of it
-  const requester = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { firstName: true, lastName: true },
-  });
-
   const assistance = await prisma.assistance.create({
     data: { userId, status: "PENDING" },
   });
@@ -25,39 +20,81 @@ export async function requestAssistance(userId) {
     requestedAt: assistance.requestedAt,
   });
 
-  // Push alert to every available trainer (first to accept wins; non-blocking)
-  notifyAvailableTrainers(assistance, requester).catch((err) =>
-    logger.error("[assistance] Failed to push trainer alert:", err.message)
+  // Try to dispatch this and any other waiting request to trainers that are
+  // currently free to receive an alert (non-blocking).
+  dispatchPendingAssistance().catch((err) =>
+    logger.error("[assistance] Failed to dispatch pending assistance:", err.message)
   );
 
   return assistance;
 }
 
-async function notifyAvailableTrainers(assistance, requester) {
-  const availableTrainers = await prisma.user.findMany({
-    where: {
-      role: "TRAINER",
-      isActive: true,
-      OR: [
-        { trainerProfile: null },
-        { trainerProfile: { availability: "AVAILABLE" } },
-      ],
-    },
-    select: { id: true },
+// How long a pushed alert can sit unanswered before we free up the trainer
+// so the next queued request (or a retry of this one) can reach them.
+const ALERT_TIMEOUT_MINUTES = parseInt(process.env.ASSISTANCE_ALERT_TIMEOUT_MINUTES ?? "3", 10);
+
+/**
+ * Delivers exactly one alert at a time per trainer: a trainer holding an
+ * unresolved alert (pendingAlertAssistanceId set) is skipped until it
+ * resolves (accepted, cancelled, or timed out). Waiting requests are matched
+ * to free trainers oldest-first (FIFO priority — "who came first").
+ */
+export async function dispatchPendingAssistance() {
+  // Free up trainers whose alert has been sitting too long unanswered.
+  const timeoutCutoff = new Date(Date.now() - ALERT_TIMEOUT_MINUTES * 60 * 1000);
+  await prisma.trainerProfile.updateMany({
+    where: { pendingAlertAssistanceId: { not: null }, pendingAlertAt: { lt: timeoutCutoff } },
+    data: { pendingAlertAssistanceId: null, pendingAlertAt: null },
   });
 
-  if (availableTrainers.length === 0) return;
-
-  await sendTrainerAlert({
-    trainerIds: availableTrainers.map((t) => t.id),
-    type: "SOS_ENTRENADOR",
-    payload: {
-      assistanceId: assistance.id,
-      userId: assistance.userId,
-      userName: requester ? `${requester.firstName} ${requester.lastName}` : "Un socio",
-      requestedAt: assistance.requestedAt.toISOString(),
-    },
+  const pendingAssistances = await prisma.assistance.findMany({
+    where: { status: "PENDING" },
+    orderBy: { requestedAt: "asc" },
+    include: { user: { select: { firstName: true, lastName: true } } },
   });
+
+  if (pendingAssistances.length === 0) return;
+
+  for (const assistance of pendingAssistances) {
+    const freeTrainers = await prisma.user.findMany({
+      where: {
+        role: "TRAINER",
+        isActive: true,
+        trainerProfile: { availability: "AVAILABLE", pendingAlertAssistanceId: null },
+      },
+      select: { id: true },
+    });
+
+    if (freeTrainers.length === 0) break; // nobody free right now; rest stay queued
+
+    await sendTrainerAlert({
+      trainerIds: freeTrainers.map((t) => t.id),
+      type: "SOS_ENTRENADOR",
+      payload: {
+        assistanceId: assistance.id,
+        userId: assistance.userId,
+        userName: assistance.user ? `${assistance.user.firstName} ${assistance.user.lastName}` : "Un socio",
+        requestedAt: assistance.requestedAt.toISOString(),
+      },
+    });
+
+    await prisma.trainerProfile.updateMany({
+      where: { userId: { in: freeTrainers.map((t) => t.id) } },
+      data: { pendingAlertAssistanceId: assistance.id, pendingAlertAt: new Date() },
+    });
+  }
+}
+
+/** Clears the alert lock for whichever trainers were holding it for this assistance, then re-dispatches so they can pick up the next queued request. */
+async function releaseAlertLock(assistanceId) {
+  await prisma.trainerProfile.updateMany({
+    where: { pendingAlertAssistanceId: assistanceId },
+    data: { pendingAlertAssistanceId: null, pendingAlertAt: null },
+  });
+
+  dispatchPendingAssistance().catch((err) =>
+    logger.error("[assistance] Failed to re-dispatch after alert release:", err.message)
+  );
 }
 
 /** Permission check: only TRAINER accounts can be assigned assistance. */
@@ -98,6 +135,7 @@ export async function assignAssistance(assistanceId, trainerId) {
   });
 
   await setTrainerAvailability(trainerId, "BUSY");
+  await releaseAlertLock(assistanceId);
 
   return updated;
 }
@@ -108,7 +146,7 @@ export async function setTrainerAvailability(trainerId, availability) {
     throw new Error("Invalid availability value");
   }
 
-  return prisma.trainerProfile.upsert({
+  const result = await prisma.trainerProfile.upsert({
     where: { userId: trainerId },
     update: { availability, availabilityUpdatedAt: new Date() },
     create: {
@@ -117,6 +155,14 @@ export async function setTrainerAvailability(trainerId, availability) {
       specialties: ["GENERAL"],
     },
   });
+
+  if (availability === "AVAILABLE") {
+    dispatchPendingAssistance().catch((err) =>
+      logger.error("[assistance] Failed to dispatch after availability change:", err.message)
+    );
+  }
+
+  return result;
 }
 
 export async function getTrainerAvailability(trainerId) {
@@ -174,6 +220,10 @@ export async function cancelAssistance(assistanceId, userId) {
 
   if (assistance.status === "ASSIGNED" && assistance.trainerId) {
     await setTrainerAvailability(assistance.trainerId, "AVAILABLE");
+  }
+
+  if (assistance.status === "PENDING") {
+    await releaseAlertLock(assistanceId);
   }
 
   return updated;

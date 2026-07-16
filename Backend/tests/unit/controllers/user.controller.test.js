@@ -34,7 +34,7 @@ describe("UserController", () => {
 
       await userController.getMe(req, res, next);
 
-      expect(userService.getById).toHaveBeenCalledWith("user-1", "USER");
+      expect(userService.getById).toHaveBeenCalledWith("user-1", "USER", "user-1");
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockProfile });
     });
 
@@ -133,7 +133,7 @@ describe("UserController", () => {
 
       await userController.getUserById(req, res, next);
 
-      expect(userService.getById).toHaveBeenCalledWith("user-2", "USER");
+      expect(userService.getById).toHaveBeenCalledWith("user-2", "USER", "user-1");
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUser });
     });
 

@@ -302,6 +302,13 @@ model TrainerProfile {
   // trainer who is already helping someone else.
   availability         TrainerAvailabilityStatus @default(AVAILABLE)
   availabilityUpdatedAt DateTime                 @default(now())
+  // Set while this trainer has an un-resolved push alert in flight for a
+  // specific assistance request. While set, they are skipped when new
+  // requests are dispatched — one alert at a time per trainer, queued by
+  // priority (oldest request first) for everyone else. Cleared when that
+  // assistance is accepted/cancelled/expired.
+  pendingAlertAssistanceId String?
+  pendingAlertAt           DateTime?
   createdAt            DateTime                  @default(now())
   updatedAt             DateTime                 @updatedAt
 

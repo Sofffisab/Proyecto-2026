@@ -1,0 +1,329 @@
+import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../context/AuthContext';
+import globals from '../styles/globals';
+import ROLES from '../constants/roles';
+
+import LoginScreen from '../screens/auth/LoginScreen';
+
+import OnboardingScreen from '../screens/user/OnboardingScreen';
+import SettingsScreen from '../screens/user/SettingsScreen';
+import UserHomeScreen from '../screens/user/HomeScreen';
+import HistoryScreen from '../screens/user/HistoryScreen';
+import RoutinesScreen from '../screens/user/RoutinesScreen';
+import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
+import ReportsScreen from '../screens/user/ReportsScreen';
+import WrappedScreen from '../screens/user/WrappedScreen';
+
+import TrainerHomeScreen from '../screens/trainer/HomeScreen';
+import TrainerHistoryScreen from '../screens/trainer/HistoryScreen';
+import TrainerReportsScreen from '../screens/trainer/ReportsScreen';
+import HelpScreen from '../screens/trainer/HelpScreen';
+import TrainerGenerateQRScreen from '../screens/trainer/GenerateQRScreen';
+
+import AdminHomeScreen from '../screens/admin/HomeScreen';
+import ViewGymScreen from '../screens/admin/ViewGymScreen';
+import StatisticsScreen from '../screens/admin/StatisticsScreen';
+import MembersScreen from '../screens/admin/MembersScreen';
+import RewardsScreen from '../screens/admin/RewardsScreen';
+import ReviewReportsScreen from '../screens/admin/ReviewReportsScreen';
+import FullHistoryScreen from '../screens/admin/FullHistoryScreen';
+import AdminGenerateQRScreen from '../screens/admin/GenerateQRScreen';
+
+/*
+ * Route names for the whole navigation tree.
+ *
+ * It's a single Stack (there's no real backend/session yet, so there's no
+ * per-role navigator split): the provisional Login shortcuts simply push
+ * onto the main screen of whichever role you want to test, and from there
+ * the rest of the screens are reached exactly as the user flow describes.
+ * "Back" is always navigation.goBack().
+ */
+export const ROUTES = {
+  LOGIN: 'Login',
+  ONBOARDING: 'UserOnboarding',
+  USER_SETTINGS: 'UserSettings',
+  USER_HOME: 'UserHome',
+  USER_HISTORY: 'UserHistory',
+  USER_ROUTINES: 'UserRoutines',
+  USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
+  USER_REPORTS: 'UserReports',
+  USER_WRAPPED: 'UserWrapped',
+  TRAINER_HOME: 'TrainerHome',
+  TRAINER_HISTORY: 'TrainerHistory',
+  TRAINER_REPORTS: 'TrainerReports',
+  TRAINER_HELP: 'TrainerHelp',
+  TRAINER_GENERATE_QR: 'TrainerGenerateQR',
+  ADMIN_HOME: 'AdminHome',
+  ADMIN_VIEW_GYM: 'AdminViewGym',
+  ADMIN_STATISTICS: 'AdminStatistics',
+  ADMIN_MEMBERS: 'AdminMembers',
+  ADMIN_REWARDS: 'AdminRewards',
+  ADMIN_REVIEW_REPORTS: 'AdminReviewReports',
+  ADMIN_FULL_HISTORY: 'AdminFullHistory',
+  ADMIN_GENERATE_QR: 'AdminGenerateQR',
+};
+
+const Stack = createNativeStackNavigator();
+
+// "Log out / switch account" now really logs out (clears the persisted
+// session + blacklists the token server-side via AuthContext#logout) and
+// then goes back to the initial screen (popToTop, since Login is the first
+// route in the stack).
+const goToLogin = (navigation) => () => {
+  navigation.popToTop();
+};
+const goBack = (navigation) => () => navigation.goBack();
+
+// Maps a real backend role (Backend/prisma/schema.prisma `Role` enum:
+// USER | TRAINER | ADMIN) to the route of that role's home screen, and
+// decides whether a USER needs the onboarding flow first (see
+// Backend/src/middlewares/profileCompletion.middleware.js).
+function getHomeRouteForUser(user) {
+  if (!user) return ROUTES.LOGIN;
+  if (user.role === ROLES.ADMIN.toUpperCase()) return ROUTES.ADMIN_HOME;
+  if (user.role === ROLES.TRAINER.toUpperCase()) return ROUTES.TRAINER_HOME;
+  return user.isProfileComplete ? ROUTES.USER_HOME : ROUTES.ONBOARDING;
+}
+
+export default function RootNavigator() {
+  const { isReady, isAuthenticated, user, login, logout, updateProfile, updateSettings } = useAuth();
+
+  // While a persisted session is being restored from AsyncStorage, avoid
+  // flashing the Login screen — show a lightweight loader instead.
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: globals.colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={globals.colors.primary} />
+      </View>
+    );
+  }
+
+  // If a valid session was restored, skip straight to that role's home
+  // screen instead of Login. The provisional shortcuts still work from
+  // Login for testing every role/flow without a real account.
+  const initialRouteName = isAuthenticated ? getHomeRouteForUser(user) : ROUTES.LOGIN;
+
+  return (
+    <Stack.Navigator
+      initialRouteName={initialRouteName}
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name={ROUTES.LOGIN}>
+        {({ navigation }) => (
+          <LoginScreen
+            onLogin={async (email, password) => {
+              // Real authentication: POST /auth/login (see
+              // Backend/src/controllers/auth.controller.js#login).
+              const loggedInUser = await login(email, password);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: getHomeRouteForUser(loggedInUser) }],
+              });
+            }}
+            onForgotPassword={undefined}
+            onBack={undefined}
+            onProvisionalNewUser={() => navigation.navigate(ROUTES.ONBOARDING)}
+            onProvisionalUser={() => navigation.navigate(ROUTES.USER_HOME)}
+            onProvisionalTrainer={() => navigation.navigate(ROUTES.TRAINER_HOME)}
+            onProvisionalAdmin={() => navigation.navigate(ROUTES.ADMIN_HOME)}
+          />
+        )}
+      </Stack.Screen>
+
+      {/* ---------- User ---------- */}
+
+      <Stack.Screen name={ROUTES.ONBOARDING}>
+        {({ navigation }) => (
+          <OnboardingScreen
+            onBack={goBack(navigation)}
+            onContinue={async (payload) => {
+              // Saves objectives/trainingLevel/weeklyTrainingDays/trainingType
+              // via PUT /users/me, then moves on to the remaining required
+              // fields (birthday, medicalConditions, deliveryAddress) in
+              // Settings — see profileCompletion.middleware.js for why both
+              // steps are needed before the profile counts as complete.
+              await updateProfile(payload);
+              navigation.navigate(ROUTES.USER_SETTINGS);
+            }}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_SETTINGS}>
+        {({ navigation }) => (
+          <SettingsScreen
+            email={user?.email ?? ''}
+            initialValues={{
+              medicalConditions: Array.isArray(user?.medicalConditions)
+                ? user.medicalConditions.join(', ')
+                : '',
+              dateOfBirth: user?.birthday ? String(user.birthday).slice(0, 10) : '',
+              exactAddress: user?.deliveryAddress ?? '',
+              disableAssistance: user?.settings?.disableAssistance ?? false,
+              machineTrackingOptOut: user?.settings?.machineTrackingOptOut ?? false,
+            }}
+            onSave={async (payload) => {
+              // PUT /users/me for profile fields, PATCH /users/me/settings
+              // for preferences — two separate Backend resources (see
+              // Backend/src/routes/index.js "USERS ROUTES").
+              const updatedUser = await updateProfile({
+                medicalConditions: payload.medicalConditions,
+                birthday: payload.birthday,
+                deliveryAddress: payload.deliveryAddress,
+              });
+              await updateSettings({
+                disableAssistance: payload.disableAssistance,
+                machineTrackingOptOut: payload.machineTrackingOptOut,
+              });
+
+              // First-time completion (coming from Onboarding): once the
+              // profile is complete, go straight to Home instead of back
+              // to Onboarding. Otherwise (editing from Home), just return.
+              if (updatedUser.isProfileComplete) {
+                navigation.reset({ index: 0, routes: [{ name: ROUTES.USER_HOME }] });
+              } else {
+                goBack(navigation)();
+              }
+            }}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_HOME}>
+        {({ navigation }) => (
+          <UserHomeScreen
+            onGoToHistory={() => navigation.navigate(ROUTES.USER_HISTORY)}
+            onGoToRoutines={() => navigation.navigate(ROUTES.USER_ROUTINES)}
+            onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
+            onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
+            onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
+            onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
+            onLogout={async () => {
+              // POST /auth/logout blacklists the token server-side (see
+              // Backend/src/services/auth.service.js#logout) and clears
+              // the persisted session locally.
+              await logout();
+              goToLogin(navigation)();
+            }}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_HISTORY}>
+        {({ navigation }) => <HistoryScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_ROUTINES}>
+        {({ navigation }) => <RoutinesScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_ACHIEVEMENTS_GOALS}>
+        {({ navigation }) => <AchievementsGoalsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_REPORTS}>
+        {({ navigation }) => (
+          <ReportsScreen onSubmit={undefined} onBack={goBack(navigation)} />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_WRAPPED}>
+        {({ navigation }) => <WrappedScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      {/* ---------- Trainer ---------- */}
+
+      <Stack.Screen name={ROUTES.TRAINER_HOME}>
+        {({ navigation }) => (
+          <TrainerHomeScreen
+            onGenerateQR={() => navigation.navigate(ROUTES.TRAINER_GENERATE_QR)}
+            onGoToHistory={() => navigation.navigate(ROUTES.TRAINER_HISTORY)}
+            onGoToReports={() => navigation.navigate(ROUTES.TRAINER_REPORTS)}
+            onGoToHelp={() => navigation.navigate(ROUTES.TRAINER_HELP)}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_HISTORY}>
+        {({ navigation }) => <TrainerHistoryScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_REPORTS}>
+        {({ navigation }) => (
+          <TrainerReportsScreen onSubmit={undefined} onBack={goBack(navigation)} />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_HELP}>
+        {({ navigation }) => (
+          <HelpScreen onSelectUser={undefined} onBack={goBack(navigation)} />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_GENERATE_QR}>
+        {({ navigation }) => <TrainerGenerateQRScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      {/* ---------- Admin ---------- */}
+
+      <Stack.Screen name={ROUTES.ADMIN_HOME}>
+        {({ navigation }) => (
+          <AdminHomeScreen
+            onGenerateQR={() => navigation.navigate(ROUTES.ADMIN_GENERATE_QR)}
+            onGoToViewGym={() => navigation.navigate(ROUTES.ADMIN_VIEW_GYM)}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_VIEW_GYM}>
+        {({ navigation }) => (
+          <ViewGymScreen
+            onGoToStatistics={() => navigation.navigate(ROUTES.ADMIN_STATISTICS)}
+            onGoToMembers={() => navigation.navigate(ROUTES.ADMIN_MEMBERS)}
+            onGoToRewards={() => navigation.navigate(ROUTES.ADMIN_REWARDS)}
+            onGoToReviewReports={() => navigation.navigate(ROUTES.ADMIN_REVIEW_REPORTS)}
+            onGoToHistory={() => navigation.navigate(ROUTES.ADMIN_FULL_HISTORY)}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_STATISTICS}>
+        {({ navigation }) => <StatisticsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_MEMBERS}>
+        {({ navigation }) => (
+          <MembersScreen
+            onCreateSession={undefined}
+            onDeactivateAccount={undefined}
+            onActivateAccount={undefined}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_REWARDS}>
+        {({ navigation }) => <RewardsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_REVIEW_REPORTS}>
+        {({ navigation }) => <ReviewReportsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_FULL_HISTORY}>
+        {({ navigation }) => <FullHistoryScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ADMIN_GENERATE_QR}>
+        {({ navigation }) => <AdminGenerateQRScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
