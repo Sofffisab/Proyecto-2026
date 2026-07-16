@@ -123,7 +123,7 @@ export async function changeRole(req, res, next) {
 
 export async function deactivate(req, res, next) {
   try {
-    const user = await userService.deactivateUser(req.params.id);
+    const user = await userService.deactivateUser(req.params.id, req.validatedData.isActive);
 
     // Invalidate cache so deactivation takes effect immediately
     if (redis) {

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="RutinaDia.css">
+    <title>Document</title>
+</head>
+<body>
+    <div class="header">
+        <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-left-outline.png" alt="">
+        <h1>Lunes, 20 de mayo</h1>
+        <h1 class="guardar">Guardar</h1>
+    </div>
+    <div class="titulo">
+        <h1 class="Titulo">Titulo del dia</h1>
+        <div class="Einput">
+    <div class="input-container">
+        <input class="input" id="tituloInput" type="text" maxlength="40">
+
+        <img class="icono-vacio"
+            src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
+            alt="">
+
+        <img class="icono-check"
+            src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_check-solid.png"
+            alt="">
+    </div>
+
+    <p class="texto"><span id="cantidad">0</span>/40</p>
+</div>
+    </div>
+    <div class="a">
+        <h1>Ejercicios</h1>
+        <img class="icono-vacio"
+              src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 48.png"
+              alt="">
+
+          <img class="icono-check"
+              src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_check-solid.png"
+              alt="">
+    </div>
+    
+</body>
+</html>
+
+
+<script>
+  const input = document.getElementById("tituloInput");
+const cantidad = document.getElementById("cantidad");
+const vacio = document.querySelector(".icono-vacio");
+const check = document.querySelector(".icono-check");
+
+input.addEventListener("input", () => {
+    cantidad.textContent = input.value.length;
+
+    if (input.value.trim() !== "") {
+        vacio.style.display = "none";
+        check.style.display = "block";
+    } else {
+        vacio.style.display = "block";
+        check.style.display = "none";
+    }
+});
+</script>

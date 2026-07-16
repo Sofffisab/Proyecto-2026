@@ -1,0 +1,6 @@
+{
+  "default": "en",
+  "available": [
+    { "code": "en", "label": "English", "file": "en" }
+  ]
+}

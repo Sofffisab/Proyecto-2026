@@ -65,6 +65,13 @@ export const requestRoutineSchema = z.object({
   trainerId: z.string().uuid().optional(),
 });
 
+// PATCH /assistance/:id/assign — trainer taking ownership of a pending
+// "Pedir Ayuda" request. Controller reads req.validatedData.trainerId,
+// which requires this schema to be wired into the route (see routes/index.js).
+export const assignAssistanceSchema = z.object({
+  trainerId: z.string().uuid(),
+});
+
 export const fcmTokenSchema = z.object({
   fcmToken: z.string().trim().min(1).max(500),
 });

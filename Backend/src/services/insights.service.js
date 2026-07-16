@@ -85,12 +85,67 @@ export async function getUserAnalytics(userId) {
 
 /** Global gym metrics. */
 export async function getGymAnalytics() {
-  const [totalSessions, activeUsers] = await Promise.all([
+  const [
+    totalSessions,
+    activeUsers,
+    inactiveUsers,
+    machines,
+    machineUsageCounts,
+    trainerProfiles,
+    activeGoals,
+  ] = await Promise.all([
     prisma.gymSession.count(),
-    prisma.user.count({ where: { isActive: true } }),
+    prisma.user.count({ where: { isActive: true, role: "USER" } }),
+    prisma.user.count({ where: { isActive: false, role: "USER" } }),
+    prisma.machine.findMany({ where: { active: true }, select: { id: true, name: true } }),
+    prisma.machineUsage.groupBy({ by: ["machineId"], _count: { _all: true } }),
+    prisma.trainerProfile.findMany({ select: { averageRating: true, totalRatings: true } }),
+    prisma.goal.findMany({
+      where: { active: true },
+      select: { action: true, targetValue: true, currentValue: true },
+    }),
   ]);
 
-  return { totalSessions, activeUsers };
+  // Section "Generales del gym": % of total machine-usage events per machine.
+  const totalMachineUsages = machineUsageCounts.reduce((sum, m) => sum + m._count._all, 0);
+  const usageByMachineId = machineUsageCounts.reduce((acc, m) => {
+    acc[m.machineId] = m._count._all;
+    return acc;
+  }, {});
+  const machineUsagePercentages = machines.map((m) => ({
+    machineId: m.id,
+    machineName: m.name,
+    usageCount: usageByMachineId[m.id] ?? 0,
+    percentage: totalMachineUsages > 0 ? ((usageByMachineId[m.id] ?? 0) / totalMachineUsages) * 100 : 0,
+  }));
+
+  // Section "Entrenadores": average rating across all rated trainers.
+  const ratedTrainers = trainerProfiles.filter((tp) => tp.totalRatings > 0);
+  const averageTrainerRating = ratedTrainers.length > 0
+    ? ratedTrainers.reduce((sum, tp) => sum + tp.averageRating, 0) / ratedTrainers.length
+    : 0;
+
+  // Section "Usuarios": how many currently meet their active goal(s).
+  // LOSE goals count as met once currentValue drops to/under target;
+  // GAIN/MAINTAIN goals count as met once currentValue reaches/exceeds target.
+  let goalsMet = 0;
+  let goalsNotMet = 0;
+  activeGoals.forEach((g) => {
+    const met = g.action === "LOSE" ? g.currentValue <= g.targetValue : g.currentValue >= g.targetValue;
+    if (met) goalsMet += 1;
+    else goalsNotMet += 1;
+  });
+
+  return {
+    totalSessions,
+    activeUsers,
+    inactiveUsers,
+    machineUsagePercentages,
+    trainerCount: trainerProfiles.length,
+    averageTrainerRating,
+    goalsMet,
+    goalsNotMet,
+  };
 }
 
 // ADMIN: full user history/analytics export. Every row is pseudonymized via

@@ -100,8 +100,8 @@ export async function updateRole(id, role) {
   return prisma.user.update({ where: { id }, data: { role } });
 }
 
-export async function deactivateUser(id) {
-  const user = await prisma.user.update({ where: { id }, data: { isActive: false } });
+export async function deactivateUser(id, isActive = false) {
+  const user = await prisma.user.update({ where: { id }, data: { isActive } });
   if (redis) await redis.del(`user:${id}`);
   return user;
 }

@@ -179,7 +179,7 @@ router.patch("/challenges/:id/cancel",      challengeController.cancel);
 // ASSISTANCE ROUTES
 router.post("/assistance/request",          assistanceController.request);
 router.get("/assistance/active",            assistanceController.getPending);
-router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
+router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), validateSchema(userSchemas.assignAssistanceSchema), assistanceController.assign);
 router.patch("/assistance/:id/complete",    assistanceController.complete);
 router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);
