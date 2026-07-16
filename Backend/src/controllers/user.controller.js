@@ -3,7 +3,7 @@ import redis from "../config/redis.js";
 
 export async function getMe(req, res, next) {
   try {
-    const user = await userService.getById(req.user.id, req.user.role);
+    const user = await userService.getById(req.user.id, req.user.role, req.user.id);
     res.json({ success: true, data: user });
   } catch (err) {
     next(err);
@@ -54,7 +54,7 @@ export async function getUsers(req, res, next) {
 
 export async function getUserById(req, res, next) {
   try {
-    const user = await userService.getById(req.params.id, req.user.role);
+    const user = await userService.getById(req.params.id, req.user.role, req.user.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
     res.json({ success: true, data: user });
   } catch (err) {

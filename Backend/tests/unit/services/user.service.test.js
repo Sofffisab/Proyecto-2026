@@ -172,7 +172,7 @@ describe("UserService", () => {
       expect(result).toBeNull();
     });
 
-    it("strips sensitive auth fields but keeps personal fields for ADMIN callers", async () => {
+    it("strips sensitive auth AND fragile personal fields for ADMIN callers viewing another user", async () => {
       prisma.user.findUnique.mockResolvedValue(fullUser);
 
       const result = await userService.getById("user-123", "ADMIN");
@@ -180,8 +180,20 @@ describe("UserService", () => {
       expect(result).not.toHaveProperty("passwordHash");
       expect(result).not.toHaveProperty("passwordResetToken");
       expect(result).not.toHaveProperty("passwordResetExpires");
+      expect(result).not.toHaveProperty("medicalConditions");
+      expect(result).not.toHaveProperty("deliveryAddress");
+      expect(result).toHaveProperty("objectives");
+    });
+
+    it("returns the full profile, including fragile fields, when the caller is viewing themselves", async () => {
+      prisma.user.findUnique.mockResolvedValue(fullUser);
+
+      const result = await userService.getById("user-123", "USER", "user-123");
+
+      expect(result).not.toHaveProperty("passwordHash");
       expect(result).toHaveProperty("medicalConditions");
       expect(result).toHaveProperty("deliveryAddress");
+      expect(result).toHaveProperty("objectives");
     });
 
     it("strips sensitive personal fields for non-ADMIN callers", async () => {

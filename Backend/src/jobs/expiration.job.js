@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { logger } from "../utils/logger.js";
+import { dispatchPendingAssistance } from "../services/assistance.service.js";
 
 // How long a gym session can stay open before the system closes it
 // automatically (user forgot to scan the exit QR).
@@ -15,6 +16,9 @@ export async function expireStaleEntities() {
     autoCheckoutStaleGymSessions(),
     autoCloseAbandonedMachineUsages(),
     expireStaleSocialChallenges(),
+    dispatchPendingAssistance().catch((err) =>
+      logger.error("[expiration.job] Failed to sweep assistance alert queue:", err.message)
+    ),
   ]);
 }
 

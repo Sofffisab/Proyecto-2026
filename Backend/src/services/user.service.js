@@ -19,7 +19,7 @@ export async function getAll({ limit = 20, offset = 0 } = {}) {
   });
 }
 
-export async function getById(id, callerRole = "USER") {
+export async function getById(id, callerRole = "USER", callerId = null) {
   const user = await prisma.user.findUnique({
     where: { id },
     include: { trainerProfile: true, settings: true },
@@ -30,12 +30,23 @@ export async function getById(id, callerRole = "USER") {
   // passwordHash is NEVER returned regardless of caller role
   const { passwordHash, passwordResetToken, passwordResetExpires, ...base } = user;
 
-  if (callerRole === "ADMIN") {
-    // Admins see everything except sensitive auth fields
+  // Own profile: the owner always sees their own full data.
+  if (callerId && callerId === id) {
     return base;
   }
 
-  // Trainers and regular users don't see sensitive personal fields
+  // Fragile personal data (medical info, exact address) is never handed to
+  // anyone else automatically — not even admins. There is no flag or query
+  // param that unlocks it here; when a trainer legitimately needs it during
+  // an active assistance, it's fetched through the purpose-built Ayudar flow
+  // (gym.service.js), which is scoped and logged, not through this lookup.
+  if (callerRole === "ADMIN") {
+    const { medicalConditions, deliveryAddress, ...adminSafe } = base;
+    return adminSafe;
+  }
+
+  // Trainers and regular users viewing someone else don't see sensitive
+  // personal fields at all.
   const { medicalConditions, objectives, deliveryAddress, ...safeUser } = base;
   return safeUser;
 }
