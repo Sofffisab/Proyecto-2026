@@ -23,3 +23,13 @@ export function getMyComplaints() {
 export function createComplaint({ reportedUserId, reason, message }) {
   return apiClient.post('/complaints', { reportedUserId, reason, message });
 }
+
+// POST /complaints/trainer — TRAINER/ADMIN only. Body validated against
+// Backend/src/validators/progress.schemas.js#createTrainerComplaintSchema:
+// { reportedUserId, reason: one of MACHINE_DAMAGE|MISCONDUCT|RULE_VIOLATION|OTHER,
+// message? }. Lets a trainer report a member directly (spec section 11),
+// distinct from the free-text `reason` used by the member-facing
+// createComplaint above.
+export function createTrainerComplaint({ reportedUserId, reason, message }) {
+  return apiClient.post('/complaints/trainer', { reportedUserId, reason, message });
+}

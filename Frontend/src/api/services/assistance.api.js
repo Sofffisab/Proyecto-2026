@@ -29,3 +29,11 @@ export function getActiveAssistance() {
 export function cancelAssistance(assistanceId) {
   return apiClient.patch(`/assistance/${assistanceId}/cancel`);
 }
+
+// PATCH /assistance/trainer/availability — TRAINER/ADMIN only. Lets the
+// authenticated trainer toggle whether they're available to be prioritized
+// for new "Pedir Ayuda" requests. Powers an availability switch on the
+// Trainer Home screen (spec section 9).
+export function setTrainerAvailability(availability) {
+  return apiClient.patch('/assistance/trainer/availability', { availability });
+}

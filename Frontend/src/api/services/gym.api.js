@@ -17,3 +17,22 @@ import { apiClient } from '../client';
 export function getSessionHistory() {
   return apiClient.get('/gym/sessions');
 }
+
+// GET /gym/occupancy/live — users currently checked in (active session,
+// no checkOutAt yet). Used by the User Reports screen (spec section 3's
+// "pop up Denuncias") to list "personas que figuran en el gym" as
+// report-target candidates.
+export function getPresentUsers() {
+  return apiClient.get('/gym/occupancy/live');
+}
+
+// POST /gym/sessions/:id/rate — body validated against
+// Backend/src/validators/progress.schemas.js#rateTrainerSchema:
+// { trainerId, rating (1-5), helped (default true), comment? }.
+// Powers the Rate Trainer(s) pop-up (spec section 3): when helped=false,
+// the Backend automatically files a complaint against the trainer
+// alongside the rating (see gym.service.js#rateTrainer), so the popup
+// does not need a separate complaint call for "no me ayudaron".
+export function rateTrainer(sessionId, { trainerId, rating, helped = true, comment }) {
+  return apiClient.post(`/gym/sessions/${sessionId}/rate`, { trainerId, rating, helped, comment });
+}

@@ -30,3 +30,13 @@ export function getBadges() {
 export function createReviewRequest(reason) {
   return apiClient.post('/gamification/review-request', { reason });
 }
+
+// GET /analytics/wrapped?year=YYYY — Spotify-style yearly stats (spec
+// section 8). Backend/src/services/wrapped.service.js#generateWrapped
+// computes it on the fly (sessions, minutes, points, top machines,
+// assistances, people met, top trainers) and upserts a snapshot, so this
+// always reflects current data for that year. Defaults to the current
+// year server-side if `year` is omitted.
+export function getWrapped(year) {
+  return apiClient.get(year ? `/analytics/wrapped?year=${encodeURIComponent(year)}` : '/analytics/wrapped');
+}

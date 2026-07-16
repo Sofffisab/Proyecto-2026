@@ -43,3 +43,10 @@ export function updateFcmToken(fcmToken) {
 export function deactivateSelf() {
   return apiClient.delete('/users/me');
 }
+
+// GET /trainers — active trainers, open to any authenticated role (not
+// gated by authorize() server-side). Used by the User/Trainer Reports
+// screens to populate the "list of trainers" report-target option.
+export function getTrainers() {
+  return apiClient.get('/trainers');
+}

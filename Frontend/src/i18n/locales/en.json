@@ -171,34 +171,81 @@
     },
     "achievementsGoals": {
       "title": "Achievements & Goals",
-      "staticPanel": "(Static status panel)",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Some data could not be loaded.",
+      "pointsTitle": "Points",
+      "pointsTotal": "Total points: {{points}}",
+      "achievementsTitle": "Achievements",
+      "achievementsEmpty": "No achievements unlocked yet.",
+      "goalsTitle": "Goals",
+      "goalsEmpty": "No active goals.",
+      "goalProgress": "{{current}} / {{target}} {{unit}}",
+      "goalPercent": "{{percent}}% complete"
     },
     "reports": {
       "target": "Report target",
+      "categoryTrainer": "Trainer",
+      "categoryMember": "Person in the gym",
+      "categoryApp": "App element (points, achievements, etc.)",
       "selectTarget": "Select target",
+      "selectPerson": "Select a person",
+      "loadError": "Some data could not be loaded.",
       "reason": "Reason",
       "reasonPlaceholder": "Why?",
+      "reasonRequired": "Please enter a reason.",
+      "targetRequired": "Please select a target.",
       "send": "Send",
-      "back": "Back"
+      "sending": "Sending...",
+      "sendError": "Could not send the report. Please try again.",
+      "sendSuccess": "Report sent for review.",
+      "back": "Back",
+      "noTrainers": "No trainers available.",
+      "noMembers": "No one is currently in the gym."
     },
     "wrapped": {
       "title": "Year Wrapped",
-      "staticStats": "(Static yearly statistics)",
-      "back": "Back"
+      "subtitle": "{{year}} in review",
+      "back": "Back",
+      "loadError": "Could not load your wrapped stats.",
+      "loading": "Crunching your year...",
+      "totalSessions": "Gym visits",
+      "totalMinutes": "Minutes trained",
+      "totalPoints": "Points earned",
+      "assistancesReceived": "Times a trainer helped you",
+      "peopleMetCount": "People you met",
+      "topMachinesTitle": "Your top machines",
+      "topMachinesEmpty": "No machine usage recorded yet.",
+      "topTrainersTitle": "Trainers who helped you most",
+      "topTrainersEmpty": "No trainer assistance recorded yet.",
+      "previousYear": "Previous year",
+      "nextYear": "Next year"
     },
     "popups": {
       "socialInteraction": {
         "question": "Do you want to?",
         "no": "No",
         "yes": "Yes",
-        "close": "Close"
+        "close": "Close",
+        "waitingForPartner": "Waiting for the other person to accept...",
+        "accepted": "Accepted! Time to pair up.",
+        "youScan": "Scan their QR code.",
+        "showYourQR": "Show this QR code to your partner.",
+        "error": "Something went wrong. Please try again.",
+        "expired": "This invitation has expired."
       },
       "rateTrainer": {
         "title": "Rate Trainer(s)",
         "rate": "Rate",
         "reportNotHelped": "They didn't help me / Report",
-        "close": "Close"
+        "close": "Close",
+        "selectTrainer": "Select a trainer",
+        "selectRating": "Select a rating",
+        "commentPlaceholder": "Add a comment (optional)",
+        "submit": "Submit",
+        "submitting": "Submitting...",
+        "error": "Could not submit. Please try again.",
+        "success": "Thanks for your feedback!",
+        "markNotHelped": "They didn't help me"
       }
     }
   },
@@ -208,12 +255,25 @@
       "history": "History",
       "reports": "Reports",
       "help": "Help",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Some data could not be loaded.",
+      "availabilityTitle": "Availability",
+      "available": "Available",
+      "busy": "Busy",
+      "pendingHelpTitle": "Pending help requests",
+      "pendingHelpCount": "{{count}} waiting",
+      "pendingHelpEmpty": "No one is waiting for help right now."
     },
     "history": {
       "title": "History",
       "staticLog": "(Static activity log)",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Could not load your history.",
+      "empty": "You have not helped anyone yet.",
+      "assistedOn": "Assisted on {{date}}",
+      "machineLabel": "Machine: {{machine}}",
+      "ratingLabel": "Rating: {{rating}}/5",
+      "noRating": "Not rated yet"
     },
     "reports": {
       "personToReport": "Person to report",
@@ -221,7 +281,23 @@
       "reason": "Reason",
       "reasonPlaceholder": "Why?",
       "send": "Send",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Some data could not be loaded.",
+      "categoryTrainer": "Trainer",
+      "categoryMember": "Person in the gym",
+      "noTrainers": "No trainers available.",
+      "noMembers": "No one is currently in the gym.",
+      "reasonCodeLabel": "Reason category",
+      "reasonMachineDamage": "Machine damage",
+      "reasonMisconduct": "Misconduct",
+      "reasonRuleViolation": "Rule violation",
+      "reasonOther": "Other",
+      "messagePlaceholder": "Add details (optional)",
+      "targetRequired": "Please select a person to report.",
+      "reasonRequired": "Please select a reason category.",
+      "sending": "Sending...",
+      "sendError": "Could not send the report. Please try again.",
+      "sendSuccess": "Report sent for review."
     },
     "help": {
       "title": "People at the gym",
