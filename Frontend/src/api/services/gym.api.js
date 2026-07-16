@@ -36,3 +36,15 @@ export function getPresentUsers() {
 export function rateTrainer(sessionId, { trainerId, rating, helped = true, comment }) {
   return apiClient.post(`/gym/sessions/${sessionId}/rate`, { trainerId, rating, helped, comment });
 }
+
+// GET /gym/priority-assistance — TRAINER/ADMIN only
+// (gym.service.js#getPriorityAssistanceList). Powers the Trainer Help
+// screen's "Lista de personas en el gym" (spec section 12): everyone
+// currently checked in, sorted by wait time, specialty match with this
+// trainer, the member's own trainer preference, then seniority. Each row
+// already includes medicalConditions/trainingLevel/objectives so the
+// clickable-profile pop-up doesn't need a second request.
+export function getPriorityAssistanceList() {
+  return apiClient.get('/gym/priority-assistance');
+}
+

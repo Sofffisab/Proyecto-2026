@@ -39,6 +39,15 @@ export function getMyAssistanceHistory() {
   return apiClient.get('/assistance/history');
 }
 
+// PATCH /assistance/:id/assign — TRAINER/ADMIN only
+// (assistance.service.js#assignAssistance). Marks a PENDING request as
+// ASSIGNED to the calling trainer; used by the "Botón Seleccionar Usuario"
+// on the Trainer Help screen (spec section 12) once a matching pending
+// request for that member is found via getActiveAssistance().
+export function assignAssistance(assistanceId) {
+  return apiClient.patch(`/assistance/${assistanceId}/assign`);
+}
+
 // PATCH /assistance/trainer/availability — TRAINER/ADMIN only. Lets the
 // authenticated trainer toggle whether they're available to be prioritized
 // for new "Pedir Ayuda" requests. Powers an availability switch on the

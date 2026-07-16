@@ -321,7 +321,12 @@
       "title": "People at the gym",
       "clickableProfile": "(Name and profile photo - clickable)",
       "selectUser": "Select user",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Couldn't load the list.",
+      "empty": "No one is at the gym right now.",
+      "noPendingRequest": "This member has no pending help request.",
+      "assigned": "You've been assigned to help this member.",
+      "assignError": "Couldn't assign this request."
     },
     "popups": {
       "profileData": {
@@ -329,7 +334,13 @@
         "medicalConditions": "Medical conditions: -",
         "notes": "Notes: -",
         "publicNotes": "Public notes: -",
-        "close": "Close"
+        "close": "Close",
+        "loadError": "Couldn't load notes.",
+        "saveError": "Couldn't save that.",
+        "none": "None",
+        "delete": "Delete",
+        "newNotePlaceholder": "Add a note...",
+        "makePublic": "Visible to other trainers"
       }
     }
   },
@@ -354,7 +365,12 @@
       "trainersStatic": "(Average rating and other data - static)",
       "usersTitle": "Users",
       "usersStatic": "(Deactivated, activated, goal completion - static)",
-      "back": "Back"
+      "back": "Back",
+      "totalSessions": "Total sessions: {{count}}",
+      "activeUsers": "Active users: {{count}}",
+      "notAvailable": "(Not available from the Backend yet)",
+      "loadError": "Couldn't load statistics.",
+      "refresh": "Refresh"
     },
     "members": {
       "createNewSession": "Create new session",
@@ -370,7 +386,16 @@
       "stockStatusStatic": "(Available stock and current reward - static)",
       "shipmentsInProgressTitle": "Shipments in progress",
       "waitlistTitle": "Waitlist due to lack of stock",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Couldn't load rewards data.",
+      "actionError": "Couldn't complete that action.",
+      "noRewards": "No rewards in the catalog.",
+      "noShipments": "No shipments in progress.",
+      "noWaitlist": "No one is waiting for stock.",
+      "stockCount": "Stock: {{count}}",
+      "marketing": "Marketing item",
+      "inactive": "Inactive",
+      "markDelivered": "Mark delivered"
     },
     "reviewReports": {
       "approvedTitle": "Reports made and approved",
@@ -379,12 +404,28 @@
       "requestsStatic": "(Static list - verify if a report was misapplied)",
       "behaviorTitle": "Suspicious behavior",
       "behaviorStatic": "(Static list - too many reports received/made)",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Couldn't load reports.",
+      "actionError": "Couldn't complete that action.",
+      "noComplaints": "No complaints filed.",
+      "noRequests": "No pending review requests.",
+      "noSuspicious": "Nothing suspicious right now.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "markResolved": "Mark resolved",
+      "receivedCount": "received {{count}} complaints",
+      "filedCount": "filed {{count}} complaints"
     },
     "fullHistory": {
       "title": "Full system log",
       "privacyFilters": "Privacy filters",
-      "back": "Back"
+      "back": "Back",
+      "loadError": "Couldn't load the history.",
+      "noData": "No history yet.",
+      "identified": "Identified",
+      "pseudonymized": "Pseudonymized",
+      "sessionsAndMinutes": "{{sessions}} sessions, {{minutes}} min",
+      "machineUsages": "{{count}} machine uses"
     }
   },
   "qrGeneration": {

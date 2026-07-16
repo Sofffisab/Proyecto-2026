@@ -50,3 +50,14 @@ export function deactivateSelf() {
 export function getTrainers() {
   return apiClient.get('/trainers');
 }
+
+// GET /users — TRAINER/ADMIN only (user.service.js#getAll). Paginated list
+// of every account (id, email, name, role, isActive, createdAt,
+// trainerProfile), used to resolve names for member-facing lists where the
+// underlying resource only stores a bare user id (e.g. joining
+// Complaint.reportedUserId on the Admin Review Reports screen, spec
+// section 18).
+export function getUsers({ limit = 100, offset = 0 } = {}) {
+  return apiClient.get(`/users?limit=${limit}&offset=${offset}`);
+}
+

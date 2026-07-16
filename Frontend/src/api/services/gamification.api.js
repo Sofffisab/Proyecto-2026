@@ -31,6 +31,24 @@ export function createReviewRequest(reason) {
   return apiClient.post('/gamification/review-request', { reason });
 }
 
+// GET /admin/review-requests — ADMIN only, unresolved PointReviewRequest
+// rows with the requesting user attached (gamification.controller.js
+// #getReviewRequests). Powers the "Peticiones de revisión" section of the
+// Admin Review Reports screen (spec section 18) — these come from the
+// pop-up de Denuncias' "app element" (points/achievements) target, which
+// createReviewRequest() above files instead of a Complaint.
+export function getReviewRequests() {
+  return apiClient.get('/admin/review-requests');
+}
+
+// PATCH /admin/review-requests/:id/resolve — ADMIN only. Marks a
+// PointReviewRequest as resolved (gamification.controller.js
+// #resolveReviewRequest); the Backend doesn't currently branch on an
+// approved/rejected outcome, it only flips resolved: true.
+export function resolveReviewRequest(id) {
+  return apiClient.patch(`/admin/review-requests/${id}/resolve`, {});
+}
+
 // GET /analytics/wrapped?year=YYYY — Spotify-style yearly stats (spec
 // section 8). Backend/src/services/wrapped.service.js#generateWrapped
 // computes it on the fly (sessions, minutes, points, top machines,
