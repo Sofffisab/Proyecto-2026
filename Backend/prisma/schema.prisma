@@ -273,16 +273,7 @@ model UserSettings {
   disableAssistance Boolean  @default(false)
   disableSocial     Boolean  @default(false)
   trainerPreference String?
-  // Opt out of machine tracking: only gym entry/exit is scanned, no
-  // MachineUsage rows are created, and the user is dropped from
-  // machine-based social matching. Still visible in the trainer's help
-  // list, just without machine/zone info (gym.service.js#getUserCurrentLocation).
   machineTrackingOptOut Boolean @default(false)
-  // Whether this user's activity may be included (even pseudonymized) in the
-  // admin-facing full analytics/history export. See insights.service.js
-  // #getFullHistoryAdmin and utils/privacy.js. Defaults to true (opt-out model),
-  // but users who withdraw consent are always shown pseudonymized, never with
-  // their real name/email.
   analyticsConsent  Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -296,17 +287,8 @@ model TrainerProfile {
   specialties          String[]
   averageRating        Float                     @default(0)
   totalRatings         Int                       @default(0)
-  // Whether the trainer is currently free to be assigned new work (assistance
-  // alerts, etc). Set to BUSY while actively assisting/teaching, and back to
-  // AVAILABLE when that work finishes, so the backend never double-books a
-  // trainer who is already helping someone else.
   availability         TrainerAvailabilityStatus @default(AVAILABLE)
   availabilityUpdatedAt DateTime                 @default(now())
-  // Set while this trainer has an un-resolved push alert in flight for a
-  // specific assistance request. While set, they are skipped when new
-  // requests are dispatched — one alert at a time per trainer, queued by
-  // priority (oldest request first) for everyone else. Cleared when that
-  // assistance is accepted/cancelled/expired.
   pendingAlertAssistanceId String?
   pendingAlertAt           DateTime?
   createdAt            DateTime                  @default(now())
