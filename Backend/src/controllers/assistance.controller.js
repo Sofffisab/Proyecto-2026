@@ -33,15 +33,6 @@ export async function complete(req, res, next) {
   }
 }
 
-export async function cancel(req, res, next) {
-  try {
-    const data = await assistanceService.cancelAssistance(req.params.id, req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function setAvailability(req, res, next) {
   try {
     const { availability } = req.body;

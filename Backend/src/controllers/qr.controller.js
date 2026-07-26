@@ -1,5 +1,5 @@
 import * as verificationService from "../services/verification.service.js";
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import crypto from "crypto";
 
 // Generate the authenticated user's personal QR

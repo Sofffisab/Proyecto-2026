@@ -29,6 +29,8 @@ import { useTranslation } from '../../i18n/I18nContext';
  *   noMachineApp       -> machineTrackingOptOut: boolean
  *
  * @param {string}   [email] - Session email, not editable.
+ * @param {number|null} [age] - Derived server-side from birthday (never
+ *   editable directly — see Backend/src/utils/age.js#calculateAge).
  * @param {object}   [initialValues] - Pre-fill from the current user, so
  *   re-opening Settings later shows what's already saved.
  * @param {function} onSave - async ({ medicalConditions, birthday,
@@ -48,7 +50,7 @@ const PREFERENCES = [
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function SettingsScreen({ email = '', initialValues = {}, onSave, onBack }) {
+export default function SettingsScreen({ email = '', age = null, initialValues = {}, onSave, onBack }) {
   const { t } = useTranslation();
   const [openField, setOpenField] = useState(null);
   const [values, setValues] = useState({
@@ -153,6 +155,9 @@ export default function SettingsScreen({ email = '', initialValues = {}, onSave,
                   onChangeText={(text) => handleChange(key, text)}
                   editable={!saving}
                 />
+                {key === 'dateOfBirth' && age != null && (
+                  <Text style={styles.ageHint}>{t('user.settings.currentAge', { age })}</Text>
+                )}
               </View>
             )}
           </View>
@@ -248,6 +253,11 @@ const styles = StyleSheet.create({
     fontSize: globals.fontSize.md,
     color: globals.colors.text,
     backgroundColor: globals.colors.background,
+  },
+  ageHint: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginTop: globals.spacing.xs,
   },
   preferenceRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { firebase } from "../config/firebase.js";
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
 // Sends a "call-style" high-priority push (data-only, no `notification`

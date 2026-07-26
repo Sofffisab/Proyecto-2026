@@ -34,6 +34,11 @@ export default function ProfileDataPopup({ user, onClose }) {
   const [newNotePublic, setNewNotePublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
+  const [editNotePublic, setEditNotePublic] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
   const load = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -81,6 +86,36 @@ export default function ProfileDataPopup({ user, onClose }) {
     }
   };
 
+  const startEditNote = (n) => {
+    setEditingNoteId(n.id);
+    setEditNoteText(n.note);
+    setEditNotePublic(n.visibility === 'PUBLIC');
+  };
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditNoteText('');
+    setEditNotePublic(false);
+  };
+
+  const handleUpdateNote = async () => {
+    if (!user?.id || !editingNoteId || !editNoteText.trim()) return;
+    setEditSaving(true);
+    setError(null);
+    try {
+      await noteApi.updateNote(user.id, editingNoteId, {
+        note: editNoteText.trim(),
+        visibility: editNotePublic ? 'PUBLIC' : 'PRIVATE',
+      });
+      cancelEditNote();
+      await load();
+    } catch (err) {
+      setError(err.message || t('trainer.popups.profileData.saveError'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const myNotes = notes.filter((n) => n.visibility === 'PRIVATE' && n.trainerId === currentUser?.id);
   const publicNotes = notes.filter((n) => n.visibility === 'PUBLIC');
 
@@ -106,10 +141,45 @@ export default function ProfileDataPopup({ user, onClose }) {
         )}
         {myNotes.map((n) => (
           <View key={n.id} style={styles.noteRow}>
-            <Text style={styles.bodyText}>{n.note}</Text>
-            <TouchableOpacity onPress={() => handleDeleteNote(n.id)}>
-              <Text style={styles.deleteLink}>{t('trainer.popups.profileData.delete')}</Text>
-            </TouchableOpacity>
+            {editingNoteId === n.id ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={editNoteText}
+                  onChangeText={setEditNoteText}
+                  multiline
+                  editable={!editSaving}
+                />
+                <View style={styles.publicToggleRow}>
+                  <Text style={styles.mutedText}>{t('trainer.popups.profileData.makePublic')}</Text>
+                  <Switch value={editNotePublic} onValueChange={setEditNotePublic} disabled={editSaving} />
+                </View>
+                <View style={styles.editActionsRow}>
+                  <TouchableOpacity onPress={handleUpdateNote} disabled={editSaving}>
+                    {editSaving ? (
+                      <ActivityIndicator color={globals.colors.primary} size="small" />
+                    ) : (
+                      <Text style={styles.saveLink}>{t('common.save')}</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={cancelEditNote} disabled={editSaving}>
+                    <Text style={styles.mutedText}>{t('trainer.popups.profileData.cancel')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.bodyText}>{n.note}</Text>
+                <View style={styles.editActionsRow}>
+                  <TouchableOpacity onPress={() => startEditNote(n)}>
+                    <Text style={styles.editLink}>{t('trainer.popups.profileData.edit')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeleteNote(n.id)}>
+                    <Text style={styles.deleteLink}>{t('trainer.popups.profileData.delete')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         ))}
 
@@ -180,6 +250,14 @@ const styles = StyleSheet.create({
     borderBottomColor: globals.colors.border,
   },
   deleteLink: { color: globals.colors.danger, fontSize: globals.fontSize.sm },
+  editLink: { color: globals.colors.primary, fontSize: globals.fontSize.sm },
+  saveLink: { color: globals.colors.primary, fontSize: globals.fontSize.sm, fontWeight: '600' },
+  editActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: globals.spacing.md,
+    marginTop: globals.spacing.xs,
+  },
   input: {
     borderWidth: 1,
     borderColor: globals.colors.border,

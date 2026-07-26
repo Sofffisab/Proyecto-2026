@@ -1,5 +1,4 @@
-import prisma from "../config/prisma.js";
-import redis from "../config/redis.js";
+import { prisma, redis } from "../config/index.js";
 import { AppError } from "../utils/errors.js";
 import { MESSAGES } from "../locales/es.js";
 

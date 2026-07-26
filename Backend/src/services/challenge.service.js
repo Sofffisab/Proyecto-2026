@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { POINTS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { AppError } from "../utils/errors.js";

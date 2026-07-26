@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  registerSchema,
+  createUserByAdminSchema,
   loginSchema,
   refreshTokenSchema,
   forgotPasswordSchema,
@@ -8,48 +8,60 @@ import {
 } from '../../../src/validators/auth.schemas.js';
 
 describe('Auth Schemas', () => {
-  describe('registerSchema', () => {
-    it('accepts a valid payload', () => {
+  describe('createUserByAdminSchema', () => {
+    it('accepts a valid payload without a role (defaults handled server-side)', () => {
       const valid = {
         email: 'test@example.com',
-        password: 'SecurePass123!',
         firstName: 'Test',
         lastName: 'User',
       };
 
-      const result = registerSchema.safeParse(valid);
+      const result = createUserByAdminSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts an explicit role', () => {
+      const valid = {
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'TRAINER',
+      };
+
+      const result = createUserByAdminSchema.safeParse(valid);
       expect(result.success).toBe(true);
     });
 
     it('rejects missing fields', () => {
       const invalid = {
         email: 'test@example.com',
-        // missing password and name
+        // missing firstName and lastName
       };
 
-      const result = registerSchema.safeParse(invalid);
+      const result = createUserByAdminSchema.safeParse(invalid);
       expect(result.success).toBe(false);
     });
 
     it('rejects an invalid email', () => {
       const invalid = {
         email: 'not-an-email',
-        password: 'SecurePass123!',
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
-      const result = registerSchema.safeParse(invalid);
+      const result = createUserByAdminSchema.safeParse(invalid);
       expect(result.success).toBe(false);
     });
 
-    it('rejects a weak password', () => {
+    it('rejects an invalid role', () => {
       const invalid = {
         email: 'test@example.com',
-        password: '123', // too short
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'SUPERADMIN',
       };
 
-      const result = registerSchema.safeParse(invalid);
+      const result = createUserByAdminSchema.safeParse(invalid);
       expect(result.success).toBe(false);
     });
   });

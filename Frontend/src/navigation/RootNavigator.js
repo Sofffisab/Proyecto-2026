@@ -6,6 +6,9 @@ import globals from '../styles/globals';
 import ROLES from '../constants/roles';
 
 import LoginScreen from '../screens/auth/LoginScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+
+import NotificationsScreen from '../screens/shared/NotificationsScreen';
 
 import OnboardingScreen from '../screens/user/OnboardingScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
@@ -42,6 +45,8 @@ import AdminGenerateQRScreen from '../screens/admin/GenerateQRScreen';
  */
 export const ROUTES = {
   LOGIN: 'Login',
+  FORGOT_PASSWORD: 'ForgotPassword',
+  NOTIFICATIONS: 'Notifications',
   ONBOARDING: 'UserOnboarding',
   USER_SETTINGS: 'UserSettings',
   USER_HOME: 'UserHome',
@@ -88,7 +93,7 @@ function getHomeRouteForUser(user) {
 }
 
 export default function RootNavigator() {
-  const { isReady, isAuthenticated, user, login, logout, updateProfile, updateSettings } = useAuth();
+  const { isReady, isAuthenticated, user, login, logout, forgotPassword, updateProfile, updateSettings } = useAuth();
 
   // While a persisted session is being restored from AsyncStorage, avoid
   // flashing the Login screen — show a lightweight loader instead.
@@ -122,7 +127,7 @@ export default function RootNavigator() {
                 routes: [{ name: getHomeRouteForUser(loggedInUser) }],
               });
             }}
-            onForgotPassword={undefined}
+            onForgotPassword={() => navigation.navigate(ROUTES.FORGOT_PASSWORD)}
             onBack={undefined}
             onProvisionalNewUser={() => navigation.navigate(ROUTES.ONBOARDING)}
             onProvisionalUser={() => navigation.navigate(ROUTES.USER_HOME)}
@@ -130,6 +135,25 @@ export default function RootNavigator() {
             onProvisionalAdmin={() => navigation.navigate(ROUTES.ADMIN_HOME)}
           />
         )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.FORGOT_PASSWORD}>
+        {({ navigation }) => (
+          <ForgotPasswordScreen
+            onSubmit={async (email) => {
+              // POST /auth/forgot-password (see
+              // Backend/src/controllers/auth.controller.js#forgotPassword).
+              await forgotPassword(email);
+            }}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      {/* ---------- Shared ---------- */}
+
+      <Stack.Screen name={ROUTES.NOTIFICATIONS}>
+        {({ navigation }) => <NotificationsScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
       {/* ---------- User ---------- */}
@@ -155,6 +179,7 @@ export default function RootNavigator() {
         {({ navigation }) => (
           <SettingsScreen
             email={user?.email ?? ''}
+            age={user?.age ?? null}
             initialValues={{
               medicalConditions: Array.isArray(user?.medicalConditions)
                 ? user.medicalConditions.join(', ')
@@ -201,6 +226,7 @@ export default function RootNavigator() {
             onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
             onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
             onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
+            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onLogout={async () => {
               // POST /auth/logout blacklists the token server-side (see
               // Backend/src/services/auth.service.js#logout) and clears
@@ -244,6 +270,7 @@ export default function RootNavigator() {
             onGoToHistory={() => navigation.navigate(ROUTES.TRAINER_HISTORY)}
             onGoToReports={() => navigation.navigate(ROUTES.TRAINER_REPORTS)}
             onGoToHelp={() => navigation.navigate(ROUTES.TRAINER_HELP)}
+            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onBack={goBack(navigation)}
           />
         )}
@@ -276,6 +303,7 @@ export default function RootNavigator() {
           <AdminHomeScreen
             onGenerateQR={() => navigation.navigate(ROUTES.ADMIN_GENERATE_QR)}
             onGoToViewGym={() => navigation.navigate(ROUTES.ADMIN_VIEW_GYM)}
+            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onBack={goBack(navigation)}
           />
         )}
@@ -300,12 +328,9 @@ export default function RootNavigator() {
 
       <Stack.Screen name={ROUTES.ADMIN_MEMBERS}>
         {({ navigation }) => (
-          <MembersScreen
-            onCreateSession={undefined}
-            onDeactivateAccount={undefined}
-            onActivateAccount={undefined}
-            onBack={goBack(navigation)}
-          />
+          // MembersScreen fetches/mutates its own data (GET /users, POST
+          // /auth/users, PATCH /users/:id/status) via user.api.js/auth.api.js.
+          <MembersScreen onBack={goBack(navigation)} />
         )}
       </Stack.Screen>
 

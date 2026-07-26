@@ -39,11 +39,6 @@ export function updateFcmToken(fcmToken) {
   return apiClient.patch('/users/me/fcm-token', { fcmToken });
 }
 
-// DELETE /users/me — deactivates (not hard-deletes) the current account.
-export function deactivateSelf() {
-  return apiClient.delete('/users/me');
-}
-
 // GET /trainers — active trainers, open to any authenticated role (not
 // gated by authorize() server-side). Used by the User/Trainer Reports
 // screens to populate the "list of trainers" report-target option.
@@ -59,5 +54,13 @@ export function getTrainers() {
 // section 18).
 export function getUsers({ limit = 100, offset = 0 } = {}) {
   return apiClient.get(`/users?limit=${limit}&offset=${offset}`);
+}
+
+// PATCH /users/:id/status — ADMIN only
+// (Backend/src/validators/user.schemas.js#deactivateUserSchema). Powers the
+// Admin Members screen's "Desactivar/Activar cuenta" (spec section 15): the
+// account isn't deleted, the person just loses access to the app.
+export function setUserActive(userId, isActive) {
+  return apiClient.patch(`/users/${userId}/status`, { isActive });
 }
 

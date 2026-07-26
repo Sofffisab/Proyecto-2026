@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { AppError } from "../utils/errors.js";
 
 // Full interaction history for a user: trainers who assisted them, and
@@ -159,12 +159,14 @@ export async function getTrainerAssistanceHistory(trainerId) {
   }));
 }
 
-// Whether the user has an active ACCEPTED_BY_BOTH challenge.
+// Whether the user has an active (ACCEPTED, not yet completed) challenge —
+// used by verification.service.js to auto-forfeit it if the user scans a
+// machine instead of completing the challenge with their partner.
 export async function userHasActiveChallenge(userId) {
   const challenge = await prisma.socialChallenge.findFirst({
     where: {
       OR: [{ userId }, { partnerUserId: userId }],
-      status: "ACCEPTED_BY_BOTH",
+      status: "ACCEPTED",
     },
   });
 

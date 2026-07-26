@@ -24,12 +24,6 @@ export function getActiveAssistance() {
   return apiClient.get('/assistance/active');
 }
 
-// PATCH /assistance/:id/cancel — lets the requester cancel their own
-// pending/assigned request.
-export function cancelAssistance(assistanceId) {
-  return apiClient.patch(`/assistance/${assistanceId}/cancel`);
-}
-
 // GET /assistance/history — this user's own COMPLETED assistance records
 // (assistance.service.js#getAssistanceHistory). Used at check-out time to
 // know whether/which trainer(s) to show in the Rate Trainer(s) pop-up

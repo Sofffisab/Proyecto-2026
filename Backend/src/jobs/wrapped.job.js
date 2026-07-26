@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { generateWrapped } from "../services/wrapped.service.js";
 import { logger } from "../utils/logger.js";
 

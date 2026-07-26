@@ -58,15 +58,6 @@ export async function updateReward(req, res, next) {
   }
 }
 
-export async function deliver(req, res, next) {
-  try {
-    const data = await rewardService.deliverReward(req.params.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 // Admin view of every automatic reward grant (already shipped).
 export async function getAllRedemptions(req, res, next) {
   try {

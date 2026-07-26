@@ -1,5 +1,5 @@
 import * as userService from "../services/user.service.js";
-import redis from "../config/redis.js";
+import { redis } from "../config/index.js";
 
 export async function getMe(req, res, next) {
   try {
@@ -131,30 +131,6 @@ export async function deactivate(req, res, next) {
     }
 
     res.json({ success: true, data: user });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function deactivateSelf(req, res, next) {
-  try {
-    const user = await userService.deactivateUser(req.user.id);
-
-    if (redis) {
-      await redis.del(`user:${req.user.id}`);
-    }
-
-    res.json({ success: true, data: user });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// Self-service hard-delete (Prisma schema/service must handle cascading relations)
-export async function deleteSelf(req, res, next) {
-  try {
-    await userService.deleteUser(req.user.id);
-    res.json({ success: true, data: { deleted: true } });
   } catch (err) {
     next(err);
   }

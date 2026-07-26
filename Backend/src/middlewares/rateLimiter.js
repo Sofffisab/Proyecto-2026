@@ -1,5 +1,5 @@
 import rateLimit from "express-rate-limit";
-import redis from "../config/redis.js";
+import { redis } from "../config/index.js";
 
 // Serverless deploy needs a shared store across instances (Redis) instead
 // of express-rate-limit's default in-memory one; falls back locally

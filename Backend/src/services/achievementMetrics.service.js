@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 // Streaks use the server's local calendar day/week (11pm and 1am next day
 // still count as different days), matching what a member would expect.

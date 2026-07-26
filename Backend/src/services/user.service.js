@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
-import prisma from "../config/prisma.js";
-import redis from "../config/redis.js";
+import { prisma, redis } from "../config/index.js";
+import { calculateAge } from "../utils/age.js";
 
 export async function getAll({ limit = 20, offset = 0 } = {}) {
   return prisma.user.findMany({
@@ -30,9 +30,11 @@ export async function getById(id, callerRole = "USER", callerId = null) {
   // passwordHash is NEVER returned regardless of caller role
   const { passwordHash, passwordResetToken, passwordResetExpires, ...base } = user;
 
-  // Own profile: the owner always sees their own full data.
+  // Own profile: the owner always sees their own full data. `age` is never
+  // stored — always derived on read from `birthday` (see utils/age.js), same
+  // convention as the birthday-greeting job.
   if (callerId && callerId === id) {
-    return base;
+    return { ...base, age: calculateAge(base.birthday) };
   }
 
   // Fragile personal data (medical info, exact address) is never handed to
@@ -151,46 +153,6 @@ export async function updateNotificationPreferences(id, data) {
   });
 }
 
-export async function deleteUser(id) {
-  // Check for active gym sessions
-  const activeSession = await prisma.gymSession.findFirst({
-    where: { userId: id, checkOutAt: null },
-  });
-
-  if (activeSession) {
-    // Auto-checkout the session before deletion
-    await prisma.gymSession.update({
-      where: { id: activeSession.id },
-      data: { checkOutAt: new Date() },
-    });
-  }
-
-  // Check for pending assistance requests
-  const pendingAssistance = await prisma.assistance.findFirst({
-    where: { userId: id, status: { in: ["PENDING", "ASSIGNED"] } },
-  });
-
-  if (pendingAssistance) {
-    throw new Error("Cannot delete user with pending assistance requests. Resolve them first.");
-  }
-
-  // Check for active challenges
-  const activeChallenges = await prisma.socialChallenge.findFirst({
-    where: {
-      OR: [
-        { userId: id, status: { in: ["ASSIGNED", "ACCEPTED"] } },
-        { partnerUserId: id, status: { in: ["ASSIGNED", "ACCEPTED"] } },
-      ],
-    },
-  });
-
-  if (activeChallenges) {
-    throw new Error("Cannot delete user with active challenges. Complete or cancel them first.");
-  }
-
-  // Safe to delete
-  return prisma.user.delete({ where: { id } });
-}
 // Upserts a trainer profile with the `specialties` array field
 export async function upsertTrainerProfile(userId, specialtyOrData) {
   let specialties = [];

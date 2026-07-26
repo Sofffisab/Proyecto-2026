@@ -38,6 +38,7 @@ const AuthContext = createContext({
   isAuthenticated: false,
   login: async () => {},
   logout: async () => {},
+  forgotPassword: async () => {},
   refreshMe: async () => {},
   updateLocalUser: () => {},
 });
@@ -125,6 +126,14 @@ export function AuthProvider({ children }) {
   );
 
 
+  // POST /auth/forgot-password — no session required. Always resolves the
+  // same way regardless of whether the email exists (Backend never reveals
+  // account existence), so the Forgot Password screen can show one generic
+  // confirmation message either way.
+  const forgotPassword = useCallback(async (email) => {
+    await authApi.forgotPassword(email);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       if (accessToken) await authApi.logout();
@@ -199,6 +208,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(accessToken && user),
       login,
       logout,
+      forgotPassword,
       refreshMe,
       updateLocalUser,
       updateProfile,
@@ -211,6 +221,7 @@ export function AuthProvider({ children }) {
       refreshTokenValue,
       login,
       logout,
+      forgotPassword,
       refreshMe,
       updateLocalUser,
       updateProfile,

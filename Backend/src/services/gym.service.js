@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";

@@ -7,9 +7,10 @@ import { useTranslation } from '../../i18n/I18nContext';
  *
  * @param {function} [onGenerateQR]
  * @param {function} [onGoToViewGym]
+ * @param {function} [onGoToNotifications]
  * @param {function} [onBack]
  */
-export default function AdminHomeScreen({ onGenerateQR, onGoToViewGym, onBack }) {
+export default function AdminHomeScreen({ onGenerateQR, onGoToViewGym, onGoToNotifications, onBack }) {
   const { t } = useTranslation();
   return (
     <ScrollView>
@@ -20,6 +21,12 @@ export default function AdminHomeScreen({ onGenerateQR, onGoToViewGym, onBack })
       <TouchableOpacity onPress={onGoToViewGym}>
         <Text>{t('admin.home.viewGym')}</Text>
       </TouchableOpacity>
+
+      {onGoToNotifications && (
+        <TouchableOpacity onPress={onGoToNotifications}>
+          <Text>{t('admin.home.notifications')}</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={onBack}>
         <Text>{t('admin.home.back')}</Text>

@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 import { POINTS_HARD_CAP } from "../constants/points.js";

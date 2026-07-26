@@ -32,6 +32,16 @@
       "provisionalUser": "For testing: successful user login (profile already complete)",
       "provisionalTrainer": "For testing: successful trainer login",
       "provisionalAdmin": "For testing: successful admin user registration"
+    },
+    "forgotPassword": {
+      "title": "Recover password",
+      "subtitle": "Enter your account email and we'll send you a link to reset your password.",
+      "emailPlaceholder": "Email",
+      "submit": "Send recovery email",
+      "errorFillEmail": "Please enter your email",
+      "errorFailed": "Couldn't send the recovery email",
+      "successMessage": "If that email is registered, you'll receive a link to reset your password shortly.",
+      "back": "Back"
     }
   },
   "user": {
@@ -106,6 +116,7 @@
       "medicalConditions": "Medical conditions",
       "dateOfBirth": "Date of birth",
       "dateOfBirthPlaceholder": "YYYY-MM-DD",
+      "currentAge": "Current age: {{age}}",
       "exactAddress": "Exact address",
       "inputPlaceholder": "Enter {{field}}...",
       "preferencesTitle": "Preferences",
@@ -339,6 +350,8 @@
         "saveError": "Couldn't save that.",
         "none": "None",
         "delete": "Delete",
+        "edit": "Edit",
+        "cancel": "Cancel",
         "newNotePlaceholder": "Add a note...",
         "makePublic": "Visible to other trainers"
       }
@@ -348,6 +361,7 @@
     "home": {
       "generateQR": "Generate new QR",
       "viewGym": "View Gym",
+      "notifications": "Notifications",
       "back": "Back"
     },
     "viewGym": {
@@ -377,9 +391,24 @@
       "mailPlaceholder": "Person's email",
       "deactivateAccount": "Deactivate account",
       "sessionViewer": "Session viewer",
-      "sessionViewerStatic": "(Static session list: role, name, email, data, seniority, status, score if trainer)",
       "activateAccount": "Activate account",
-      "back": "Back"
+      "back": "Back",
+      "firstNamePlaceholder": "First name",
+      "lastNamePlaceholder": "Last name",
+      "roles": {
+        "USER": "Member",
+        "TRAINER": "Trainer",
+        "ADMIN": "Admin"
+      },
+      "errorFillFields": "Please fill in email, first name and last name",
+      "createSuccess": "Account created. An email was sent so they can set their password.",
+      "createError": "Couldn't create the account",
+      "loadError": "Couldn't load members",
+      "actionError": "Couldn't complete the action",
+      "noUsers": "No members found",
+      "inactive": "Inactive",
+      "rating": "Rating: {{rating}} / 5",
+      "since": "Member since {{date}}"
     },
     "rewards": {
       "stockStatusTitle": "Stock status",

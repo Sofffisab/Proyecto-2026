@@ -43,6 +43,7 @@ export async function computeProgressPoints(userId, goal, { previousPercent, new
       participationPoints,
       proportionalPoints: Math.round(proportionalPoints),
       completionBonus: Math.round(completionBonus),
+      justCompleted,
     },
   };
 }

@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 export async function generateWrapped(userId, year) {
   const yearStart = new Date(year, 0, 1);

@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { shapeUserForAnalytics } from "../utils/privacy.js";
 
 // Midpoint days/week per TrainingFrequency bucket (declared vs actual attendance)
@@ -105,6 +105,7 @@ export async function getFullHistoryAdmin({ includeIdentifiers = false } = {}) {
       firstName: true,
       lastName: true,
       email: true,
+      birthday: true,
       settings: { select: { analyticsConsent: true } },
       gymSessions: {
         select: { id: true, checkInAt: true, checkOutAt: true, durationMinutes: true },

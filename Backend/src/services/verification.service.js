@@ -1,6 +1,7 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import crypto from "crypto";
-import { completeChallengeByQR } from "./challenge.service.js";
+import { completeChallengeByQR, rejectChallenge } from "./challenge.service.js";
+import { userHasActiveChallenge } from "./history.service.js";
 import { MACHINE_USAGE_DURATION_TIERS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
@@ -260,6 +261,18 @@ export async function processScan(scannerId, rawPayload) {
       // Duration-weighted points, gated by the minimum-time floor
       const updated = await closeOpenMachineUsage(scannerId, "Machine usage ended");
       return withOptOutPrompt(shapeMachineUsage(updated), machineTrackingOptedOut);
+    }
+
+    // Starting a brand-new usage while the user has an active (ACCEPTED)
+    // social challenge forfeits it — same effect as manually rejecting:
+    // status -> REJECTED and, if applicable, consolation points to the
+    // partner (see challenge.service.js#rejectChallenge). Best-effort: a
+    // failure here should never block the machine scan itself.
+    const pendingChallenge = await userHasActiveChallenge(scannerId);
+    if (pendingChallenge) {
+      await rejectChallenge(pendingChallenge.id, scannerId).catch((err) =>
+        logger.error("[verification] Failed to auto-forfeit social challenge:", err.message)
+      );
     }
 
     // Starting a different machine auto-closes any other open usage

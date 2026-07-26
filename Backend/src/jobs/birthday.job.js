@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 import { isBirthdayToday } from "../utils/age.js";
 import { sendBirthdayEmail } from "../services/communication.service.js";

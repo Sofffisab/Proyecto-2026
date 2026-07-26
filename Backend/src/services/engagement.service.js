@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 
 // No leaderboards by design. Engagement is measured per-user via

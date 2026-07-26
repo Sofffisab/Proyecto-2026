@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 import { MESSAGES } from "../locales/es.js";
 
@@ -119,8 +119,15 @@ export async function sendPasswordResetEmail(email, resetToken, userId = null) {
   );
 }
 
-export async function sendProgressEmail(email, message) {
-  return sendEmail(email, "Progress update", `<p>${message}</p>`);
+// Congratulatory email sent the moment a goal is fully completed (100%) —
+// NOT on every routine progress update, only on this milestone (see
+// progress.service.js#addProgress).
+export async function sendProgressEmail(email, name, goalLabel) {
+  return sendEmail(
+    email,
+    "Goal completed! 🎉",
+    `<h2>Congratulations, ${name}!</h2><p>You've just completed your goal: <strong>${goalLabel}</strong>. Keep up the great work!</p>`
+  );
 }
 
 // In-app alert to a trainer when a student they haven't helped in a while
@@ -162,27 +169,3 @@ export async function notifyTrainerOfReturningStudent(
 
   return notification;
 }
-
-// COMBINED — in-app + email
-
-export async function notify(userId, title, email) {
-  await createNotification(userId, title);
-  await sendEmail(email, title, `<p>${title}</p>`);
-}
-
-// Namespaced export for convenience
-
-export const communicationService = {
-  createNotification,
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-  getUnreadCount,
-  sendEmail,
-  sendWelcomeEmail,
-  sendPasswordResetEmail,
-  sendProgressEmail,
-  notify,
-  notifyTrainerOfReturningStudent,
-};

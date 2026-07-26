@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { assignChallenge } from "../services/challenge.service.js";
 import { createNotification } from "../services/communication.service.js";
 import { logger } from "../utils/logger.js";

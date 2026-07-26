@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { AppError } from "../utils/errors.js";

@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-import prisma from "../config/prisma.js";
-import redis from "../config/redis.js";
+import { prisma, redis } from "../config/index.js";
 
 export const authenticate = async (req, res, next) => {
   try {

@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS, COMPLAINT_PENALTY } from "../constants/points.js";
 import { createNotification } from "./communication.service.js";

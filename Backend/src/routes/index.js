@@ -65,9 +65,9 @@ router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 // are created exclusively by an Admin via POST /auth/users below (spec
 // section 15, "Botón Crear sesión nueva"), which emails the person a link
 // to set their own password (see Mail de Sesión Nueva in the spec). The
-// authController.register/registerSchema code is left in place (unused)
-// rather than deleted, in case it's needed again, but it is not reachable
-// from any route.
+// dead authController.register/authSchemas.registerSchema code that used
+// to sit alongside this was removed — see Frontend/src/screens/admin/
+// MembersScreen.js for the (now-connected) caller of POST /auth/users.
 router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema), authController.login);
 router.post("/auth/refresh-token",   validateSchema(authSchemas.refreshTokenSchema), authController.refreshToken);
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
@@ -97,7 +97,6 @@ router.put("/users/me",             validateSchema(userSchemas.updateProfileSche
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
 router.patch("/users/me/fcm-token", validateSchema(userSchemas.fcmTokenSchema), userController.updateFcmToken);
-router.delete("/users/me",          userController.deactivateSelf);
 
 router.get("/users",                authorize(["ADMIN", "TRAINER"]), userController.getUsers);
 router.get("/users/:id",            authorize(["ADMIN", "TRAINER"]), userController.getUserById);
@@ -204,7 +203,6 @@ router.get("/assistance/active",            assistanceController.getPending);
 router.get("/assistance/history",           assistanceController.getHistory);
 router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
 router.patch("/assistance/:id/complete",    assistanceController.complete);
-router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);
 
 // COMPLAINTS ROUTES

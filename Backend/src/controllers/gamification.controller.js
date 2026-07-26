@@ -1,7 +1,7 @@
 import * as gamificationService from "../services/gamification.service.js";
 import * as wrappedService from "../services/wrapped.service.js";
 import { AppError } from "../utils/errors.js";
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 export async function getUserPoints(req, res, next) {
   try {

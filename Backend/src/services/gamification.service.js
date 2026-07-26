@@ -1,5 +1,4 @@
-import prisma from "../config/prisma.js";
-import redis from "../config/redis.js";
+import { prisma, redis } from "../config/index.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";

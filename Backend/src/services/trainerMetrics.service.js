@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 // Recalculates and persists trainer metrics (completed assistances, average
 // rating, ratings count). Call after each completeAssistance / new TrainerRating.

@@ -1,13 +1,10 @@
 import { z } from "zod";
 
-export const registerSchema = z.object({
-  email: z.string().trim().email().toLowerCase(),
-  password: z.string().min(8).max(100),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  // Role is intentionally excluded — public registration always creates USER.
-  // Admins assign TRAINER/ADMIN roles via PATCH /users/:id/role.
-});
+// NOTE: there is intentionally no public self-registration schema/route here.
+// Accounts are created exclusively by an Admin via POST /auth/users below
+// (createUserByAdminSchema), which emails the person a link to set their own
+// password. See routes/index.js's comment on the "PUBLIC / AUTH ROUTES"
+// section for the full rationale.
 
 export const createUserByAdminSchema = z.object({
   email: z.string().trim().email().toLowerCase(),

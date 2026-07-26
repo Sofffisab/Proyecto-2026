@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { calculateAge } from "./age.js";
 
 // Pseudonymization for admin analytics/history exports (insights.service.js).
 // Real name/email are only attached when consent is given AND includeIdentifiers=true.
@@ -22,7 +23,7 @@ export function shapeUserForAnalytics(user, { includeIdentifiers = false } = {})
   const consented = user.settings?.analyticsConsent !== false;
   const pseudoId = pseudonymizeId(user.id);
 
-  const shaped = { pseudoId, consented };
+  const shaped = { pseudoId, consented, age: consented ? calculateAge(user.birthday) : null };
 
   if (includeIdentifiers && consented) {
     shaped.userId = user.id;

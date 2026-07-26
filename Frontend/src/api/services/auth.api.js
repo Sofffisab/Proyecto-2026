@@ -18,16 +18,6 @@ export function login({ email, password }) {
   return apiClient.post('/auth/login', { email, password }, { auth: false });
 }
 
-// POST /auth/refresh-token — normally handled transparently by api/client.js
-// on a 401, but exported too in case a screen needs to force it.
-export function refreshToken(refreshTokenValue) {
-  return apiClient.post(
-    '/auth/refresh-token',
-    { refreshToken: refreshTokenValue },
-    { auth: false }
-  );
-}
-
 // POST /auth/logout — blacklists the current access token server-side.
 export function logout() {
   return apiClient.post('/auth/logout', undefined, { auth: true });
@@ -47,4 +37,12 @@ export function resetPassword({ token, newPassword }) {
 // GET /user/profile server-side, see routes/index.js).
 export function getMe() {
   return apiClient.get('/users/me');
+}
+
+// POST /auth/users — ADMIN only. Creates the account record and sends the
+// "Mail de Sesión Nueva" (spec section 15, "Crear sesión nueva") so the
+// person can accept it and set their own password. Body validated against
+// Backend/src/validators/auth.schemas.js#createUserByAdminSchema.
+export function createUserByAdmin({ email, firstName, lastName, role }) {
+  return apiClient.post('/auth/users', { email, firstName, lastName, role });
 }

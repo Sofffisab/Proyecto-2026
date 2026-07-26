@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 
 export async function getNotes(targetUserId, callerId, callerRole) {
   const where = { userId: targetUserId };

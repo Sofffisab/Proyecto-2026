@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
 // Consistency check: recomputes each user's total points from PointTransaction

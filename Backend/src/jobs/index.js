@@ -6,6 +6,7 @@ import { processComplaints } from './complaints.job.js';
 import { expireStaleEntities } from './expiration.job.js';
 import { assignRandomChallenges } from './challenge.job.js';
 import { processMachineConflicts } from './machineConflicts.job.js';
+import { sendBirthdayGreetings } from './birthday.job.js';
 import { logger } from "../utils/logger.js";
 
 const RETRY_ATTEMPTS = 2;
@@ -46,6 +47,7 @@ export async function runJobs() {
   await withRetry('processMachineConflicts', processMachineConflicts);
   await withRetry('expireStaleEntities', expireStaleEntities);
   await withRetry('assignRandomChallenges', assignRandomChallenges);
+  await withRetry('sendBirthdayGreetings', sendBirthdayGreetings);
 
   // Run wrapped job on January 1st (only once per year)
   const today = new Date();

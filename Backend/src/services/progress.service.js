@@ -1,6 +1,7 @@
-import prisma from "../config/prisma.js";
+import { prisma } from "../config/index.js";
 import { addPoints } from "./gamification.service.js";
 import { computeProgressPoints } from "./scoringEngine.service.js";
+import { createNotification, sendProgressEmail } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 
 export async function addProgress(userId, goalId, value) {
@@ -42,6 +43,29 @@ export async function addProgress(userId, goalId, value) {
     pointsToAward,
     `Progress update (${goal.type}/${goal.action}, difficulty x${breakdown.difficultyScore}, +${breakdown.deltaPercent}%)`
   ).catch((err) => logger.error("[progress] Failed to award points:", err.message));
+
+  // Congratulations only fire the moment a goal is fully completed for the
+  // first time — not on every routine update (see scoringEngine.service.js's
+  // `justCompleted`). In-app is best-effort; email additionally needs the
+  // user's contact info.
+  if (breakdown.justCompleted) {
+    const goalLabel = `${goal.type} / ${goal.action}`;
+
+    createNotification(
+      userId,
+      "Goal completed! 🎉",
+      `Congratulations! You've completed your goal: ${goalLabel}.`
+    ).catch((err) => logger.error("[progress] Failed to send completion notification:", err.message));
+
+    prisma.user
+      .findUnique({ where: { id: userId }, select: { email: true, firstName: true } })
+      .then((user) => {
+        if (user?.email) {
+          return sendProgressEmail(user.email, user.firstName ?? "there", goalLabel);
+        }
+      })
+      .catch((err) => logger.error("[progress] Failed to send completion email:", err.message));
+  }
 
   return entry;
 }
@@ -93,44 +117,6 @@ export async function addProgressLog(userId, { metric, value }, options = {}) {
     update: { value },
     create: { userId, metric, value, date: today },
   });
-}
-
-export async function getCurrentStreak(userId, metric) {
-  const logs = await prisma.progressLog.findMany({
-    where: { userId, metric },
-    orderBy: { date: "desc" },
-  });
-
-  if (!logs || !logs.length) return 0;
-
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const dayStart = (d) => {
-    const copy = new Date(d);
-    copy.setHours(0, 0, 0, 0);
-    return copy.getTime();
-  };
-
-  const dates = [...new Set(logs.map((l) => dayStart(l.date)))].sort((a, b) => b - a);
-
-  let streak = 1;
-  let cursor = dates[0];
-
-  for (let i = 1; i < dates.length; i++) {
-    if (dates[i] === cursor - DAY_MS) {
-      streak++;
-      cursor = dates[i];
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
-
-export async function getLongestStreak(userId, metric) {
-  const rows = await prisma.progressMetric.findMany({ where: { userId, metric } });
-  if (!rows || !rows.length) return 0;
-  return Math.max(...rows.map((r) => r.maxStreak ?? 0));
 }
 
 export async function getProgressEntryById(id, userId) {
