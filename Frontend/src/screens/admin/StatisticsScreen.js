@@ -3,7 +3,9 @@
 // Statistics Screen (Admin) - spec section 16.
 //
 // Backend wiring:
-//   GET /analytics/gym -> { totalSessions, activeUsers }  (analytics.api.js)
+//   GET /analytics/gym        -> { totalSessions, activeUsers }  (analytics.api.js)
+//   GET /analytics/engagement -> { totalUsers, activeUsers, totalSessions,
+//                                   totalPointsAwarded }          (analytics.api.js)
 //
 // Note: the Backend's getGymAnalytics() currently returns only totalSessions
 // and activeUsers — it does not (yet) compute per-machine usage percentages
@@ -25,18 +27,25 @@ export default function StatisticsScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+  const [engagement, setEngagement] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const { data } = await analyticsApi.getGymAnalytics();
-      setStats(data);
-    } catch (err) {
-      setError(err.message || t('admin.statistics.loadError'));
-    } finally {
-      setLoading(false);
-    }
+    const [gymResult, engagementResult] = await Promise.allSettled([
+      analyticsApi.getGymAnalytics(),
+      analyticsApi.getEngagementMetrics(),
+    ]);
+
+    let anyFailed = false;
+    if (gymResult.status === 'fulfilled') setStats(gymResult.value.data);
+    else anyFailed = true;
+
+    if (engagementResult.status === 'fulfilled') setEngagement(engagementResult.value.data);
+    else anyFailed = true;
+
+    if (anyFailed) setError(t('admin.statistics.loadError'));
+    setLoading(false);
   }, [t]);
 
   useEffect(() => {
@@ -68,6 +77,28 @@ export default function StatisticsScreen({ onBack }) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t('admin.statistics.usersTitle')}</Text>
         <Text style={styles.mutedText}>{t('admin.statistics.notAvailable')}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t('admin.statistics.engagementTitle')}</Text>
+        {engagement ? (
+          <>
+            <Text style={styles.statLine}>
+              {t('admin.statistics.engagementTotalUsers', { count: engagement.totalUsers })}
+            </Text>
+            <Text style={styles.statLine}>
+              {t('admin.statistics.engagementActiveUsers', { count: engagement.activeUsers })}
+            </Text>
+            <Text style={styles.statLine}>
+              {t('admin.statistics.engagementTotalSessions', { count: engagement.totalSessions })}
+            </Text>
+            <Text style={styles.statLine}>
+              {t('admin.statistics.engagementTotalPoints', { count: engagement.totalPointsAwarded })}
+            </Text>
+          </>
+        ) : (
+          !loading && <Text style={styles.mutedText}>{t('admin.statistics.notAvailable')}</Text>
+        )}
       </View>
 
       <TouchableOpacity onPress={load} style={styles.refreshButton}>

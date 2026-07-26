@@ -20,7 +20,7 @@
 // rest of the screen.
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
@@ -72,6 +72,34 @@ export default function HistoryScreen({ onBack }) {
   const [rewards, setRewards] = useState([]);
   const [pointsLog, setPointsLog] = useState([]);
   const [reports, setReports] = useState([]);
+
+  // Session detail pop-up (GET /gym/sessions/:id), opened by tapping a row
+  // in the "arrivals/departures" section below.
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [sessionDetail, setSessionDetail] = useState(null);
+  const [sessionDetailLoading, setSessionDetailLoading] = useState(false);
+  const [sessionDetailError, setSessionDetailError] = useState(null);
+
+  const openSessionDetail = async (sessionId) => {
+    setSelectedSessionId(sessionId);
+    setSessionDetail(null);
+    setSessionDetailError(null);
+    setSessionDetailLoading(true);
+    try {
+      const { data } = await gymApi.getSessionById(sessionId);
+      setSessionDetail(data);
+    } catch (err) {
+      setSessionDetailError(err.message || t('user.history.sessionDetailError'));
+    } finally {
+      setSessionDetailLoading(false);
+    }
+  };
+
+  const closeSessionDetail = () => {
+    setSelectedSessionId(null);
+    setSessionDetail(null);
+    setSessionDetailError(null);
+  };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -140,7 +168,11 @@ export default function HistoryScreen({ onBack }) {
           emptyLabel={t('user.history.sessionsEmpty')}
         >
           {sessions.map((session) => (
-            <View key={session.id} style={styles.row}>
+            <TouchableOpacity
+              key={session.id}
+              style={styles.row}
+              onPress={() => openSessionDetail(session.id)}
+            >
               <Text style={styles.rowPrimary}>
                 {t('user.history.arrivedAt')}: {formatDateTime(session.checkInAt)}
               </Text>
@@ -151,7 +183,7 @@ export default function HistoryScreen({ onBack }) {
                     }`
                   : t('user.history.stillCheckedIn')}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </Section>
 
@@ -263,6 +295,47 @@ export default function HistoryScreen({ onBack }) {
 
         <Text style={styles.backLink} onPress={onBack}>{t('common.back')}</Text>
       </ScrollView>
+
+      <Modal
+        visible={Boolean(selectedSessionId)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeSessionDetail}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.detailCard}>
+            <Text style={styles.detailTitle}>{t('user.history.sessionDetailTitle')}</Text>
+
+            {sessionDetailLoading && <ActivityIndicator color={globals.colors.primary} />}
+            {sessionDetailError && <Text style={styles.errorText}>{sessionDetailError}</Text>}
+
+            {sessionDetail && (
+              <>
+                <Text style={styles.rowPrimary}>
+                  {t('user.history.arrivedAt')}: {formatDateTime(sessionDetail.checkInAt)}
+                </Text>
+                <Text style={styles.rowSecondary}>
+                  {sessionDetail.checkOutAt
+                    ? `${t('user.history.leftAt')}: ${formatDateTime(sessionDetail.checkOutAt)}`
+                    : t('user.history.stillCheckedIn')}
+                </Text>
+                {typeof sessionDetail.durationMinutes === 'number' && (
+                  <Text style={styles.rowSecondary}>
+                    {t('user.history.sessionDuration', { minutes: sessionDetail.durationMinutes })}
+                  </Text>
+                )}
+                {sessionDetail.autoClosed && (
+                  <Text style={styles.rowSecondary}>{t('user.history.autoClosed')}</Text>
+                )}
+              </>
+            )}
+
+            <Text style={styles.backLink} onPress={closeSessionDetail}>
+              {t('common.close')}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -321,5 +394,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: globals.colors.textMuted,
     marginVertical: globals.spacing.lg,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: globals.spacing.md,
+  },
+  detailCard: {
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.lg,
+    padding: globals.spacing.lg,
+  },
+  detailTitle: {
+    fontSize: globals.fontSize.lg,
+    fontWeight: 'bold',
+    color: globals.colors.text,
+    marginBottom: globals.spacing.md,
   },
 });

@@ -9,6 +9,13 @@
 //                                    "Seleccionar Usuario"  (assistance.api.js)
 //   PATCH /assistance/:id/assign -> marks the matching pending request as
 //                                    assigned to this trainer (assistance.api.js)
+//   PATCH /assistance/:id/complete -> marks the assigned request as resolved
+//                                      once the trainer is done helping
+//                                      (assistance.api.js). The assistance id
+//                                      returned by assign() above is kept in
+//                                      local state so this screen can offer
+//                                      "complete" for exactly the requests
+//                                      this trainer picked up.
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
@@ -31,6 +38,10 @@ export default function HelpScreen({ onSelectUser, onBack }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [assigningId, setAssigningId] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
+  // memberId -> assistanceId, for requests this trainer has assigned to
+  // themselves and can now mark as complete.
+  const [assignedByMember, setAssignedByMember] = useState({});
+  const [completingId, setCompletingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,12 +71,36 @@ export default function HelpScreen({ onSelectUser, onBack }) {
         return;
       }
       await assistanceApi.assignAssistance(match.id);
+      setAssignedByMember((prev) => ({ ...prev, [member.id]: match.id }));
       setActionMessage(t('trainer.help.assigned'));
       if (onSelectUser) onSelectUser(member);
     } catch (err) {
       setActionMessage(err.message || t('trainer.help.assignError'));
     } finally {
       setAssigningId(null);
+    }
+  };
+
+  const handleCompleteAssistance = async (member) => {
+    const assistanceId = assignedByMember[member.id];
+    if (!assistanceId) {
+      setActionMessage(t('trainer.help.noActiveAssignment'));
+      return;
+    }
+    setCompletingId(member.id);
+    setActionMessage(null);
+    try {
+      await assistanceApi.completeAssistance(assistanceId);
+      setAssignedByMember((prev) => {
+        const next = { ...prev };
+        delete next[member.id];
+        return next;
+      });
+      setActionMessage(t('trainer.help.completeSuccess'));
+    } catch (err) {
+      setActionMessage(err.message || t('trainer.help.completeError'));
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -89,17 +124,33 @@ export default function HelpScreen({ onSelectUser, onBack }) {
               {`${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || member.id}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => handleSelectUser(member)}
-            disabled={assigningId === member.id}
-          >
-            {assigningId === member.id ? (
-              <ActivityIndicator color={globals.colors.secondary} size="small" />
-            ) : (
-              <Text style={styles.selectButtonText}>{t('trainer.help.selectUser')}</Text>
+          <View style={styles.actionsCol}>
+            <TouchableOpacity
+              style={styles.selectButton}
+              onPress={() => handleSelectUser(member)}
+              disabled={assigningId === member.id}
+            >
+              {assigningId === member.id ? (
+                <ActivityIndicator color={globals.colors.secondary} size="small" />
+              ) : (
+                <Text style={styles.selectButtonText}>{t('trainer.help.selectUser')}</Text>
+              )}
+            </TouchableOpacity>
+
+            {assignedByMember[member.id] && (
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={() => handleCompleteAssistance(member)}
+                disabled={completingId === member.id}
+              >
+                {completingId === member.id ? (
+                  <ActivityIndicator color={globals.colors.secondary} size="small" />
+                ) : (
+                  <Text style={styles.selectButtonText}>{t('trainer.help.completeHelp')}</Text>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </View>
         </View>
       ))}
 
@@ -156,6 +207,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: globals.spacing.sm,
   },
   selectButtonText: { color: globals.colors.secondary, fontSize: globals.fontSize.sm, fontWeight: '600' },
+  actionsCol: { gap: globals.spacing.xs, alignItems: 'flex-end' },
+  completeButton: {
+    backgroundColor: globals.colors.success ?? globals.colors.primary,
+    borderRadius: globals.radius.sm,
+    paddingVertical: globals.spacing.xs,
+    paddingHorizontal: globals.spacing.sm,
+  },
   backLink: {
     textAlign: 'center',
     color: globals.colors.textMuted,

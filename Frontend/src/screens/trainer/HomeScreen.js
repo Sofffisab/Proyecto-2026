@@ -25,6 +25,7 @@ import * as assistanceApi from '../../api/services/assistance.api';
  * @param {function} [onGoToHistory]
  * @param {function} [onGoToReports]
  * @param {function} [onGoToHelp]
+ * @param {function} [onGoToMachineConflicts]
  * @param {function} [onBack]
  */
 export default function TrainerHomeScreen({
@@ -32,6 +33,8 @@ export default function TrainerHomeScreen({
   onGoToHistory,
   onGoToReports,
   onGoToHelp,
+  onGoToRoutineRequests,
+  onGoToMachineConflicts,
   onGoToNotifications,
   onBack,
 }) {
@@ -134,6 +137,14 @@ export default function TrainerHomeScreen({
 
       <TouchableOpacity style={styles.navButton} onPress={onGoToHelp}>
         <Text style={styles.navButtonText}>{t('trainer.home.help')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navButton} onPress={onGoToRoutineRequests}>
+        <Text style={styles.navButtonText}>{t('trainer.home.routineRequests')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navButton} onPress={onGoToMachineConflicts}>
+        <Text style={styles.navButtonText}>{t('trainer.home.machineConflicts')}</Text>
       </TouchableOpacity>
 
       {onGoToNotifications && (

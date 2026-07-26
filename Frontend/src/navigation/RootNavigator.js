@@ -18,12 +18,16 @@ import RoutinesScreen from '../screens/user/RoutinesScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
+import AnalyticsScreen from '../screens/user/AnalyticsScreen';
+import TrainersScreen from '../screens/user/TrainersScreen';
 
 import TrainerHomeScreen from '../screens/trainer/HomeScreen';
 import TrainerHistoryScreen from '../screens/trainer/HistoryScreen';
 import TrainerReportsScreen from '../screens/trainer/ReportsScreen';
 import HelpScreen from '../screens/trainer/HelpScreen';
+import TrainerRoutineRequestsScreen from '../screens/trainer/RoutineRequestsScreen';
 import TrainerGenerateQRScreen from '../screens/trainer/GenerateQRScreen';
+import MachineConflictsScreen from '../screens/trainer/MachineConflictsScreen';
 
 import AdminHomeScreen from '../screens/admin/HomeScreen';
 import ViewGymScreen from '../screens/admin/ViewGymScreen';
@@ -55,10 +59,14 @@ export const ROUTES = {
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
+  USER_ANALYTICS: 'UserAnalytics',
+  USER_TRAINERS: 'UserTrainers',
   TRAINER_HOME: 'TrainerHome',
   TRAINER_HISTORY: 'TrainerHistory',
   TRAINER_REPORTS: 'TrainerReports',
   TRAINER_HELP: 'TrainerHelp',
+  TRAINER_ROUTINE_REQUESTS: 'TrainerRoutineRequests',
+  TRAINER_MACHINE_CONFLICTS: 'TrainerMachineConflicts',
   TRAINER_GENERATE_QR: 'TrainerGenerateQR',
   ADMIN_HOME: 'AdminHome',
   ADMIN_VIEW_GYM: 'AdminViewGym',
@@ -226,6 +234,8 @@ export default function RootNavigator() {
             onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
             onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
             onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
+            onGoToAnalytics={() => navigation.navigate(ROUTES.USER_ANALYTICS)}
+            onGoToTrainers={() => navigation.navigate(ROUTES.USER_TRAINERS)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onLogout={async () => {
               // POST /auth/logout blacklists the token server-side (see
@@ -261,6 +271,14 @@ export default function RootNavigator() {
         {({ navigation }) => <WrappedScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
+      <Stack.Screen name={ROUTES.USER_ANALYTICS}>
+        {({ navigation }) => <AnalyticsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_TRAINERS}>
+        {({ navigation }) => <TrainersScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
       {/* ---------- Trainer ---------- */}
 
       <Stack.Screen name={ROUTES.TRAINER_HOME}>
@@ -270,6 +288,8 @@ export default function RootNavigator() {
             onGoToHistory={() => navigation.navigate(ROUTES.TRAINER_HISTORY)}
             onGoToReports={() => navigation.navigate(ROUTES.TRAINER_REPORTS)}
             onGoToHelp={() => navigation.navigate(ROUTES.TRAINER_HELP)}
+            onGoToRoutineRequests={() => navigation.navigate(ROUTES.TRAINER_ROUTINE_REQUESTS)}
+            onGoToMachineConflicts={() => navigation.navigate(ROUTES.TRAINER_MACHINE_CONFLICTS)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onBack={goBack(navigation)}
           />
@@ -290,6 +310,14 @@ export default function RootNavigator() {
         {({ navigation }) => (
           <HelpScreen onSelectUser={undefined} onBack={goBack(navigation)} />
         )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_ROUTINE_REQUESTS}>
+        {({ navigation }) => <TrainerRoutineRequestsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.TRAINER_MACHINE_CONFLICTS}>
+        {({ navigation }) => <MachineConflictsScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.TRAINER_GENERATE_QR}>

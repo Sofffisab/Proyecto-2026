@@ -85,6 +85,29 @@ export function requestRoutine(trainerId) {
 }
 
 // GET /routines/requests/all — the user's own requests and their status.
+// For a TRAINER, the Backend scopes this to requests assigned to (or
+// pending for) them, so the same function powers both the User Routines
+// screen and the Trainer Routine Requests screen.
 export function getMyRoutineRequests() {
   return apiClient.get('/routines/requests/all');
+}
+
+// PATCH /routines/requests/:id/accept — TRAINER accepts a client's routine
+// request (routine.controller.js#acceptRequest).
+export function acceptRoutineRequest(requestId) {
+  return apiClient.patch(`/routines/requests/${requestId}/accept`);
+}
+
+// PATCH /routines/requests/:id/reject — TRAINER rejects a client's routine
+// request (routine.controller.js#rejectRequest).
+export function rejectRoutineRequest(requestId) {
+  return apiClient.patch(`/routines/requests/${requestId}/reject`);
+}
+
+// PATCH /routines/requests/:id/complete — TRAINER marks an ACCEPTED routine
+// request as delivered/completed (routine.controller.js#completeRequest).
+// No body: the actual routine content is created separately by the trainer
+// via createRoutine/updateRoutine; this only flips the request's status.
+export function completeRoutineRequest(requestId) {
+  return apiClient.patch(`/routines/requests/${requestId}/complete`);
 }

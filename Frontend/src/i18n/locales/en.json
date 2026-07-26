@@ -107,7 +107,9 @@
       "testRateTrainer": "For testing: Rate Trainer(s) pop-up",
       "checkInSuccessTitle": "Welcome!",
       "checkInSuccessBody": "Your arrival has been checked in successfully.",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "analytics": "My stats",
+      "trainers": "Trainers"
     },
     "settings": {
       "title": "Settings",
@@ -154,7 +156,10 @@
       "pointsEmpty": "No point activity yet.",
       "reportsTitle": "Reports made",
       "reportsEmpty": "No reports made.",
-      "back": "Back"
+      "back": "Back",
+      "sessionDetailTitle": "Session detail",
+      "sessionDetailError": "Couldn't load this session's detail.",
+      "sessionDuration": "Duration: {{minutes}} min"
     },
     "routines": {
       "title": "Routine selector",
@@ -275,6 +280,41 @@
         "success": "Thanks for your feedback!",
         "markNotHelped": "They didn't help me"
       }
+    },
+    "analytics": {
+      "title": "My stats",
+      "loadError": "Some data could not be loaded.",
+      "summaryTitle": "Summary",
+      "totalSessions": "Total: {{count}} sessions ({{minutes}} min)",
+      "weeklySessions": "This week: {{count}} sessions ({{minutes}} min)",
+      "monthlySessions": "This month: {{count}} sessions ({{minutes}} min)",
+      "goalProgress": "Weekly goal: {{actual}} / {{target}} days",
+      "noGoal": "No weekly training goal set.",
+      "machineUsageTitle": "Machine usage",
+      "machineUsageEmpty": "No machine usage recorded yet.",
+      "machineUsageCount": "{{count}} uses",
+      "patternsTitle": "Patterns",
+      "consistencyScore": "Consistency score: {{score}}",
+      "avgSessionsPerWeek": "Average sessions per week: {{count}}",
+      "frequentDaysTitle": "Most frequent days",
+      "dayShare": "{{percent}}% of your sessions",
+      "topMachinesTitle": "Most used machines",
+      "noData": "Not enough data yet.",
+      "refresh": "Refresh",
+      "back": "Back"
+    },
+    "trainers": {
+      "title": "Trainers",
+      "loadError": "Couldn't load the trainers list.",
+      "empty": "No trainers available right now.",
+      "none": "None listed",
+      "specialties": "Specialties",
+      "rating": "Rating",
+      "ratingValue": "{{rating}} / 5 ({{count}} ratings)",
+      "availability": "Availability",
+      "available": "Available",
+      "busy": "Busy",
+      "back": "Back"
     }
   },
   "trainer": {
@@ -283,6 +323,7 @@
       "history": "History",
       "reports": "Reports",
       "help": "Help",
+      "routineRequests": "Routine requests",
       "back": "Back",
       "loadError": "Some data could not be loaded.",
       "availabilityTitle": "Availability",
@@ -291,7 +332,8 @@
       "pendingHelpTitle": "Pending help requests",
       "pendingHelpCount": "{{count}} waiting",
       "pendingHelpEmpty": "No one is waiting for help right now.",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "machineConflicts": "Machine conflicts"
     },
     "history": {
       "title": "History",
@@ -337,7 +379,26 @@
       "empty": "No one is at the gym right now.",
       "noPendingRequest": "This member has no pending help request.",
       "assigned": "You've been assigned to help this member.",
-      "assignError": "Couldn't assign this request."
+      "assignError": "Couldn't assign this request.",
+      "completeHelp": "Mark help as completed",
+      "completeSuccess": "Marked as completed.",
+      "completeError": "Couldn't mark this as completed.",
+      "noActiveAssignment": "This member has no assistance assigned to you yet."
+    },
+    "routineRequests": {
+      "title": "Routine requests",
+      "back": "Back",
+      "loadError": "Couldn't load routine requests.",
+      "empty": "No routine requests right now.",
+      "requestedBy": "Requested by {{name}}",
+      "statusPending": "Pending",
+      "statusAccepted": "Accepted",
+      "statusRejected": "Rejected",
+      "statusCompleted": "Completed",
+      "accept": "Accept",
+      "reject": "Reject",
+      "complete": "Mark as delivered",
+      "actionError": "Couldn't complete that action."
     },
     "popups": {
       "profileData": {
@@ -355,6 +416,22 @@
         "newNotePlaceholder": "Add a note...",
         "makePublic": "Visible to other trainers"
       }
+    },
+    "machineConflicts": {
+      "title": "Machine conflicts",
+      "loadError": "Couldn't load pending conflicts.",
+      "empty": "No machine conflicts pending verification.",
+      "detectedAt": "Detected: {{date}}",
+      "firstUser": "First scan: {{name}}",
+      "secondUser": "Second scan: {{name}}",
+      "whoIsPresent": "Who is actually on the machine?",
+      "bothPresent": "Both present",
+      "onlyFirst": "Only first",
+      "onlySecond": "Only second",
+      "neitherPresent": "Neither present",
+      "resolveSuccess": "Conflict resolved.",
+      "resolveError": "Couldn't resolve this conflict.",
+      "back": "Back"
     }
   },
   "admin": {
@@ -384,7 +461,12 @@
       "activeUsers": "Active users: {{count}}",
       "notAvailable": "(Not available from the Backend yet)",
       "loadError": "Couldn't load statistics.",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "engagementTitle": "Engagement",
+      "engagementTotalUsers": "Total users: {{count}}",
+      "engagementActiveUsers": "Active users: {{count}}",
+      "engagementTotalSessions": "Total sessions: {{count}}",
+      "engagementTotalPoints": "Total points awarded: {{count}}"
     },
     "members": {
       "createNewSession": "Create new session",
@@ -408,7 +490,28 @@
       "noUsers": "No members found",
       "inactive": "Inactive",
       "rating": "Rating: {{rating}} / 5",
-      "since": "Member since {{date}}"
+      "since": "Member since {{date}}",
+      "viewDetails": "View details",
+      "changeRole": "Change role",
+      "roleChangeSuccess": "Role updated.",
+      "roleChangeError": "Couldn't update the role.",
+      "trainerSpecialtyRequired": "Please enter a specialty to create the trainer profile.",
+      "trainerSpecialtyPlaceholder": "Specialty (required to become a trainer)",
+      "trainerProfileSuccess": "Trainer profile saved.",
+      "trainerProfileError": "Couldn't save the trainer profile.",
+      "userDetailTitle": "Member details",
+      "userDetailLoadError": "Couldn't load this member's details.",
+      "close": "Close",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "active": "Active",
+      "medicalConditions": "Medical conditions",
+      "birthDate": "Date of birth",
+      "deliveryAddress": "Delivery address",
+      "objectives": "Main objective",
+      "trainingLevel": "Training level",
+      "notProvided": "Not provided"
     },
     "rewards": {
       "stockStatusTitle": "Stock status",
@@ -424,7 +527,24 @@
       "stockCount": "Stock: {{count}}",
       "marketing": "Marketing item",
       "inactive": "Inactive",
-      "markDelivered": "Mark delivered"
+      "markDelivered": "Mark delivered",
+      "catalogTitle": "Reward catalog",
+      "createReward": "Create reward",
+      "editReward": "Edit reward",
+      "namePlaceholder": "Reward name",
+      "descriptionPlaceholder": "Description (optional)",
+      "pointsCostPlaceholder": "Points cost",
+      "stockPlaceholder": "Stock",
+      "isMarketingItem": "Marketing item",
+      "isActive": "Active",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "nameAndPointsRequired": "Please enter a name and a valid points cost.",
+      "createSuccess": "Reward created.",
+      "createError": "Couldn't create the reward.",
+      "updateSuccess": "Reward updated.",
+      "updateError": "Couldn't update the reward."
     },
     "reviewReports": {
       "approvedTitle": "Reports made and approved",

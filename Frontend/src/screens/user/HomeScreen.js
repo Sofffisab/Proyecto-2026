@@ -41,6 +41,8 @@ import { flushQueue } from '../../offline/offlineQueue';
  * @param {function} [onGoToReports] - navigates to the Reports Screen (spec section 3)
  * @param {function} [onGoToSettings]
  * @param {function} [onGoToWrapped]
+ * @param {function} [onGoToAnalytics]
+ * @param {function} [onGoToTrainers]
  * @param {function} [onGoToNotifications]
  * @param {function} [onLogout] - opens "are you sure?" pop-up
  * @param {function} [onBack]
@@ -52,6 +54,8 @@ export default function HomeScreen({
   onGoToReports,
   onGoToSettings,
   onGoToWrapped,
+  onGoToAnalytics,
+  onGoToTrainers,
   onGoToNotifications,
   onLogout,
   onBack,
@@ -247,6 +251,8 @@ export default function HomeScreen({
           )}
           <Button label={t('user.home.settings')} onPress={onGoToSettings} variant="secondary" />
           <Button label={t('user.home.wrapped')} onPress={onGoToWrapped} variant="secondary" />
+          <Button label={t('user.home.analytics')} onPress={onGoToAnalytics} variant="secondary" />
+          <Button label={t('user.home.trainers')} onPress={onGoToTrainers} variant="secondary" />
           <Button label={t('user.home.notifications')} onPress={onGoToNotifications} variant="secondary" />
           <Button label={t('user.home.logout')} onPress={onLogout} variant="danger" />
         </View>

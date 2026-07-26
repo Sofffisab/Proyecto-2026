@@ -18,6 +18,16 @@ export function getSessionHistory() {
   return apiClient.get('/gym/sessions');
 }
 
+// GET /gym/sessions/:id — detail of a single one of this user's own gym
+// sessions (checkInAt, checkOutAt, durationMinutes, autoClosed). Powers
+// the tap-to-expand detail in the History screen's session rows; the list
+// endpoint above already has the same fields, but durationMinutes (the
+// exact minutes trained) is only worth a second round trip when the
+// person actually taps a specific session.
+export function getSessionById(sessionId) {
+  return apiClient.get(`/gym/sessions/${sessionId}`);
+}
+
 // GET /gym/occupancy/live — users currently checked in (active session,
 // no checkOutAt yet). Used by the User Reports screen (spec section 3's
 // "pop up Denuncias") to list "personas que figuran en el gym" as

@@ -49,3 +49,11 @@ export function assignAssistance(assistanceId) {
 export function setTrainerAvailability(availability) {
   return apiClient.patch('/assistance/trainer/availability', { availability });
 }
+
+// PATCH /assistance/:id/complete — TRAINER/ADMIN. Marks an ASSIGNED
+// assistance request as resolved/completed (assistance.service.js). Used by
+// the "Botón Seleccionar Usuario" flow on the Trainer Help screen (spec
+// section 12) once the trainer has actually finished helping the member.
+export function completeAssistance(assistanceId) {
+  return apiClient.patch(`/assistance/${assistanceId}/complete`);
+}

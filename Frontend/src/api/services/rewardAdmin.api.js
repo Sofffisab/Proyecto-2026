@@ -34,3 +34,18 @@ export function getPendingGrants() {
 export function markRedemptionDelivered(redemptionId) {
   return apiClient.patch(`/rewards/redemptions/${redemptionId}`, { status: 'DELIVERED' });
 }
+
+// POST /rewards — ADMIN only
+// (Backend/src/validators/progress.schemas.js#createRewardSchema). Crea un
+// premio nuevo en el catálogo (name, description, pointsCost, stock,
+// active, isMarketingItem).
+export function createReward(payload) {
+  return apiClient.post('/rewards', payload);
+}
+
+// PATCH /rewards/:id — ADMIN only
+// (Backend/src/validators/progress.schemas.js#updateRewardSchema). Edita un
+// premio existente del catálogo (cualquier subconjunto de sus campos).
+export function updateReward(rewardId, payload) {
+  return apiClient.patch(`/rewards/${rewardId}`, payload);
+}

@@ -10,11 +10,12 @@
 //   PATCH /users/:id/status    -> "Desactivar/Activar cuenta"                (user.api.js)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as authApi from '../../api/services/auth.api';
 import * as userApi from '../../api/services/user.api';
+import UserDetailPopup from './popups/UserDetailPopup';
 
 const ROLE_OPTIONS = ['USER', 'TRAINER', 'ADMIN'];
 
@@ -28,6 +29,7 @@ export default function MembersScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Create-session form
   const [email, setEmail] = useState('');
@@ -174,7 +176,12 @@ export default function MembersScreen({ onBack }) {
         )}
 
         {users.map((u) => (
-          <View key={u.id} style={styles.userRow}>
+          <TouchableOpacity
+            key={u.id}
+            style={styles.userRow}
+            onPress={() => setSelectedUserId(u.id)}
+            activeOpacity={0.7}
+          >
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{personName(u)}</Text>
               <Text style={styles.mutedText}>
@@ -193,11 +200,15 @@ export default function MembersScreen({ onBack }) {
                   date: u.createdAt ? String(u.createdAt).slice(0, 10) : '—',
                 })}
               </Text>
+              <Text style={styles.viewDetailsLink}>{t('admin.members.viewDetails')}</Text>
             </View>
 
             <TouchableOpacity
               style={[styles.smallButton, u.isActive ? styles.dangerButton : styles.successButton]}
-              onPress={() => handleToggleActive(u)}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                handleToggleActive(u);
+              }}
               disabled={busyId === u.id}
             >
               {busyId === u.id ? (
@@ -210,13 +221,28 @@ export default function MembersScreen({ onBack }) {
                 </Text>
               )}
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
 
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.backLink}>{t('admin.members.back')}</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={!!selectedUserId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedUserId(null)}
+      >
+        <UserDetailPopup
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onRoleChanged={(updated) => {
+            setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
+          }}
+        />
+      </Modal>
     </ScrollView>
   );
 }
@@ -296,6 +322,7 @@ const styles = StyleSheet.create({
   },
   userInfo: { flex: 1, gap: 2 },
   userName: { fontSize: globals.fontSize.md, color: globals.colors.text, fontWeight: '600' },
+  viewDetailsLink: { fontSize: globals.fontSize.sm, color: globals.colors.primary, marginTop: 2 },
   mutedText: { fontSize: globals.fontSize.sm, color: globals.colors.textMuted },
   smallButton: {
     borderRadius: globals.radius.sm,
