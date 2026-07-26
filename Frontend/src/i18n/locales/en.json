@@ -357,7 +357,8 @@
       "pendingHelpCount": "{{count}} waiting",
       "pendingHelpEmpty": "No one is waiting for help right now.",
       "notifications": "Notifications",
-      "machineConflicts": "Machine conflicts"
+      "machineConflicts": "Machine conflicts",
+      "logout": "Log out / Switch account"
     },
     "history": {
       "title": "History",
@@ -463,6 +464,7 @@
       "generateQR": "Generate new QR",
       "viewGym": "View Gym",
       "notifications": "Notifications",
+      "logout": "Log out / Switch account",
       "back": "Back"
     },
     "viewGym": {

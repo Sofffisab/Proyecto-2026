@@ -92,10 +92,12 @@ export const navigationRef = createNavigationContainerRef();
 
 // "Log out / switch account" now really logs out (clears the persisted
 // session + blacklists the token server-side via AuthContext#logout) and
-// then goes back to the initial screen (popToTop, since Welcome is the
-// first route in the stack).
+// then goes back to Welcome. Uses reset() instead of popToTop(): when a
+// session was restored on launch, the stack starts directly on the role's
+// Home screen (see initialRouteName below) and Welcome was never pushed,
+// so popToTop() would just stay there instead of reaching Welcome.
 const goToWelcome = (navigation) => () => {
-  navigation.popToTop();
+  navigation.reset({ index: 0, routes: [{ name: ROUTES.WELCOME }] });
 };
 const goBack = (navigation) => () => navigation.goBack();
 
@@ -331,6 +333,10 @@ export default function RootNavigator() {
             onGoToRoutineRequests={() => navigation.navigate(ROUTES.TRAINER_ROUTINE_REQUESTS)}
             onGoToMachineConflicts={() => navigation.navigate(ROUTES.TRAINER_MACHINE_CONFLICTS)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
             onBack={goBack(navigation)}
           />
         )}
@@ -372,6 +378,10 @@ export default function RootNavigator() {
             onGenerateQR={() => navigation.navigate(ROUTES.ADMIN_GENERATE_QR)}
             onGoToViewGym={() => navigation.navigate(ROUTES.ADMIN_VIEW_GYM)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
             onBack={goBack(navigation)}
           />
         )}

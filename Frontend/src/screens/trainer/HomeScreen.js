@@ -26,6 +26,7 @@ import * as assistanceApi from '../../api/services/assistance.api';
  * @param {function} [onGoToReports]
  * @param {function} [onGoToHelp]
  * @param {function} [onGoToMachineConflicts]
+ * @param {function} [onLogout]
  * @param {function} [onBack]
  */
 export default function TrainerHomeScreen({
@@ -36,6 +37,7 @@ export default function TrainerHomeScreen({
   onGoToRoutineRequests,
   onGoToMachineConflicts,
   onGoToNotifications,
+  onLogout,
   onBack,
 }) {
   const { t } = useTranslation();
@@ -150,6 +152,12 @@ export default function TrainerHomeScreen({
       {onGoToNotifications && (
         <TouchableOpacity style={styles.navButton} onPress={onGoToNotifications}>
           <Text style={styles.navButtonText}>{t('trainer.home.notifications')}</Text>
+        </TouchableOpacity>
+      )}
+
+      {onLogout && (
+        <TouchableOpacity style={styles.navButton} onPress={onLogout}>
+          <Text style={styles.navButtonText}>{t('trainer.home.logout')}</Text>
         </TouchableOpacity>
       )}
 
