@@ -50,7 +50,7 @@ const PREFERENCES = [
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function SettingsScreen({ email = '', age = null, initialValues = {}, onSave, onBack }) {
+export default function SettingsScreen({ email = '', age = null, initialValues = {}, onSave, onChangePassword, onBack }) {
   const { t } = useTranslation();
   const [openField, setOpenField] = useState(null);
   const [values, setValues] = useState({
@@ -64,6 +64,16 @@ export default function SettingsScreen({ email = '', age = null, initialValues =
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // "Cambiar contraseña" (PATCH /users/me/password) - separate mini-form,
+  // independent from the profile fields above.
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const toggle = (key) => setOpenField((prev) => (prev === key ? null : key));
 
@@ -106,6 +116,35 @@ export default function SettingsScreen({ email = '', age = null, initialValues =
       setError(err.message || t('user.settings.errorSaving'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setPasswordError(t('user.settings.changePassword.errorFillAll'));
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError(t('user.settings.changePassword.errorTooShort'));
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError(t('user.settings.changePassword.errorMismatch'));
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await onChangePassword({ currentPassword, newPassword });
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      setPasswordError(err.message || t('user.settings.changePassword.errorFailed'));
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -179,6 +218,70 @@ export default function SettingsScreen({ email = '', age = null, initialValues =
       ))}
 
       {error && <Text style={styles.errorText}>{error}</Text>}
+
+      {/* Cambiar contraseña */}
+      {onChangePassword && (
+        <>
+          <Text style={styles.sectionTitle}>{t('user.settings.changePassword.title')}</Text>
+          <View style={styles.fieldBlock}>
+            <TouchableOpacity
+              style={styles.fieldRow}
+              onPress={() => setPasswordOpen((prev) => !prev)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.fieldLabel}>{t('user.settings.changePassword.rowLabel')}</Text>
+              <Text style={[styles.fieldArrow, passwordOpen && styles.fieldArrowOpen]}>{'>'}</Text>
+            </TouchableOpacity>
+
+            {passwordOpen && (
+              <View style={styles.inputWrapper}>
+                {passwordSuccess && (
+                  <Text style={styles.successText}>{t('user.settings.changePassword.successMessage')}</Text>
+                )}
+                {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('user.settings.changePassword.currentPasswordPlaceholder')}
+                  placeholderTextColor={globals.colors.textMuted}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  editable={!passwordSaving}
+                  secureTextEntry
+                />
+                <TextInput
+                  style={[styles.input, { marginTop: globals.spacing.xs }]}
+                  placeholder={t('user.settings.changePassword.newPasswordPlaceholder')}
+                  placeholderTextColor={globals.colors.textMuted}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  editable={!passwordSaving}
+                  secureTextEntry
+                />
+                <TextInput
+                  style={[styles.input, { marginTop: globals.spacing.xs }]}
+                  placeholder={t('user.settings.changePassword.confirmPasswordPlaceholder')}
+                  placeholderTextColor={globals.colors.textMuted}
+                  value={confirmNewPassword}
+                  onChangeText={setConfirmNewPassword}
+                  editable={!passwordSaving}
+                  secureTextEntry
+                />
+
+                {passwordSaving ? (
+                  <ActivityIndicator color={globals.colors.primary} style={{ marginTop: globals.spacing.md }} />
+                ) : (
+                  <Button
+                    label={t('user.settings.changePassword.submit')}
+                    onPress={handleChangePassword}
+                    style={{ marginTop: globals.spacing.md }}
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        </>
+      )}
 
       <View style={styles.buttonGroup}>
         {saving ? (

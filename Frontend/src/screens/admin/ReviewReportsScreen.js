@@ -4,6 +4,7 @@
 //
 // Backend wiring:
 //   GET /complaints                        -> every complaint     (complaintAdmin.api.js)
+//   GET /complaints/:id                    -> single complaint detail, on row tap (complaintAdmin.api.js)
 //   PATCH /complaints/:id/resolve|/reject   -> approve/reject      (complaintAdmin.api.js)
 //   GET /admin/review-requests              -> unresolved PointReviewRequest
 //   PATCH /admin/review-requests/:id/resolve                       (gamification.api.js)
@@ -15,7 +16,7 @@
 // Backend doesn't expose a dedicated endpoint for this yet.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as complaintAdminApi from '../../api/services/complaintAdmin.api';
@@ -36,6 +37,12 @@ export default function ReviewReportsScreen({ onBack }) {
   const [reviewRequests, setReviewRequests] = useState([]);
   const [usersById, setUsersById] = useState({});
   const [busyId, setBusyId] = useState(null);
+
+  // Detail modal (GET /complaints/:id), opened by tapping a row.
+  const [detailId, setDetailId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,6 +127,39 @@ export default function ReviewReportsScreen({ onBack }) {
     }
   };
 
+  const openDetail = async (id) => {
+    setDetailId(id);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const { data } = await complaintAdminApi.getComplaintDetail(id);
+      setDetail(data);
+    } catch (err) {
+      setDetailError(err.message || t('admin.reviewReports.detailError'));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setDetailId(null);
+    setDetail(null);
+    setDetailError(null);
+  };
+
+  const handleApproveFromDetail = async () => {
+    if (!detailId) return;
+    await handleApprove(detailId);
+    closeDetail();
+  };
+
+  const handleRejectFromDetail = async () => {
+    if (!detailId) return;
+    await handleReject(detailId);
+    closeDetail();
+  };
+
   const handleResolveRequest = async (id) => {
     setBusyId(id);
     try {
@@ -144,7 +184,7 @@ export default function ReviewReportsScreen({ onBack }) {
         ) : (
           <>
             {pendingComplaints.map((c) => (
-              <View key={c.id} style={styles.row}>
+              <TouchableOpacity key={c.id} style={styles.row} onPress={() => openDetail(c.id)} activeOpacity={0.7}>
                 <Text style={styles.rowTitle}>
                   {nameFor(c.reporterId)} → {nameFor(c.reportedUserId)}
                 </Text>
@@ -165,15 +205,15 @@ export default function ReviewReportsScreen({ onBack }) {
                     <Text style={styles.smallButtonText}>{t('admin.reviewReports.reject')}</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
             {decidedComplaints.map((c) => (
-              <View key={c.id} style={styles.row}>
+              <TouchableOpacity key={c.id} style={styles.row} onPress={() => openDetail(c.id)} activeOpacity={0.7}>
                 <Text style={styles.rowTitle}>
                   {nameFor(c.reporterId)} → {nameFor(c.reportedUserId)}
                 </Text>
                 <Text style={styles.mutedText}>{c.reason} · {c.status}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
@@ -220,6 +260,68 @@ export default function ReviewReportsScreen({ onBack }) {
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.backLink}>{t('admin.reviewReports.back')}</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={!!detailId}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDetail}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>{t('admin.reviewReports.detailTitle')}</Text>
+
+            {detailLoading && <ActivityIndicator color={globals.colors.primary} style={styles.spinner} />}
+            {detailError && <Text style={styles.errorText}>{detailError}</Text>}
+
+            {!detailLoading && !detailError && detail && (
+              <>
+                <Text style={styles.detailLabel}>{t('admin.reviewReports.detailReporter')}</Text>
+                <Text style={styles.detailValue}>{nameFor(detail.reporterId)}</Text>
+
+                <Text style={styles.detailLabel}>{t('admin.reviewReports.detailReported')}</Text>
+                <Text style={styles.detailValue}>{nameFor(detail.reportedUserId)}</Text>
+
+                <Text style={styles.detailLabel}>{t('admin.reviewReports.detailReason')}</Text>
+                <Text style={styles.detailValue}>{detail.reason}</Text>
+
+                {!!detail.message && (
+                  <>
+                    <Text style={styles.detailLabel}>{t('admin.reviewReports.detailMessage')}</Text>
+                    <Text style={styles.detailValue}>{detail.message}</Text>
+                  </>
+                )}
+
+                <Text style={styles.detailLabel}>{t('admin.reviewReports.detailStatus')}</Text>
+                <Text style={styles.detailValue}>{detail.status}</Text>
+
+                {detail.status === 'PENDING' && (
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={styles.smallButton}
+                      onPress={handleApproveFromDetail}
+                      disabled={busyId === detailId}
+                    >
+                      <Text style={styles.smallButtonText}>{t('admin.reviewReports.approve')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.smallButton, styles.rejectButton]}
+                      onPress={handleRejectFromDetail}
+                      disabled={busyId === detailId}
+                    >
+                      <Text style={styles.smallButtonText}>{t('admin.reviewReports.reject')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+
+            <TouchableOpacity onPress={closeDetail}>
+              <Text style={styles.backLink}>{t('admin.reviewReports.detailClose')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -268,5 +370,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: globals.colors.textMuted,
     marginVertical: globals.spacing.lg,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: globals.spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: globals.colors.sectionCard,
+    borderRadius: globals.radius.md,
+    padding: globals.spacing.md,
+  },
+  detailLabel: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginTop: globals.spacing.sm,
+  },
+  detailValue: {
+    fontSize: globals.fontSize.md,
+    color: globals.colors.text,
   },
 });

@@ -5,15 +5,6 @@ import { AppError } from "../utils/errors.js";
 // SocialChallenges are never created via a form: either auto-assigned
 // (jobs/challenge.job.js) or paired instantly via QR exchange (scanUser below)
 
-export async function getAll(req, res, next) {
-  try {
-    const data = await challengeService.getChallengeHistory(req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function getActive(req, res, next) {
   try {
     const data = await challengeService.getActiveSocialChallenges(req.user.id);
@@ -23,13 +14,35 @@ export async function getActive(req, res, next) {
   }
 }
 
+// GET /challenges — every challenge (any status) this user has been part of.
+export async function getAll(req, res, next) {
+  try {
+    const data = await challengeService.getChallengeHistory(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /challenges/history — completed social interactions only, surfaced
+// alongside the rest of the user's activity history (HistoryScreen).
+export async function getHistory(req, res, next) {
+  try {
+    const data = await challengeService.getSocialHistory(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /challenges/:id — detail of a single challenge.
 export async function getById(req, res, next) {
   try {
-    const challenge = await challengeService.getChallengeById(req.params.id, req.user.id);
-    if (!challenge) {
+    const data = await challengeService.getChallengeById(req.params.id, req.user.id);
+    if (!data) {
       return res.status(404).json({ success: false, message: "Challenge not found" });
     }
-    res.json({ success: true, data: challenge });
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -88,4 +101,5 @@ export async function cancel(req, res, next) {
 }
 
 // Legacy aliases for old naming
-export { getActive as getActiveChallenges, getAll as getAllChallenges };
+export const getActiveChallenges = getActive;
+export const getAllChallenges = getAll;

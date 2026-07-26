@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import globals from '../styles/globals';
 import ROLES from '../constants/roles';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 import NotificationsScreen from '../screens/shared/NotificationsScreen';
 
@@ -50,6 +52,7 @@ import AdminGenerateQRScreen from '../screens/admin/GenerateQRScreen';
 export const ROUTES = {
   LOGIN: 'Login',
   FORGOT_PASSWORD: 'ForgotPassword',
+  RESET_PASSWORD: 'ResetPassword',
   NOTIFICATIONS: 'Notifications',
   ONBOARDING: 'UserOnboarding',
   USER_SETTINGS: 'UserSettings',
@@ -80,6 +83,11 @@ export const ROUTES = {
 
 const Stack = createNativeStackNavigator();
 
+// Lets code outside the React tree (the push-notification "tapped" handler
+// in src/notifications/pushNotifications.js) navigate — e.g. to jump
+// straight to the Trainer Help screen per spec section 9.
+export const navigationRef = createNavigationContainerRef();
+
 // "Log out / switch account" now really logs out (clears the persisted
 // session + blacklists the token server-side via AuthContext#logout) and
 // then goes back to the initial screen (popToTop, since Login is the first
@@ -101,7 +109,7 @@ function getHomeRouteForUser(user) {
 }
 
 export default function RootNavigator() {
-  const { isReady, isAuthenticated, user, login, logout, forgotPassword, updateProfile, updateSettings } = useAuth();
+  const { isReady, isAuthenticated, user, login, logout, forgotPassword, resetPassword, changePassword, updateProfile, updateSettings } = useAuth();
 
   // While a persisted session is being restored from AsyncStorage, avoid
   // flashing the Login screen — show a lightweight loader instead.
@@ -153,6 +161,21 @@ export default function RootNavigator() {
               // Backend/src/controllers/auth.controller.js#forgotPassword).
               await forgotPassword(email);
             }}
+            onGoToReset={() => navigation.navigate(ROUTES.RESET_PASSWORD)}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.RESET_PASSWORD}>
+        {({ navigation }) => (
+          <ResetPasswordScreen
+            onSubmit={async ({ token, newPassword }) => {
+              // POST /auth/reset-password (see
+              // Backend/src/controllers/auth.controller.js#resetPassword).
+              await resetPassword({ token, newPassword });
+            }}
+            onDone={() => navigation.popToTop()}
             onBack={goBack(navigation)}
           />
         )}
@@ -196,6 +219,11 @@ export default function RootNavigator() {
               exactAddress: user?.deliveryAddress ?? '',
               disableAssistance: user?.settings?.disableAssistance ?? false,
               machineTrackingOptOut: user?.settings?.machineTrackingOptOut ?? false,
+            }}
+            onChangePassword={async ({ currentPassword, newPassword }) => {
+              // PATCH /users/me/password (see
+              // Backend/src/controllers/user.controller.js#changePassword).
+              await changePassword({ currentPassword, newPassword });
             }}
             onSave={async (payload) => {
               // PUT /users/me for profile fields, PATCH /users/me/settings

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -39,27 +40,21 @@ describe('Challenges E2E', () => {
   });
 
   beforeEach(async () => {
-    const user1Res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user1-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'User',
-        lastName: 'One',
-      });
-    token1 = user1Res.body.data.accessToken;
-    userId1 = user1Res.body.data.user.id;
+    const user1Res = await createUserAndLogin(server, prisma, {
+      email: `user1-${Date.now()}@example.com`,
+      firstName: 'User',
+      lastName: 'One',
+    });
+    token1 = user1Res.accessToken;
+    userId1 = user1Res.userId;
 
-    const user2Res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user2-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'User',
-        lastName: 'Two',
-      });
-    token2 = user2Res.body.data.accessToken;
-    userId2 = user2Res.body.data.user.id;
+    const user2Res = await createUserAndLogin(server, prisma, {
+      email: `user2-${Date.now()}@example.com`,
+      firstName: 'User',
+      lastName: 'Two',
+    });
+    token2 = user2Res.accessToken;
+    userId2 = user2Res.userId;
   });
 
   // Challenges are never created on user request — the app assigns them

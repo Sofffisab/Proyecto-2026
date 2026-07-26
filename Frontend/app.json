@@ -18,7 +18,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "GymBros needs camera access to scan entry/exit, machine and interaction QR codes."
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,8 +27,10 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "CAMERA"
-      ]
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
@@ -37,6 +40,12 @@
         "expo-camera",
         {
           "cameraPermission": "GymBros needs camera access to scan entry/exit, machine and interaction QR codes."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/favicon.png"
         }
       ]
     ]

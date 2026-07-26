@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -38,35 +39,26 @@ describe('Complaints E2E', () => {
   });
 
   beforeEach(async () => {
-    const reporterRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `reporter-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Reporter',
-        lastName: 'User',
-      });
-    reporterToken = reporterRes.body.data.accessToken;
+    const reporterRes = await createUserAndLogin(server, prisma, {
+      email: `reporter-${Date.now()}@example.com`,
+      firstName: 'Reporter',
+      lastName: 'User',
+    });
+    reporterToken = reporterRes.accessToken;
 
-    const reportedRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `reported-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Reported',
-        lastName: 'User',
-      });
-    reportedUserId = reportedRes.body.data.user.id;
+    const reportedRes = await createUserAndLogin(server, prisma, {
+      email: `reported-${Date.now()}@example.com`,
+      firstName: 'Reported',
+      lastName: 'User',
+    });
+    reportedUserId = reportedRes.userId;
 
-    const adminRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `admin-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Admin',
-        lastName: 'User',
-      });
-    adminToken = adminRes.body.data.accessToken;
+    const adminRes = await createUserAndLogin(server, prisma, {
+      email: `admin-${Date.now()}@example.com`,
+      firstName: 'Admin',
+      lastName: 'User',
+    });
+    adminToken = adminRes.accessToken;
   });
 
   it('POST /complaints creates a pending complaint against another user', async () => {

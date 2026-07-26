@@ -49,3 +49,4 @@ export function createReward(payload) {
 export function updateReward(rewardId, payload) {
   return apiClient.patch(`/rewards/${rewardId}`, payload);
 }
+

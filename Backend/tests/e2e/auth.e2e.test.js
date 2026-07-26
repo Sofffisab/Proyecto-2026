@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Auth E2E', () => {
@@ -40,60 +42,81 @@ describe('Auth E2E', () => {
     userId = null;
   });
 
-  describe('POST /auth/register', () => {
-    it('creates a new user and returns tokens', async () => {
+  describe('POST /auth/users (admin-created accounts)', () => {
+    let adminToken;
+
+    beforeEach(async () => {
+      const admin = await createUserAndLogin(server, prisma, {
+        email: `auth-admin-${Date.now()}@example.com`,
+        firstName: 'Admin',
+        lastName: 'Owner',
+        role: 'ADMIN',
+      });
+      adminToken = admin.accessToken;
+    });
+
+    it('creates a new user account (role defaults to USER)', async () => {
       const response = await request(server)
-        .post('/auth/register')
+        .post('/auth/users')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({
           email: `test-${Date.now()}@example.com`,
-          password: 'SecurePassword123!',
           firstName: 'Test',
           lastName: 'User',
         });
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.accessToken).toBeDefined();
-      expect(response.body.data.refreshToken).toBeDefined();
-      expect(response.body.data.user.role).toBe('USER');
+      expect(response.body.data.role).toBe('USER');
+      // The generated placeholder password/reset-token fields must never
+      // leak in the response.
+      expect(response.body.data.passwordHash).toBeUndefined();
+    });
 
-      authToken = response.body.data.accessToken;
-      userId = response.body.data.user.id;
+    it('rejects non-admin callers', async () => {
+      const member = await createUserAndLogin(server, prisma, {
+        email: `auth-member-${Date.now()}@example.com`,
+        firstName: 'Member',
+        lastName: 'User',
+      });
+
+      const response = await request(server)
+        .post('/auth/users')
+        .set('Authorization', `Bearer ${member.accessToken}`)
+        .send({
+          email: `blocked-${Date.now()}@example.com`,
+          firstName: 'Should',
+          lastName: 'Fail',
+        });
+
+      expect(response.status).toBe(403);
     });
 
     it('rejects a duplicate email', async () => {
       const email = `dup-${Date.now()}@example.com`;
 
       await request(server)
-        .post('/auth/register')
-        .send({
-          email,
-          password: 'SecurePassword123!',
-          firstName: 'First',
-          lastName: 'User',
-        });
+        .post('/auth/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email, firstName: 'First', lastName: 'User' });
 
       const response = await request(server)
-        .post('/auth/register')
-        .send({
-          email,
-          password: 'SecurePassword123!',
-          firstName: 'Second',
-          lastName: 'User',
-        });
+        .post('/auth/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email, firstName: 'Second', lastName: 'User' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
     });
 
-    it('rejects a weak password', async () => {
+    it('rejects a missing required field', async () => {
       const response = await request(server)
-        .post('/auth/register')
+        .post('/auth/users')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          email: `weak-${Date.now()}@example.com`,
-          password: '123',
+          email: `incomplete-${Date.now()}@example.com`,
           firstName: 'Test',
-          lastName: 'User',
+          // lastName intentionally omitted
         });
 
       expect(response.status).toBe(422);
@@ -106,14 +129,11 @@ describe('Auth E2E', () => {
 
     beforeEach(async () => {
       testEmail = `login-${Date.now()}@example.com`;
-      await request(server)
-        .post('/auth/register')
-        .send({
-          email: testEmail,
-          password: 'SecurePassword123!',
-          firstName: 'Test',
-          lastName: 'User',
-        });
+      await createUserAndLogin(server, prisma, {
+        email: testEmail,
+        firstName: 'Test',
+        lastName: 'User',
+      });
     });
 
     it('returns tokens with valid credentials', async () => {
@@ -159,16 +179,13 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/refresh', () => {
     it('generates a new access token with a valid refresh token', async () => {
-      const registerRes = await request(server)
-        .post('/auth/register')
-        .send({
-          email: `refresh-${Date.now()}@example.com`,
-          password: 'SecurePassword123!',
-          firstName: 'Test',
-          lastName: 'User',
-        });
+      const registerRes = await createUserAndLogin(server, prisma, {
+        email: `refresh-${Date.now()}@example.com`,
+        firstName: 'Test',
+        lastName: 'User',
+      });
 
-      const refreshToken = registerRes.body.data.refreshToken;
+      const refreshToken = registerRes.refreshToken;
 
       const response = await request(server)
         .post('/auth/refresh-token')
@@ -191,16 +208,13 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/logout', () => {
     it('agrega token a blacklist de Redis', async () => {
-      const registerRes = await request(server)
-        .post('/auth/register')
-        .send({
-          email: `logout-${Date.now()}@example.com`,
-          password: 'SecurePassword123!',
-          firstName: 'Test',
-          lastName: 'User',
-        });
+      const registerRes = await createUserAndLogin(server, prisma, {
+        email: `logout-${Date.now()}@example.com`,
+        firstName: 'Test',
+        lastName: 'User',
+      });
 
-      const token = registerRes.body.data.accessToken;
+      const token = registerRes.accessToken;
 
       const response = await request(server)
         .post('/auth/logout')

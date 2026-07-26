@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Routines E2E', () => {
@@ -36,25 +38,19 @@ describe('Routines E2E', () => {
   });
 
   beforeEach(async () => {
-    const userRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Normal',
-        lastName: 'User',
-      });
-    userToken = userRes.body.data.accessToken;
+    const userRes = await createUserAndLogin(server, prisma, {
+      email: `user-${Date.now()}@example.com`,
+      firstName: 'Normal',
+      lastName: 'User',
+    });
+    userToken = userRes.accessToken;
 
-    const trainerRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `trainer-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Trainer',
-        lastName: 'Coach',
-      });
-    trainerToken = trainerRes.body.data.accessToken;
+    const trainerRes = await createUserAndLogin(server, prisma, {
+      email: `trainer-${Date.now()}@example.com`,
+      firstName: 'Trainer',
+      lastName: 'Coach',
+    });
+    trainerToken = trainerRes.accessToken;
   });
 
   it('POST /routines creates a custom routine for the caller', async () => {
@@ -174,18 +170,15 @@ describe('Routines E2E', () => {
         .patch(`/routines/requests/${requestRes.body.data.id}/accept`)
         .set('Authorization', `Bearer ${trainerToken}`);
 
-      const otherTrainerRes = await request(server)
-        .post('/auth/register')
-        .send({
-          email: `trainer2-${Date.now()}@example.com`,
-          password: 'SecurePassword123!',
-          firstName: 'Trainer',
-          lastName: 'Two',
-        });
+      const otherTrainerRes = await createUserAndLogin(server, prisma, {
+        email: `trainer2-${Date.now()}@example.com`,
+        firstName: 'Trainer',
+        lastName: 'Two',
+      });
 
       const response = await request(server)
         .patch(`/routines/requests/${requestRes.body.data.id}/complete`)
-        .set('Authorization', `Bearer ${otherTrainerRes.body.data.accessToken}`);
+        .set('Authorization', `Bearer ${otherTrainerRes.accessToken}`);
 
       expect(response.status).toBe(403);
     });

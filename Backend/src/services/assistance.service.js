@@ -20,13 +20,45 @@ export async function requestAssistance(userId) {
     requestedAt: assistance.requestedAt,
   });
 
-  // Try to dispatch this and any other waiting request to trainers that are
-  // currently free to receive an alert (non-blocking).
-  dispatchPendingAssistance().catch((err) =>
-    logger.error("[assistance] Failed to dispatch pending assistance:", err.message)
+  // Push alert to whichever trainers are free right now for THIS specific
+  // request (non-blocking; a push failure must never break the request).
+  notifyAvailableTrainers(assistance).catch((err) =>
+    logger.error("[assistance] Failed to notify trainers:", err.message)
   );
 
   return assistance;
+}
+
+async function notifyAvailableTrainers(assistance) {
+  const freeTrainers = await prisma.user.findMany({
+    where: {
+      role: "TRAINER",
+      isActive: true,
+      trainerProfile: { availability: "AVAILABLE", pendingAlertAssistanceId: null },
+    },
+    select: { id: true },
+  });
+
+  if (freeTrainers.length === 0) return;
+
+  const requester = await prisma.user.findUnique({ where: { id: assistance.userId } });
+  const userName = requester ? `${requester.firstName} ${requester.lastName}` : "Un socio";
+
+  await sendTrainerAlert({
+    trainerIds: freeTrainers.map((t) => t.id),
+    type: "SOS_ENTRENADOR",
+    payload: {
+      assistanceId: assistance.id,
+      userId: assistance.userId,
+      userName,
+      requestedAt: assistance.requestedAt.toISOString(),
+    },
+  });
+
+  await prisma.trainerProfile.updateMany({
+    where: { userId: { in: freeTrainers.map((t) => t.id) } },
+    data: { pendingAlertAssistanceId: assistance.id, pendingAlertAt: new Date() },
+  });
 }
 
 // How long a pushed alert can sit unanswered before we free up the trainer
@@ -207,4 +239,37 @@ export async function getAssistanceHistory(userId) {
     where: { userId },
     orderBy: { requestedAt: "desc" },
   });
+}
+
+// Current availability for a trainer; defaults to AVAILABLE when no
+// TrainerProfile row exists yet (nobody has toggled it).
+export async function getTrainerAvailability(trainerId) {
+  const profile = await prisma.trainerProfile.findUnique({ where: { userId: trainerId } });
+  return profile?.availability ?? "AVAILABLE";
+}
+
+// Lets the requester cancel their own PENDING/ASSIGNED assistance request.
+// If a trainer had already been assigned, frees them back up to AVAILABLE.
+export async function cancelAssistance(assistanceId, callerId) {
+  const assistance = await prisma.assistance.findFirst({
+    where: { id: assistanceId, userId: callerId },
+  });
+
+  if (!assistance) throw new Error("Assistance request not found");
+
+  if (!["PENDING", "ASSIGNED"].includes(assistance.status)) {
+    throw new Error(`Cannot cancel a request with status: ${assistance.status}`);
+  }
+
+  const updated = await prisma.assistance.update({
+    where: { id: assistanceId },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
+  });
+
+  if (assistance.status === "ASSIGNED" && assistance.trainerId) {
+    await setTrainerAvailability(assistance.trainerId, "AVAILABLE");
+    await releaseAlertLock(assistanceId);
+  }
+
+  return updated;
 }

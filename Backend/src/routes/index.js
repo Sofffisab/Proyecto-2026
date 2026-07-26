@@ -97,6 +97,8 @@ router.put("/users/me",             validateSchema(userSchemas.updateProfileSche
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
 router.patch("/users/me/fcm-token", validateSchema(userSchemas.fcmTokenSchema), userController.updateFcmToken);
+router.patch("/users/me/deactivate", userController.deactivateSelf);
+router.delete("/users/me",          userController.deleteSelf);
 
 router.get("/users",                authorize(["ADMIN", "TRAINER"]), userController.getUsers);
 router.get("/users/:id",            authorize(["ADMIN", "TRAINER"]), userController.getUserById);
@@ -143,7 +145,6 @@ router.delete("/progress/:id",      progressController.deleteProgress);
 // ROUTINES ROUTES
 router.post("/routines",                    validateSchema(progressSchemas.createRoutineSchema), routineController.create);
 router.get("/routines",                     routineController.getAll);
-router.get("/routines/suggestion",          routineController.getSuggestion);
 router.get("/routines/today",               routineController.getToday);
 router.get("/routines/suggestions/patterns",  routineController.getPatternSuggestion);
 router.post("/routines/suggestions/accept",   validateSchema(progressSchemas.acceptRoutineSuggestionSchema), routineController.acceptPatternSuggestion);
@@ -175,7 +176,6 @@ router.get("/rewards/pending",              authorize(["ADMIN"]), rewardControll
 router.get("/rewards/admin",                authorize(["ADMIN"]), rewardController.getAllRewardsAdmin);
 router.post("/rewards",                     authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
 router.patch("/rewards/:id",                authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
-router.get("/rewards/:id",                  authorize(["ADMIN"]), rewardController.getRewardById);
 
 // GAMIFICATION ROUTES
 router.get("/gamification/points", gamificationController.getUserPoints);
@@ -189,12 +189,13 @@ router.post("/gamification/review-request", validateSchema(progressSchemas.point
 // job, or paired instantly via QR exchange (scan-user, below).
 router.get("/challenges",                   challengeController.getAll);
 router.get("/challenges/active",            challengeController.getActive);
+router.get("/challenges/history",           challengeController.getHistory);
 // Instant pairing via QR exchange — no form/searcher. See scanUser controller.
 router.post("/challenges/scan-user",        validateSchema(challengeSchemas.scanUserChallengeSchema), challengeController.scanUser);
-router.get("/challenges/:id",               challengeController.getById);
 router.patch("/challenges/:id/join",        challengeController.joinChallenge);
 router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.completeChallengeSchema), challengeController.complete);
 router.patch("/challenges/:id/cancel",      challengeController.cancel);
+router.get("/challenges/:id",               challengeController.getById);
 // No per-challenge leaderboard route — no rankings anywhere in the product.
 
 // ASSISTANCE ROUTES
@@ -203,6 +204,7 @@ router.get("/assistance/active",            assistanceController.getPending);
 router.get("/assistance/history",           assistanceController.getHistory);
 router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
 router.patch("/assistance/:id/complete",    assistanceController.complete);
+router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);
 
 // COMPLAINTS ROUTES
@@ -212,6 +214,7 @@ router.post("/complaints",                  validateSchema(progressSchemas.creat
 router.post("/complaints/trainer",          authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.createTrainerComplaintSchema), complaintController.createTrainerComplaint);
 router.get("/complaints/me",                complaintController.getMyComplaints);
 router.get("/complaints",                   authorize(["ADMIN"]), complaintController.getAdminComplaints);
+router.get("/complaints/:id",               complaintController.getById);
 router.patch("/complaints/:id/resolve",     authorize(["ADMIN"]), validateSchema(progressSchemas.resolveComplaintSchema), complaintController.resolveComplaint);
 router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema(progressSchemas.rejectComplaintSchema), complaintController.rejectComplaint);
 

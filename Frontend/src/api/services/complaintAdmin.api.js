@@ -18,6 +18,13 @@ export function getAllComplaints() {
   return apiClient.get('/complaints');
 }
 
+// GET /complaints/:id — detail of a single complaint, for the admin to open
+// when tapping a row on ReviewReportsScreen (complaint.service.js#getComplaintById,
+// exposed via complaint.controller.js#getComplaintDetail).
+export function getComplaintDetail(id) {
+  return apiClient.get(`/complaints/${id}`);
+}
+
 // PATCH /complaints/:id/resolve — marks PENDING -> APPROVED. Triggers the
 // progressive point penalty (free strikes, then -25/-50/... capped at
 // -150) and, past ALERT_THRESHOLD (5) approved complaints against the

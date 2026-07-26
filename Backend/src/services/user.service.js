@@ -119,6 +119,41 @@ export async function deactivateUser(id) {
   return user;
 }
 
+// Account deletion: auto-checks-out any active gym session, but refuses to
+// delete while the user has unresolved assistance requests or active social
+// challenges (those need to be resolved/cancelled first so the other side —
+// trainer / partner — isn't left with a dangling reference).
+export async function deleteUser(id) {
+  const activeSession = await prisma.gymSession.findFirst({
+    where: { userId: id, checkOutAt: null },
+  });
+  if (activeSession) {
+    await prisma.gymSession.update({
+      where: { id: activeSession.id },
+      data: { checkOutAt: new Date() },
+    });
+  }
+
+  const pendingAssistance = await prisma.assistance.findFirst({
+    where: { userId: id, status: { in: ["PENDING", "ASSIGNED"] } },
+  });
+  if (pendingAssistance) {
+    throw new Error("Cannot delete user with pending assistance requests. Resolve them first.");
+  }
+
+  const activeChallenge = await prisma.socialChallenge.findFirst({
+    where: {
+      OR: [{ userId: id }, { partnerId: id }],
+      status: { in: ["ASSIGNED", "ACCEPTED"] },
+    },
+  });
+  if (activeChallenge) {
+    throw new Error("Cannot delete user with active challenges. Complete or cancel them first.");
+  }
+
+  return prisma.user.delete({ where: { id } });
+}
+
 export async function changePassword(id, { currentPassword, newPassword }) {
   // bcrypt imported at top-level — not inside the function on every call
   const user = await prisma.user.findUnique({ where: { id } });

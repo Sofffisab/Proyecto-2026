@@ -18,22 +18,23 @@ export async function getUserRedemptions(req, res, next) {
   }
 }
 
-export async function getRewardById(req, res, next) {
+// Admin-only: full catalog including stock levels and marketing/merchandising flag.
+export async function getAllRewardsAdmin(req, res, next) {
   try {
-    const reward = await rewardService.getRewardById(req.params.id);
-    if (!reward) {
-      return res.status(404).json({ success: false, message: "Reward not found" });
-    }
-    res.json({ success: true, data: reward });
+    const data = await rewardService.getAllRewardsAdmin();
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
 }
 
-// Admin-only: full catalog including stock levels and marketing/merchandising flag.
-export async function getAllRewardsAdmin(req, res, next) {
+// GET /rewards/:id (admin) — single reward detail.
+export async function getRewardById(req, res, next) {
   try {
-    const data = await rewardService.getAllRewardsAdmin();
+    const data = await rewardService.getRewardById(req.params.id);
+    if (!data) {
+      return res.status(404).json({ success: false, message: "Reward not found" });
+    }
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -73,6 +74,17 @@ export async function getAllRedemptions(req, res, next) {
 export async function getPendingGrants(req, res, next) {
   try {
     const data = await rewardService.getPendingGrants();
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Direct "mark as delivered" action (used internally / by tests), equivalent
+// to updateRedemptionStatus with status=DELIVERED but without the body check.
+export async function deliver(req, res, next) {
+  try {
+    const data = await rewardService.deliverReward(req.params.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

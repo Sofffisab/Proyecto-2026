@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Trainer Notes E2E', () => {
@@ -38,36 +40,27 @@ describe('Trainer Notes E2E', () => {
   });
 
   beforeEach(async () => {
-    const trainerRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `trainer-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Trainer',
-        lastName: 'One',
-      });
-    trainerToken = trainerRes.body.data.accessToken;
+    const trainerRes = await createUserAndLogin(server, prisma, {
+      email: `trainer-${Date.now()}@example.com`,
+      firstName: 'Trainer',
+      lastName: 'One',
+    });
+    trainerToken = trainerRes.accessToken;
 
-    const otherTrainerRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `trainer2-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Trainer',
-        lastName: 'Two',
-      });
-    otherTrainerToken = otherTrainerRes.body.data.accessToken;
+    const otherTrainerRes = await createUserAndLogin(server, prisma, {
+      email: `trainer2-${Date.now()}@example.com`,
+      firstName: 'Trainer',
+      lastName: 'Two',
+    });
+    otherTrainerToken = otherTrainerRes.accessToken;
 
-    const memberRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `member-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Member',
-        lastName: 'User',
-      });
-    userToken = memberRes.body.data.accessToken;
-    memberId = memberRes.body.data.user.id;
+    const memberRes = await createUserAndLogin(server, prisma, {
+      email: `member-${Date.now()}@example.com`,
+      firstName: 'Member',
+      lastName: 'User',
+    });
+    userToken = memberRes.accessToken;
+    memberId = memberRes.userId;
   });
 
   it('a TRAINER can create a note on a member', async () => {

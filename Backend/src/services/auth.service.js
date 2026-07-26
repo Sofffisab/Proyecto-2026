@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { prisma, redis } from "../config/index.js";
-import { sendPasswordResetEmail, sendWelcomeEmail, sendEmail } from "./communication.service.js";
+import { sendPasswordResetEmail, sendEmail } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 

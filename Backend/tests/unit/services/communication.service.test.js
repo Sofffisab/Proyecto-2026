@@ -157,24 +157,6 @@ describe('CommunicationService', () => {
   });
 
   describe('emails (mock de Resend)', () => {
-    it('sendWelcomeEmail builds the expected HTML', async () => {
-      prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
-
-      await communicationService.sendWelcomeEmail('test@example.com', 'John', 'user-1');
-
-      expect(prisma.notification.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ userId: 'user-1' }),
-        })
-      );
-    });
-
-    it('sendWelcomeEmail skips the in-app notification when no userId is given', async () => {
-      await communicationService.sendWelcomeEmail('test@example.com', 'John');
-
-      expect(prisma.notification.create).not.toHaveBeenCalled();
-    });
-
     it('sendPasswordResetEmail includes the resetToken in the URL', async () => {
       prisma.notification.create.mockResolvedValue({ id: 'notif-1' });
 

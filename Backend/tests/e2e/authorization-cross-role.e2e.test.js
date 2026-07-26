@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import crypto from 'crypto';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -21,6 +22,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Authorization Cross-Role E2E', () => {
@@ -39,37 +41,28 @@ describe('Authorization Cross-Role E2E', () => {
 
   beforeEach(async () => {
     // Normal user
-    const userRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Normal',
-        lastName: 'User',
-      });
-    userToken = userRes.body.data.accessToken;
+    const userRes = await createUserAndLogin(server, prisma, {
+      email: `user-${Date.now()}@example.com`,
+      firstName: 'Normal',
+      lastName: 'User',
+    });
+    userToken = userRes.accessToken;
 
-    // Trainer (would need DB manipulation normally)
-    const trainerRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `trainer-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Trainer',
-        lastName: 'User',
-      });
-    trainerToken = trainerRes.body.data.accessToken;
+    // Trainer
+    const trainerRes = await createUserAndLogin(server, prisma, {
+      email: `trainer-${Date.now()}@example.com`,
+      firstName: 'Trainer',
+      lastName: 'User',
+    });
+    trainerToken = trainerRes.accessToken;
 
-    // Admin (would need DB manipulation normally)
-    const adminRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `admin-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Admin',
-        lastName: 'User',
-      });
-    adminToken = adminRes.body.data.accessToken;
+    // Admin
+    const adminRes = await createUserAndLogin(server, prisma, {
+      email: `admin-${Date.now()}@example.com`,
+      firstName: 'Admin',
+      lastName: 'User',
+    });
+    adminToken = adminRes.accessToken;
   });
 
   describe('TRAINER-only routes', () => {

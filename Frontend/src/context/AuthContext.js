@@ -39,6 +39,8 @@ const AuthContext = createContext({
   login: async () => {},
   logout: async () => {},
   forgotPassword: async () => {},
+  resetPassword: async () => {},
+  changePassword: async () => {},
   refreshMe: async () => {},
   updateLocalUser: () => {},
 });
@@ -134,6 +136,18 @@ export function AuthProvider({ children }) {
     await authApi.forgotPassword(email);
   }, []);
 
+  // POST /auth/reset-password — completes the "Recuperar contraseña" flow:
+  // token received by mail + the new password the user chose.
+  const resetPassword = useCallback(async ({ token, newPassword }) => {
+    await authApi.resetPassword({ token, newPassword });
+  }, []);
+
+  // PATCH /users/me/password — "cambiar contraseña" from within Settings,
+  // while already logged in (different from the forgot/reset flow above).
+  const changePassword = useCallback(async ({ currentPassword, newPassword }) => {
+    await userApi.changePassword({ currentPassword, newPassword });
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       if (accessToken) await authApi.logout();
@@ -209,6 +223,8 @@ export function AuthProvider({ children }) {
       login,
       logout,
       forgotPassword,
+      resetPassword,
+      changePassword,
       refreshMe,
       updateLocalUser,
       updateProfile,
@@ -222,6 +238,8 @@ export function AuthProvider({ children }) {
       login,
       logout,
       forgotPassword,
+      resetPassword,
+      changePassword,
       refreshMe,
       updateLocalUser,
       updateProfile,

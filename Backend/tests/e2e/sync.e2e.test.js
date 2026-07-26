@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Sync E2E', () => {
@@ -36,16 +38,13 @@ describe('Sync E2E', () => {
   });
 
   beforeEach(async () => {
-    const res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `sync-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Sync',
-        lastName: 'User',
-      });
-    token = res.body.data.accessToken;
-    userId = res.body.data.user.id;
+    const res = await createUserAndLogin(server, prisma, {
+      email: `sync-${Date.now()}@example.com`,
+      firstName: 'Sync',
+      lastName: 'User',
+    });
+    token = res.accessToken;
+    userId = res.userId;
   });
 
   it('processes a full offline batch (checkin -> machineStart -> machineEnd -> checkout) in order', async () => {

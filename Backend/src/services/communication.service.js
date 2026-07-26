@@ -93,18 +93,6 @@ export async function sendEmail(to, subject, html) {
   }
 }
 
-export async function sendWelcomeEmail(email, name, userId = null) {
-  if (userId) {
-    await createNotification(userId, "Welcome!", `Welcome ${name}!`);
-  }
-
-  return sendEmail(
-    email,
-    "Welcome to Gym App",
-    `<h1>Hello ${name}!</h1><p>Welcome to our platform. Time to train!</p>`
-  );
-}
-
 export async function sendPasswordResetEmail(email, resetToken, userId = null) {
   if (userId) {
     await createNotification(userId, "Password reset requested", "");
@@ -169,3 +157,32 @@ export async function notifyTrainerOfReturningStudent(
 
   return notification;
 }
+
+// Combined helper: creates the in-app notification and, if an email is
+// given, also sends it via Resend. Either side failing doesn't block the
+// other (sendEmail already swallows its own errors; see above).
+export async function notify(userId, message, email = null) {
+  const notification = await createNotification(userId, message, "");
+
+  if (email) {
+    await sendEmail(email, message, `<p>${message}</p>`);
+  }
+
+  return notification;
+}
+
+// Grouped export so callers can do `communicationService.xyz(...)` (used by
+// tests and by modules that prefer importing the whole service as one object).
+export const communicationService = {
+  createNotification,
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  getUnreadCount,
+  sendEmail,
+  sendPasswordResetEmail,
+  sendProgressEmail,
+  notify,
+  notifyTrainerOfReturningStudent,
+};

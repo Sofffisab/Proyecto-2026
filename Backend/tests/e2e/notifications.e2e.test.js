@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -38,32 +39,25 @@ describe('Notifications E2E', () => {
   });
 
   beforeEach(async () => {
-    const userRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Normal',
-        lastName: 'User',
-      });
-    userToken = userRes.body.data.accessToken;
-    userId = userRes.body.data.user.id;
+    const userRes = await createUserAndLogin(server, prisma, {
+      email: `user-${Date.now()}@example.com`,
+      firstName: 'Normal',
+      lastName: 'User',
+    });
+    userToken = userRes.accessToken;
+    userId = userRes.userId;
 
-    const otherRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `other-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Other',
-        lastName: 'User',
-      });
-    otherUserId = otherRes.body.data.user.id;
+    const otherRes = await createUserAndLogin(server, prisma, {
+      email: `other-${Date.now()}@example.com`,
+      firstName: 'Other',
+      lastName: 'User',
+    });
+    otherUserId = otherRes.userId;
   });
 
   it('GET /notifications only returns the caller\'s own notifications', async () => {
     // Registration asynchronously fires a "Welcome!" notification for the new
-    // user (see communication.service.js#sendWelcomeEmail) — give it a tick
-    // to land so it doesn't race with the assertions below.
+    // user — give it a tick to land so it doesn't race with the assertions below.
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     await prisma.notification.create({

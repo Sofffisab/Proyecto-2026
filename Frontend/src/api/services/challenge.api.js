@@ -22,6 +22,7 @@ export function getActiveChallenges() {
   return apiClient.get('/challenges/active');
 }
 
+
 // PATCH /challenges/:id/join — only the challenged partner can accept.
 // Moves an ASSIGNED challenge to ACCEPTED.
 export function acceptChallenge(challengeId) {

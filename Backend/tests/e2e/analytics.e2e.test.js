@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Analytics E2E', () => {
@@ -37,26 +39,20 @@ describe('Analytics E2E', () => {
   });
 
   beforeEach(async () => {
-    const res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `analytics-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Analytics',
-        lastName: 'User',
-      });
-    token = res.body.data.accessToken;
-    userId = res.body.data.user.id;
+    const res = await createUserAndLogin(server, prisma, {
+      email: `analytics-${Date.now()}@example.com`,
+      firstName: 'Analytics',
+      lastName: 'User',
+    });
+    token = res.accessToken;
+    userId = res.userId;
 
-    const adminRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `admin-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Admin',
-        lastName: 'Role',
-      });
-    adminToken = adminRes.body.data.accessToken;
+    const adminRes = await createUserAndLogin(server, prisma, {
+      email: `admin-${Date.now()}@example.com`,
+      firstName: 'Admin',
+      lastName: 'Role',
+    });
+    adminToken = adminRes.accessToken;
   });
 
   it('GET /analytics/me returns zeroed totals for a brand new user', async () => {
@@ -136,15 +132,12 @@ describe('Analytics E2E', () => {
       .get('/analytics/engagement')
       .set('Authorization', `Bearer ${adminToken}`);
 
-    const res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `analytics-extra-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Extra',
-        lastName: 'User',
-      });
-    expect(res.status).toBe(201);
+    const extra = await createUserAndLogin(server, prisma, {
+      email: `analytics-extra-${Date.now()}@example.com`,
+      firstName: 'Extra',
+      lastName: 'User',
+    });
+    expect(extra.accessToken).toBeDefined();
 
     const after = await request(server)
       .get('/analytics/engagement')

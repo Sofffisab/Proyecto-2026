@@ -119,6 +119,49 @@ export async function addProgressLog(userId, { metric, value }, options = {}) {
   });
 }
 
+// Consecutive-day streak of logged entries for a given metric, counting
+// backwards from today (or yesterday, if today hasn't been logged yet).
+export async function getCurrentStreak(userId, metric) {
+  const logs = await prisma.progressLog.findMany({
+    where: { userId, metric },
+    orderBy: { date: "desc" },
+  });
+
+  if (logs.length === 0) return 0;
+
+  const dayKey = (d) => new Date(d).toDateString();
+  const loggedDays = new Set(logs.map((l) => dayKey(l.date)));
+
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  // If today hasn't been logged, the streak can still be "alive" through
+  // yesterday; otherwise it's broken already.
+  if (!loggedDays.has(cursor.toDateString())) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!loggedDays.has(cursor.toDateString())) return 0;
+  }
+
+  let streak = 0;
+  while (loggedDays.has(cursor.toDateString())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+// Longest historical streak ever recorded for this metric. Backed by a
+// running-max column (maxStreak) kept per user/metric, so this is just a
+// lookup rather than a recomputation over the full log history.
+export async function getLongestStreak(userId, metric) {
+  const rows = await prisma.progressMetric.findMany({
+    where: { userId, metric },
+  });
+
+  return rows.reduce((max, row) => Math.max(max, row.maxStreak ?? 0), 0);
+}
+
 export async function getProgressEntryById(id, userId) {
   const entry = await prisma.progressEntry.findUnique({ where: { id } });
   if (!entry) throw new Error("Progress entry not found");

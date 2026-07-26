@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import crypto from 'crypto';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -21,6 +22,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Gym Access E2E', () => {
@@ -37,27 +39,19 @@ describe('Gym Access E2E', () => {
   });
 
   beforeEach(async () => {
-    // Register normal user
-    const userRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `user-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Normal',
-        lastName: 'User',
-      });
-    userToken = userRes.body.data.accessToken;
+    const userRes = await createUserAndLogin(server, prisma, {
+      email: `user-${Date.now()}@example.com`,
+      firstName: 'Normal',
+      lastName: 'User',
+    });
+    userToken = userRes.accessToken;
 
-    // Register admin (would normally require DB manipulation to promote the role)
-    const adminRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `admin-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Admin',
-        lastName: 'User',
-      });
-    adminToken = adminRes.body.data.accessToken;
+    const adminRes = await createUserAndLogin(server, prisma, {
+      email: `admin-${Date.now()}@example.com`,
+      firstName: 'Admin',
+      lastName: 'User',
+    });
+    adminToken = adminRes.accessToken;
   });
 
   describe('Check-in/Check-out', () => {

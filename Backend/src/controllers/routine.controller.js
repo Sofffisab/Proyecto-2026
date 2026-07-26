@@ -105,15 +105,6 @@ export async function completeDay(req, res, next) {
   }
 }
 
-export async function getSuggestion(req, res, next) {
-  try {
-    const data = await routineService.getSuggestion(req.user.id);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function getPatternSuggestion(req, res, next) {
   try {
     const data = await routineService.getPatternSuggestion(req.user.id);

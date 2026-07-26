@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -20,6 +21,7 @@ vi.mock('../../src/middlewares/rateLimiter.js', () => {
   };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Gamification E2E', () => {
@@ -37,26 +39,20 @@ describe('Gamification E2E', () => {
   });
 
   beforeEach(async () => {
-    const res = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `gami-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Gami',
-        lastName: 'User',
-      });
-    token = res.body.data.accessToken;
-    userId = res.body.data.user.id;
+    const res = await createUserAndLogin(server, prisma, {
+      email: `gami-${Date.now()}@example.com`,
+      firstName: 'Gami',
+      lastName: 'User',
+    });
+    token = res.accessToken;
+    userId = res.userId;
 
-    const adminRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `admin-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Admin',
-        lastName: 'Role',
-      });
-    adminToken = adminRes.body.data.accessToken;
+    const adminRes = await createUserAndLogin(server, prisma, {
+      email: `admin-${Date.now()}@example.com`,
+      firstName: 'Admin',
+      lastName: 'Role',
+    });
+    adminToken = adminRes.accessToken;
   });
 
   it('GET /gamification/points starts at 0 with no transactions', async () => {

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import * as authService from "../../../src/services/auth.service.js";
 import prisma from "../../../src/config/prisma.js";
 import redis from "../../../src/config/redis.js";
-import { sendPasswordResetEmail, sendWelcomeEmail, sendEmail } from "../../../src/services/communication.service.js";
+import { sendPasswordResetEmail, sendEmail } from "../../../src/services/communication.service.js";
 import { AppError } from "../../../src/utils/errors.js";
 
 // Local mock so Redis calls are tracked in this test file
@@ -23,78 +23,6 @@ vi.mock("../../../src/services/communication.service.js");
 describe("AuthService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe("register", () => {
-    it("creates a user with a hashed password (bcrypt)", async () => {
-      const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-        passwordHash: "hashed_password",
-        firstName: "John",
-        lastName: "Doe",
-        role: "USER",
-        isActive: true,
-      };
-
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue(mockUser);
-      vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed_password");
-
-      const result = await authService.register({
-        email: "test@example.com",
-        password: "password123",
-        firstName: "John",
-        lastName: "Doe",
-      });
-
-      expect(result.user.email).toBe("test@example.com");
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
-      expect(result.user.passwordHash).toBeUndefined();
-      expect(prisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ email: "test@example.com", role: "USER" }),
-        })
-      );
-    });
-
-    it("assigns the USER role by default", async () => {
-      const mockUser = { id: "user-123", role: "USER" };
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue(mockUser);
-      vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed");
-
-      await authService.register({
-        email: "test@example.com",
-        password: "pass",
-        firstName: "John",
-        lastName: "Doe",
-      });
-
-      expect(prisma.user.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ role: "USER" }),
-      });
-    });
-
-    it("does not throw when the welcome email fails to send (fire-and-forget)", async () => {
-      const mockUser = { id: "user-123", email: "test@example.com", firstName: "John", role: "USER" };
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue(mockUser);
-      vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed");
-      sendWelcomeEmail.mockRejectedValue(new Error("SMTP down"));
-
-      const result = await authService.register({
-        email: "test@example.com",
-        password: "pass",
-        firstName: "John",
-        lastName: "Doe",
-      });
-
-      expect(result.accessToken).toBeDefined();
-      // Let the fire-and-forget rejection settle before the test ends
-      await new Promise((r) => setImmediate(r));
-    });
   });
 
   describe("createUserByAdmin", () => {
@@ -283,27 +211,6 @@ describe("AuthService", () => {
 
       expect(redis.setex).not.toHaveBeenCalled();
       expect(result).toEqual({ success: true });
-    });
-  });
-
-  describe("me", () => {
-    it("returns the sanitized user when found", async () => {
-      prisma.user.findUnique.mockResolvedValue({
-        id: "user-123",
-        email: "a@b.com",
-        passwordHash: "secret",
-      });
-
-      const result = await authService.me("user-123");
-
-      expect(result.email).toBe("a@b.com");
-      expect(result.passwordHash).toBeUndefined();
-    });
-
-    it("throws 404 when the user does not exist", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-
-      await expect(authService.me("ghost")).rejects.toThrow("User not found");
     });
   });
 

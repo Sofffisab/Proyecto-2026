@@ -41,6 +41,22 @@
       "errorFillEmail": "Please enter your email",
       "errorFailed": "Couldn't send the recovery email",
       "successMessage": "If that email is registered, you'll receive a link to reset your password shortly.",
+      "enterToken": "I already have my code",
+      "back": "Back"
+    },
+    "resetPassword": {
+      "title": "Reset password",
+      "subtitle": "Enter the code from your email and choose a new password.",
+      "tokenPlaceholder": "Code from the email",
+      "newPasswordPlaceholder": "New password",
+      "confirmPasswordPlaceholder": "Confirm new password",
+      "submit": "Reset password",
+      "errorFillAll": "Please fill in all fields",
+      "errorTooShort": "Password must be at least 8 characters",
+      "errorMismatch": "Passwords don't match",
+      "errorFailed": "Couldn't reset your password. Check the code and try again",
+      "successMessage": "Your password was reset successfully.",
+      "goToLogin": "Go to login",
       "back": "Back"
     }
   },
@@ -129,7 +145,20 @@
       "back": "Back",
       "errorSaving": "Could not save your data. Please check the fields and try again.",
       "requiredNotice": "This is your first time here — please complete every field before continuing.",
-      "invalidDate": "Enter the date of birth as YYYY-MM-DD."
+      "invalidDate": "Enter the date of birth as YYYY-MM-DD.",
+      "changePassword": {
+        "title": "Password",
+        "rowLabel": "Change password",
+        "currentPasswordPlaceholder": "Current password",
+        "newPasswordPlaceholder": "New password",
+        "confirmPasswordPlaceholder": "Confirm new password",
+        "submit": "Update password",
+        "errorFillAll": "Please fill in all fields",
+        "errorTooShort": "Password must be at least 8 characters",
+        "errorMismatch": "Passwords don't match",
+        "errorFailed": "Couldn't update your password. Check your current password and try again",
+        "successMessage": "Your password was updated successfully."
+      }
     },
     "history": {
       "title": "History",
@@ -563,7 +592,15 @@
       "reject": "Reject",
       "markResolved": "Mark resolved",
       "receivedCount": "received {{count}} complaints",
-      "filedCount": "filed {{count}} complaints"
+      "filedCount": "filed {{count}} complaints",
+      "detailTitle": "Complaint detail",
+      "detailError": "Couldn't load that complaint.",
+      "detailReporter": "Reported by",
+      "detailReported": "Reported user",
+      "detailReason": "Reason",
+      "detailMessage": "Message",
+      "detailStatus": "Status",
+      "detailClose": "Close"
     },
     "fullHistory": {
       "title": "Full system log",
@@ -614,5 +651,11 @@
     "empty": "No notifications yet.",
     "markAllRead": "Mark all as read",
     "delete": "Delete"
+  },
+  "pushNotifications": {
+    "helpRequestTitle": "Someone needs help",
+    "helpRequestBody": "{{name}} needs help",
+    "helpRequestBodyGeneric": "A member needs help",
+    "helpRequestAccept": "Go help"
   }
 }

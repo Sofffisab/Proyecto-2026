@@ -296,26 +296,6 @@ describe("RoutineController", () => {
     });
   });
 
-  describe("getSuggestion", () => {
-    it("returns a routine suggestion", async () => {
-      const mockSuggestion = { exercises: ["Squat", "Bench Press"] };
-      vi.spyOn(routineService, "getSuggestion").mockResolvedValue(mockSuggestion);
-
-      await routineController.getSuggestion(req, res, next);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockSuggestion });
-    });
-
-    it("calls next(err) if the service throws", async () => {
-      const error = new Error("Database error");
-      vi.spyOn(routineService, "getSuggestion").mockRejectedValue(error);
-
-      await routineController.getSuggestion(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-    });
-  });
-
   describe("getPatternSuggestion", () => {
     it("returns a pattern-based suggestion", async () => {
       const mockSuggestion = { pattern: "3-day split" };

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { createUserAndLogin } from '../helpers/testAuth.js';
 
 vi.mock('../../src/config/prisma.js', async () => {
   const { createE2EPrismaMock } = await import('../helpers/e2ePrismaMock.js');
@@ -11,12 +12,14 @@ vi.mock('../../src/config/redis.js', async () => {
   return { default: createE2ERedisMock() };
 });
 
+const prisma = (await import('../../src/config/prisma.js')).default;
 const app = (await import('../../src/server.js')).default;
 
 describe('Profile E2E', () => {
   let server;
   let token;
   let userId;
+  let profileEmail;
 
   beforeAll(() => {
     server = app.listen(3002);
@@ -27,17 +30,15 @@ describe('Profile E2E', () => {
   });
 
   beforeEach(async () => {
-    const registerRes = await request(server)
-      .post('/auth/register')
-      .send({
-        email: `profile-${Date.now()}@example.com`,
-        password: 'SecurePassword123!',
-        firstName: 'Profile',
-        lastName: 'Test',
-      });
+    profileEmail = `profile-${Date.now()}@example.com`;
+    const registerRes = await createUserAndLogin(server, prisma, {
+      email: profileEmail,
+      firstName: 'Profile',
+      lastName: 'Test',
+    });
 
-    token = registerRes.body.data.accessToken;
-    userId = registerRes.body.data.user.id;
+    token = registerRes.accessToken;
+    userId = registerRes.userId;
   });
 
   it('GET /user/profile returns the authenticated user profile', async () => {
@@ -81,11 +82,12 @@ describe('Profile E2E', () => {
     const loginRes = await request(server)
       .post('/auth/login')
       .send({
-        email: `profile-${Date.now()}@example.com`,
+        email: profileEmail,
         password: 'NewSecurePassword123!',
       });
 
-    // Nota: this test assumes email was stored, adjust as needed
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.data.accessToken).toBeDefined();
   });
 
   it('retorna 401 sin token', async () => {

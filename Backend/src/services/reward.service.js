@@ -22,6 +22,11 @@ export async function getAvailableRewards() {
 }
 
 // Admin-only: full catalog including stock and marketing classification
+// Single reward lookup, used by the admin detail view and internal checks.
+export async function getRewardById(id) {
+  return prisma.reward.findUnique({ where: { id } });
+}
+
 export async function getAllRewardsAdmin() {
   return prisma.reward.findMany({
     orderBy: { pointsCost: "asc" },
@@ -34,10 +39,6 @@ export async function getUserRedemptions(userId) {
     include: { reward: true },
     orderBy: { createdAt: "desc" },
   });
-}
-
-export async function getRewardById(id) {
-  return prisma.reward.findUnique({ where: { id } });
 }
 
 export async function createReward(data) {

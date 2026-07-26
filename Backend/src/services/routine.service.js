@@ -62,53 +62,6 @@ export async function completeDay(routineId, dayIndex, userId) {
   return { success: true, message: `Day ${dayIndex} completed successfully` };
 }
 
-export async function getSuggestion(userId) {
-  const userExists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-  if (!userExists) throw new AppError("User not found", 404);
-
-  // Picks the goal most in need of attention: stalest progress first, then lowest %
-  const goals = await prisma.goal.findMany({
-    where: { userId, active: true },
-    include: {
-      progress: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-    },
-  });
-
-  if (goals.length === 0) {
-    return { type: "AUTOMATED_SUGGESTION", target: "GENERAL", reason: "No active goals set" };
-  }
-
-  const now = new Date();
-  const scored = goals.map((goal) => {
-    const lastEntry = goal.progress[0];
-    const daysSinceUpdate = lastEntry
-      ? Math.floor((now - new Date(lastEntry.createdAt)) / (1000 * 60 * 60 * 24))
-      : Infinity; // never updated = most urgent
-    const progressPercent = lastEntry ? lastEntry.progressPercent : 0;
-    return { goal, daysSinceUpdate, progressPercent };
-  });
-
-  // Most stale first, then lowest progress percent
-  scored.sort((a, b) => {
-    if (b.daysSinceUpdate !== a.daysSinceUpdate) return b.daysSinceUpdate - a.daysSinceUpdate;
-    return a.progressPercent - b.progressPercent;
-  });
-
-  const top = scored[0];
-  return {
-    type: "AUTOMATED_SUGGESTION",
-    target: top.goal.type,
-    goalId: top.goal.id,
-    reason:
-      top.daysSinceUpdate === Infinity
-        ? "This goal has no progress logged yet"
-        : `Last updated ${top.daysSinceUpdate} day(s) ago at ${top.progressPercent.toFixed(0)}% progress`,
-  };
-}
-
 export async function createRoutineRequest(userId, trainerId) {
   if (trainerId) {
     const trainer = await prisma.user.findUnique({ where: { id: trainerId } });

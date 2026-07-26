@@ -136,6 +136,32 @@ export async function deactivate(req, res, next) {
   }
 }
 
+// Self-service equivalent of `deactivate` above, using the authenticated
+// user's own id instead of an admin-supplied :id param.
+export async function deactivateSelf(req, res, next) {
+  try {
+    const user = await userService.deactivateUser(req.user.id);
+
+    if (redis) {
+      await redis.del(`user:${req.user.id}`);
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Self-service account deletion (spec: "Eliminar cuenta" in Configuración).
+export async function deleteSelf(req, res, next) {
+  try {
+    await userService.deleteUser(req.user.id);
+    res.json({ success: true, data: { deleted: true } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function changePassword(req, res, next) {
   try {
     await userService.changePassword(req.user.id, req.validatedData);

@@ -141,63 +141,6 @@ describe("RoutineService", () => {
     });
   });
 
-  describe("getSuggestion", () => {
-    it("returns a GENERAL suggestion if the user has no active goals", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "user-1" });
-      prisma.goal.findMany.mockResolvedValue([]);
-
-      const result = await routineService.getSuggestion("user-1");
-
-      expect(result.target).toBe("GENERAL");
-    });
-
-    it("throws 404 if the user does not exist", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-
-      await expect(routineService.getSuggestion("ghost-user")).rejects.toThrow("User not found");
-    });
-
-    it("prioritizes the goal with no progress logged yet", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "user-1" });
-      prisma.goal.findMany.mockResolvedValue([
-        { id: "goal-1", type: "WEIGHT_LOSS", progress: [{ progressPercent: 80, createdAt: new Date() }] },
-        { id: "goal-2", type: "MUSCLE_GAIN", progress: [] },
-      ]);
-
-      const result = await routineService.getSuggestion("user-1");
-      expect(result.goalId).toBe("goal-2");
-    });
-
-    it("when both goals have progress, picks the stalest one and reports days-since/percent in the reason", async () => {
-      const now = new Date();
-      const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
-      const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
-
-      prisma.user.findUnique.mockResolvedValue({ id: "user-1" });
-      prisma.goal.findMany.mockResolvedValue([
-        { id: "goal-fresh", type: "MUSCLE_GAIN", progress: [{ progressPercent: 50, createdAt: oneDayAgo }] },
-        { id: "goal-stale", type: "WEIGHT_LOSS", progress: [{ progressPercent: 20, createdAt: tenDaysAgo }] },
-      ]);
-
-      const result = await routineService.getSuggestion("user-1");
-
-      expect(result.goalId).toBe("goal-stale");
-      expect(result.reason).toMatch(/Last updated \d+ day\(s\) ago at 20% progress/);
-    });
-
-    it("breaks ties on days-since-update by picking the lowest progress percent", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "user-1" });
-      const sameDate = new Date();
-      prisma.goal.findMany.mockResolvedValue([
-        { id: "goal-high", type: "A", progress: [{ progressPercent: 90, createdAt: sameDate }] },
-        { id: "goal-low", type: "B", progress: [{ progressPercent: 10, createdAt: sameDate }] },
-      ]);
-
-      const result = await routineService.getSuggestion("user-1");
-      expect(result.goalId).toBe("goal-low");
-    });
-  });
-
   describe("createRoutineRequest", () => {
     it("rejects if the chosen trainer is not actually a TRAINER", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: "trainer-1", role: "USER" });
