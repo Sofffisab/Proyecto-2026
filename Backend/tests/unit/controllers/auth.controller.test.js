@@ -134,6 +134,30 @@ describe("AuthController", () => {
     });
   });
 
+  describe("verifyResetCode", () => {
+    it("returns 200 with the service result", async () => {
+      req.validatedData = { email: "test@example.com", code: "123456" };
+      const mockResult = { valid: true };
+
+      vi.spyOn(authService, "verifyResetCode").mockResolvedValue(mockResult);
+
+      await authController.verifyResetCode(req, res, next);
+
+      expect(authService.verifyResetCode).toHaveBeenCalledWith(req.validatedData);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: mockResult });
+    });
+
+    it("calls next(err) with an invalid or expired code", async () => {
+      req.validatedData = { email: "test@example.com", code: "000000" };
+      const error = new Error("Invalid or expired code");
+      vi.spyOn(authService, "verifyResetCode").mockRejectedValue(error);
+
+      await authController.verifyResetCode(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
   describe("resetPassword", () => {
     it("returns 200 when the password is reset successfully", async () => {
       req.validatedData = { token: "reset-token", password: "newPassword123" };

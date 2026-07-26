@@ -28,6 +28,12 @@ export function forgotPassword(email) {
   return apiClient.post('/auth/forgot-password', { email }, { auth: false });
 }
 
+// POST /auth/verify-reset-code — confirms the code from the email is right
+// *before* letting the person move on to choosing a new password.
+export function verifyResetCode({ email, code }) {
+  return apiClient.post('/auth/verify-reset-code', { email, code }, { auth: false });
+}
+
 // POST /auth/reset-password
 export function resetPassword({ token, newPassword }) {
   return apiClient.post('/auth/reset-password', { token, newPassword }, { auth: false });

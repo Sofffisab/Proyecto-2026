@@ -26,7 +26,16 @@ export const forgotPasswordSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
 });
 
+export const verifyResetCodeSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  code: z.string().trim().length(6),
+});
+
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
+  // No length constraint here: this same endpoint/field is also used by
+  // the admin "create user" flow's 64-char hex "set your password" link
+  // (see auth.service.js#createUserByAdmin), not just the 6-digit
+  // forgot-password code.
+  token: z.string().trim().min(1),
   newPassword: z.string().min(8).max(100),
 });

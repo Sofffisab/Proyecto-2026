@@ -113,7 +113,7 @@ function getHomeRouteForUser(user) {
 }
 
 export default function RootNavigator() {
-  const { isReady, isAuthenticated, user, login, logout, forgotPassword, resetPassword, changePassword, updateProfile, updateSettings } = useAuth();
+  const { isReady, isAuthenticated, user, login, logout, forgotPassword, verifyResetCode, resetPassword, changePassword, updateProfile, updateSettings } = useAuth();
 
   // While a persisted session is being restored from AsyncStorage, avoid
   // flashing the Login screen — show a lightweight loader instead.
@@ -175,18 +175,27 @@ export default function RootNavigator() {
               // Backend/src/controllers/auth.controller.js#forgotPassword).
               await forgotPassword(email);
             }}
-            onGoToReset={() => navigation.navigate(ROUTES.RESET_PASSWORD)}
+            onVerifyCode={async (email, code) => {
+              // POST /auth/verify-reset-code (see
+              // Backend/src/controllers/auth.controller.js#verifyResetCode).
+              await verifyResetCode({ email, code });
+            }}
+            onGoToReset={(token) => navigation.navigate(ROUTES.RESET_PASSWORD, { token })}
             onBack={goBack(navigation)}
           />
         )}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.RESET_PASSWORD}>
-        {({ navigation }) => (
+        {({ navigation, route }) => (
           <ResetPasswordScreen
+            initialToken={route.params?.token}
             onSubmit={async ({ token, newPassword }) => {
               // POST /auth/reset-password (see
               // Backend/src/controllers/auth.controller.js#resetPassword).
+              // Note: this is the Backend's only real validation point for
+              // the code/token — there is no separate "verify code" endpoint,
+              // so an invalid/expired code only surfaces as an error here.
               await resetPassword({ token, newPassword });
             }}
             onDone={() => navigation.popToTop()}

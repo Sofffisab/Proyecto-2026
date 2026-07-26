@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { communicationService } from '../../../src/services/communication.service.js';
 import { prisma } from '../../../src/config/prisma.js';
 
-vi.mock('resend', () => ({
-  Resend: vi.fn().mockImplementation(() => ({
-    emails: {
-      send: vi.fn().mockResolvedValue({ id: 'email-1' }),
-    },
-  })),
+vi.mock('nodemailer', () => ({
+  default: {
+    createTransport: vi.fn().mockImplementation(() => ({
+      sendMail: vi.fn().mockResolvedValue({ messageId: 'email-1' }),
+    })),
+  },
 }));
 
 describe('CommunicationService', () => {
@@ -190,10 +190,12 @@ describe('CommunicationService', () => {
 
     it('sendEmail catches provider errors and returns a failure object instead of throwing', async () => {
       vi.resetModules();
-      vi.doMock('resend', () => ({
-        Resend: vi.fn().mockImplementation(() => ({
-          emails: { send: vi.fn().mockRejectedValue(new Error('Email provider error')) },
-        })),
+      vi.doMock('nodemailer', () => ({
+        default: {
+          createTransport: vi.fn().mockImplementation(() => ({
+            sendMail: vi.fn().mockRejectedValue(new Error('Email provider error')),
+          })),
+        },
       }));
       const freshCommunicationService = await import('../../../src/services/communication.service.js');
 
@@ -206,11 +208,11 @@ describe('CommunicationService', () => {
       expect(result).toEqual({ success: false, error: 'Email provider error' });
     });
 
-    it('sendEmail returns a failure object when no RESEND_API_KEY is configured outside of tests', async () => {
+    it('sendEmail returns a failure object when no GMAIL_USER is configured outside of tests', async () => {
       vi.resetModules();
       vi.stubEnv('NODE_ENV', 'production');
-      const originalKey = process.env.RESEND_API_KEY;
-      delete process.env.RESEND_API_KEY;
+      const originalUser = process.env.GMAIL_USER;
+      delete process.env.GMAIL_USER;
 
       const freshCommunicationService = await import('../../../src/services/communication.service.js');
 
@@ -220,10 +222,11 @@ describe('CommunicationService', () => {
         'Body'
       );
 
-      expect(result).toEqual({ success: false, error: 'RESEND_API_KEY is not configured' });
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/GMAIL_USER is not configured/);
 
       vi.unstubAllEnvs();
-      if (originalKey !== undefined) process.env.RESEND_API_KEY = originalKey;
+      if (originalUser !== undefined) process.env.GMAIL_USER = originalUser;
       vi.resetModules();
     });
   });

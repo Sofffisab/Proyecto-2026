@@ -29,7 +29,7 @@ Key variables:
 - `CRON_SECRET` — shared secret required to trigger the scheduled jobs endpoints.
 - `ALLOWED_ORIGINS` — comma-separated list of allowed CORS origins (`*` for all).
 - `ABLY_API_KEY` — Ably credentials for realtime events.
-- `RESEND_API_KEY` / `RESEND_FROM_EMAIL` — Resend credentials for transactional email.
+- `GMAIL_USER` / `GMAIL_APP_PASSWORD` — Gmail SMTP credentials for transactional email (app password from myaccount.google.com/apppasswords, requires 2-step verification enabled on the account).
 - `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` — Firebase Admin credentials, used for push notifications.
 - `FRONTEND_URL` — base URL of the frontend app, used to build links in emails.
 

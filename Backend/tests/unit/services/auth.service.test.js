@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import * as authService from "../../../src/services/auth.service.js";
 import prisma from "../../../src/config/prisma.js";
 import redis from "../../../src/config/redis.js";
@@ -214,13 +215,13 @@ describe("AuthService", () => {
     });
   });
 
-  describe("forgotPassword / resetPassword", () => {
-    it("generates a reset token and does not reveal whether the email exists", async () => {
+  describe("forgotPassword / resetPassword / verifyResetCode", () => {
+    it("generates a reset code and does not reveal whether the email exists", async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       const result = await authService.forgotPassword("nonexistent@example.com");
 
-      expect(result).toEqual({ message: "If email exists, reset link was sent" });
+      expect(result).toEqual({ message: "If email exists, reset code was sent" });
       expect(sendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
@@ -231,7 +232,7 @@ describe("AuthService", () => {
 
       const result = await authService.forgotPassword({ email: "test@example.com" });
 
-      expect(result).toEqual({ message: "If email exists, reset link was sent" });
+      expect(result).toEqual({ message: "If email exists, reset code was sent" });
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "user-123" },
@@ -248,14 +249,14 @@ describe("AuthService", () => {
       );
     });
 
-    it("resets the password with a valid token", async () => {
+    it("resets the password with a valid code", async () => {
       const mockUser = { id: "user-123", email: "test@example.com" };
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       prisma.user.update.mockResolvedValue(mockUser);
       vi.spyOn(bcrypt, "hash").mockResolvedValue("new_hashed_password");
 
       const result = await authService.resetPassword({
-        token: "valid_token",
+        token: "123456",
         newPassword: "newpass123",
       });
 
@@ -263,25 +264,69 @@ describe("AuthService", () => {
       expect(prisma.user.update).toHaveBeenCalled();
     });
 
-    it("throws with an expired or invalid token", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+    it("throws with an expired or invalid code", async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
 
       await expect(
-        authService.resetPassword({ token: "invalid_token", newPassword: "newpass" })
+        authService.resetPassword({ token: "000000", newPassword: "newpass123" })
       ).rejects.toThrow();
     });
 
-    it("throws when the token matches a user but has already expired", async () => {
-      prisma.user.findUnique.mockResolvedValue({
+    it("throws when the code matches a user but has already expired", async () => {
+      prisma.user.findFirst.mockResolvedValue({
         id: "user-123",
         email: "test@example.com",
         passwordResetExpires: new Date(Date.now() - 1000 * 60), // 1 minute in the past
       });
 
       await expect(
-        authService.resetPassword({ token: "expired_token", newPassword: "newpass123" })
-      ).rejects.toThrow("Invalid or expired reset token");
+        authService.resetPassword({ token: "123456", newPassword: "newpass123" })
+      ).rejects.toThrow("Invalid or expired reset code");
       expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("verifyResetCode resolves when the code matches and hasn't expired", async () => {
+      const codeHash = crypto.createHash("sha256").update("123456").digest("hex");
+      prisma.user.findUnique.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        passwordResetToken: codeHash,
+        passwordResetExpires: new Date(Date.now() + 1000 * 60 * 15),
+      });
+
+      const result = await authService.verifyResetCode({
+        email: "test@example.com",
+        code: "123456",
+      });
+
+      expect(result).toEqual({ valid: true });
+    });
+
+    it("verifyResetCode throws when the code doesn't match", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        passwordResetToken: "some_other_hash",
+        passwordResetExpires: new Date(Date.now() + 1000 * 60 * 15),
+      });
+
+      await expect(
+        authService.verifyResetCode({ email: "test@example.com", code: "000000" })
+      ).rejects.toThrow("Invalid or expired code");
+    });
+
+    it("verifyResetCode throws when the code has expired", async () => {
+      const codeHash = crypto.createHash("sha256").update("123456").digest("hex");
+      prisma.user.findUnique.mockResolvedValue({
+        id: "user-123",
+        email: "test@example.com",
+        passwordResetToken: codeHash,
+        passwordResetExpires: new Date(Date.now() - 1000 * 60),
+      });
+
+      await expect(
+        authService.verifyResetCode({ email: "test@example.com", code: "123456" })
+      ).rejects.toThrow("Invalid or expired code");
     });
   });
 });

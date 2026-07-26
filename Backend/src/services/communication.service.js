@@ -1,23 +1,37 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 import { MESSAGES } from "../locales/es.js";
 
-// Lazy singleton: avoids crashing at import time (e.g. in tests) when
-// RESEND_API_KEY isn't set. Only instantiated the first time an email is sent.
-let _resend = null;
-function getResendClient() {
-  if (!_resend) {
-    // RESEND_API_KEY is required at startup for real environments; fallback is test-only
-    const apiKey =
-      process.env.RESEND_API_KEY ??
-      (process.env.NODE_ENV === "test" ? "re_dummy_key_for_tests" : undefined);
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
+// Lazy singleton: avoids crashing at import time (e.g. in tests) when Gmail
+// creds aren't set. Only instantiated the first time an email is sent.
+//
+// Uses Gmail SMTP via an "app password" (myaccount.google.com/apppasswords —
+// requires 2-step verification on the Gmail account). Unlike Resend's
+// sandbox mode, this delivers to any recipient from day one, no domain
+// verification needed. Free tier limit: ~500 emails/day per Gmail account.
+let _transporter = null;
+function getMailTransporter() {
+  if (!_transporter) {
+    const user =
+      process.env.GMAIL_USER ??
+      (process.env.NODE_ENV === "test" ? "test@example.com" : undefined);
+    const pass =
+      process.env.GMAIL_APP_PASSWORD ??
+      (process.env.NODE_ENV === "test" ? "test-app-password" : undefined);
+
+    if (!user || !pass) {
+      throw new Error(
+        "GMAIL_USER / GMAIL_APP_PASSWORD are not configured (set them in your .env / deployment environment variables)"
+      );
     }
-    _resend = new Resend(apiKey);
+
+    _transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
   }
-  return _resend;
+  return _transporter;
 }
 
 // IN-APP NOTIFICATIONS
@@ -81,29 +95,42 @@ export async function getUnreadCount(userId) {
 
 export async function sendEmail(to, subject, html) {
   try {
-    return await getResendClient().emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
+    if (!process.env.GMAIL_USER) {
+      throw new Error(
+        "GMAIL_USER is not configured (set it in your .env / deployment environment variables)"
+      );
+    }
+
+    logger.info(`[communication.service] Sending email to ${to} from ${process.env.GMAIL_USER} via Gmail...`);
+
+    const info = await getMailTransporter().sendMail({
+      from: process.env.GMAIL_FROM_NAME
+        ? `${process.env.GMAIL_FROM_NAME} <${process.env.GMAIL_USER}>`
+        : process.env.GMAIL_USER,
       to,
       subject,
       html,
     });
+
+    logger.info(`[communication.service] Gmail accepted the email. messageId=${info?.messageId}`);
+
+    return { success: true, messageId: info?.messageId };
   } catch (err) {
     logger.error("[communication.service] Failed to send email:", err.message);
     return { success: false, error: err.message };
   }
 }
 
-export async function sendPasswordResetEmail(email, resetToken, userId = null) {
+export async function sendPasswordResetEmail(email, resetCode, userId = null) {
   if (userId) {
     await createNotification(userId, "Password reset requested", "");
   }
 
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   return sendEmail(
     email,
-    "Reset your password",
-    `<p>Click the link below to reset your password (valid for 1 hour):</p>
-     <a href="${resetUrl}">${resetUrl}</a>`
+    "Your password reset code",
+    `<p>Enter this code in the app to reset your password (valid for 15 minutes):</p>
+     <h2 style="letter-spacing: 4px;">${resetCode}</h2>`
   );
 }
 

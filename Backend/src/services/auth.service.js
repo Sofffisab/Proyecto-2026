@@ -107,32 +107,58 @@ export async function forgotPassword(data) {
   const email = typeof data === "string" ? data : data.email;
   const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) return { message: "If email exists, reset link was sent" };
+  if (!user) return { message: "If email exists, reset code was sent" };
 
-  const resetToken = crypto.randomBytes(32).toString("hex");
-  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+  // 6-digit numeric code (not a long token): meant to be read from an
+  // email and typed in by hand on the "check your email" step (see
+  // Frontend/src/screens/auth/ForgotPasswordScreen.js). Short TTL since
+  // it's a much smaller keyspace than the old 32-byte hex token.
+  const resetCode = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const resetCodeHash = crypto.createHash("sha256").update(resetCode).digest("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 15); // 15 minutes
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordResetToken: resetTokenHash, passwordResetExpires: expiresAt },
+    data: { passwordResetToken: resetCodeHash, passwordResetExpires: expiresAt },
   });
 
-  await sendPasswordResetEmail(user.email, resetToken, user.id);
+  await sendPasswordResetEmail(user.email, resetCode, user.id);
 
-  return { message: "If email exists, reset link was sent" };
+  return { message: "If email exists, reset code was sent" };
+}
+
+// Lets the "check your email" step (ForgotPasswordScreen) confirm the code
+// is right *before* asking for a new password, without consuming it yet —
+// the code is only cleared once resetPassword() below actually succeeds.
+export async function verifyResetCode({ email, code }) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+
+  if (
+    !user ||
+    !user.passwordResetToken ||
+    user.passwordResetToken !== codeHash ||
+    (user.passwordResetExpires && user.passwordResetExpires < new Date())
+  ) {
+    throw new AppError("Invalid or expired code", 400);
+  }
+
+  return { valid: true };
 }
 
 export async function resetPassword(data) {
   const { token, newPassword } = data;
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  const user = await prisma.user.findUnique({
+  // findFirst, not findUnique: passwordResetToken has no @unique constraint
+  // in schema.prisma (a 6-digit code isn't a safe uniqueness key across all
+  // users), so findUnique would throw on this field.
+  const user = await prisma.user.findFirst({
     where: { passwordResetToken: tokenHash },
   });
 
   if (!user || (user.passwordResetExpires && user.passwordResetExpires < new Date())) {
-    throw new AppError("Invalid or expired reset token", 400);
+    throw new AppError("Invalid or expired reset code", 400);
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);

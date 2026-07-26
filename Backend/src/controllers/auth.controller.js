@@ -48,6 +48,15 @@ export async function forgotPassword(req, res, next) {
   }
 }
 
+export async function verifyResetCode(req, res, next) {
+  try {
+    const result = await authService.verifyResetCode(req.validatedData);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function resetPassword(req, res, next) {
   try {
     const result = await authService.resetPassword(req.validatedData);

@@ -71,6 +71,7 @@ router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 router.post("/auth/login",           authRateLimiter, validateSchema(authSchemas.loginSchema), authController.login);
 router.post("/auth/refresh-token",   validateSchema(authSchemas.refreshTokenSchema), authController.refreshToken);
 router.post("/auth/forgot-password", authRateLimiter, validateSchema(authSchemas.forgotPasswordSchema), authController.forgotPassword);
+router.post("/auth/verify-reset-code", authRateLimiter, validateSchema(authSchemas.verifyResetCodeSchema), authController.verifyResetCode);
 router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas.resetPasswordSchema), authController.resetPassword);
 
 // Scoped (not blanket) so unmatched routes still fall through to the 404

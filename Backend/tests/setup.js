@@ -7,6 +7,8 @@ process.env.JWT_ACCESS_SECRET = "test-access-secret";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
 process.env.ALLOWED_ORIGINS = "http://localhost:3000";
 process.env.CRON_SECRET = "test-cron-secret";
+process.env.GMAIL_USER = "test@example.com";
+process.env.GMAIL_APP_PASSWORD = "test-app-password";
 
 // Console
 

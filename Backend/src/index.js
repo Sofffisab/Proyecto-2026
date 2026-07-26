@@ -9,8 +9,8 @@ const REQUIRED_ENV_VARS = [
   "JWT_REFRESH_SECRET",
   "FRONTEND_URL",
   "ABLY_API_KEY",
-  "RESEND_API_KEY",
-  "RESEND_FROM_EMAIL",
+  "GMAIL_USER",
+  "GMAIL_APP_PASSWORD",
   "CRON_SECRET",
   // Without these, rate limiting falls back to in-memory (no shared
   // counters) and logout can't blacklist tokens.

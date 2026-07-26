@@ -39,6 +39,7 @@ const AuthContext = createContext({
   login: async () => {},
   logout: async () => {},
   forgotPassword: async () => {},
+  verifyResetCode: async () => {},
   resetPassword: async () => {},
   changePassword: async () => {},
   refreshMe: async () => {},
@@ -136,6 +137,13 @@ export function AuthProvider({ children }) {
     await authApi.forgotPassword(email);
   }, []);
 
+  // POST /auth/verify-reset-code — no session required. Confirms the code
+  // from the email is correct before the Forgot Password screen lets the
+  // person move on to choosing a new password.
+  const verifyResetCode = useCallback(async ({ email, code }) => {
+    await authApi.verifyResetCode({ email, code });
+  }, []);
+
   // POST /auth/reset-password — completes the "Recuperar contraseña" flow:
   // token received by mail + the new password the user chose.
   const resetPassword = useCallback(async ({ token, newPassword }) => {
@@ -223,6 +231,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       forgotPassword,
+      verifyResetCode,
       resetPassword,
       changePassword,
       refreshMe,
@@ -238,6 +247,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       forgotPassword,
+      verifyResetCode,
       resetPassword,
       changePassword,
       refreshMe,
