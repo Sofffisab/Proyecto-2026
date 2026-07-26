@@ -118,6 +118,20 @@ export async function sendProgressEmail(email, name, goalLabel) {
   );
 }
 
+// Birthday greeting, sent once a year (see jobs/birthday.job.js, which
+// stamps lastBirthdayEmailAt so this doesn't fire twice on the same day).
+export async function sendBirthdayEmail(email, firstName, userId = null) {
+  if (userId) {
+    await createNotification(userId, "Happy birthday! 🎂", `Happy birthday, ${firstName}!`);
+  }
+
+  return sendEmail(
+    email,
+    "Happy birthday! 🎂",
+    `<h2>Happy birthday, ${firstName}!</h2><p>Everyone at Gym App wishes you a great day. Keep up the great work!</p>`
+  );
+}
+
 // In-app alert to a trainer when a student they haven't helped in a while
 // (or never) just checked in. Includes the student's current location.
 export async function notifyTrainerOfReturningStudent(
@@ -183,6 +197,7 @@ export const communicationService = {
   sendEmail,
   sendPasswordResetEmail,
   sendProgressEmail,
+  sendBirthdayEmail,
   notify,
   notifyTrainerOfReturningStudent,
 };

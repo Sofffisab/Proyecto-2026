@@ -26,12 +26,7 @@
       "forgotPassword": "Forgot password",
       "back": "Back",
       "errorFillFields": "Please fill in all fields",
-      "errorLoginFailed": "Login failed",
-      "provisionalTitle": "Provisional access for testing (no backend)",
-      "provisionalNewUser": "For testing: successful new user registration (first time, incomplete profile)",
-      "provisionalUser": "For testing: successful user login (profile already complete)",
-      "provisionalTrainer": "For testing: successful trainer login",
-      "provisionalAdmin": "For testing: successful admin user registration"
+      "errorLoginFailed": "Login failed"
     },
     "forgotPassword": {
       "title": "Recover password",

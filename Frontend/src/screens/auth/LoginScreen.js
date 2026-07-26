@@ -14,10 +14,6 @@ export default function LoginScreen({
   onLogin,
   onForgotPassword,
   onBack,
-  onProvisionalNewUser,
-  onProvisionalUser,
-  onProvisionalTrainer,
-  onProvisionalAdmin,
 }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
@@ -89,40 +85,6 @@ export default function LoginScreen({
         <TouchableOpacity style={styles.linkButton} onPress={onForgotPassword}>
           <Text style={styles.linkText}>{t('auth.login.forgotPassword')}</Text>
         </TouchableOpacity>
-
-        {/*
-          There's no backend connected yet, so a real login doesn't exist
-          nor a way to know the user's role/status. These provisional
-          shortcuts simulate every possible login outcome so the rest of
-          the screens can be navigated to and tested.
-        */}
-        <View style={styles.provisionalGroup}>
-          <Text style={styles.provisionalTitle}>{t('auth.login.provisionalTitle')}</Text>
-
-          <TouchableOpacity style={styles.provisionalButton} onPress={onProvisionalNewUser}>
-            <Text style={styles.provisionalText}>
-              {t('auth.login.provisionalNewUser')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.provisionalButton} onPress={onProvisionalUser}>
-            <Text style={styles.provisionalText}>
-              {t('auth.login.provisionalUser')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.provisionalButton} onPress={onProvisionalTrainer}>
-            <Text style={styles.provisionalText}>
-              {t('auth.login.provisionalTrainer')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.provisionalButton} onPress={onProvisionalAdmin}>
-            <Text style={styles.provisionalText}>
-              {t('auth.login.provisionalAdmin')}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Back button (global rule: present on all screens) - static */}
@@ -202,31 +164,5 @@ const styles = StyleSheet.create({
   backButton: {
     alignItems: 'center',
     paddingVertical: globals.spacing.md,
-  },
-  provisionalGroup: {
-    marginTop: globals.spacing.lg,
-    paddingTop: globals.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: globals.colors.border,
-    gap: globals.spacing.sm,
-  },
-  provisionalTitle: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    textAlign: 'center',
-    marginBottom: globals.spacing.xs,
-  },
-  provisionalButton: {
-    borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
-    paddingHorizontal: globals.spacing.md,
-    paddingVertical: globals.spacing.sm,
-    backgroundColor: globals.colors.secondary,
-  },
-  provisionalText: {
-    color: globals.colors.text,
-    fontSize: globals.fontSize.sm,
-    textAlign: 'center',
   },
 });

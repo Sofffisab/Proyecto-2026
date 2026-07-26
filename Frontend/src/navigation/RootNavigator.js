@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import globals from '../styles/globals';
 import ROLES from '../constants/roles';
 
+import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
@@ -50,6 +51,7 @@ import AdminGenerateQRScreen from '../screens/admin/GenerateQRScreen';
  * "Back" is always navigation.goBack().
  */
 export const ROUTES = {
+  WELCOME: 'Welcome',
   LOGIN: 'Login',
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
@@ -90,9 +92,9 @@ export const navigationRef = createNavigationContainerRef();
 
 // "Log out / switch account" now really logs out (clears the persisted
 // session + blacklists the token server-side via AuthContext#logout) and
-// then goes back to the initial screen (popToTop, since Login is the first
-// route in the stack).
-const goToLogin = (navigation) => () => {
+// then goes back to the initial screen (popToTop, since Welcome is the
+// first route in the stack).
+const goToWelcome = (navigation) => () => {
   navigation.popToTop();
 };
 const goBack = (navigation) => () => navigation.goBack();
@@ -102,7 +104,7 @@ const goBack = (navigation) => () => navigation.goBack();
 // decides whether a USER needs the onboarding flow first (see
 // Backend/src/middlewares/profileCompletion.middleware.js).
 function getHomeRouteForUser(user) {
-  if (!user) return ROUTES.LOGIN;
+  if (!user) return ROUTES.WELCOME;
   if (user.role === ROLES.ADMIN.toUpperCase()) return ROUTES.ADMIN_HOME;
   if (user.role === ROLES.TRAINER.toUpperCase()) return ROUTES.TRAINER_HOME;
   return user.isProfileComplete ? ROUTES.USER_HOME : ROUTES.ONBOARDING;
@@ -122,15 +124,29 @@ export default function RootNavigator() {
   }
 
   // If a valid session was restored, skip straight to that role's home
-  // screen instead of Login. The provisional shortcuts still work from
+  // screen instead of Welcome. The provisional shortcuts still work from
   // Login for testing every role/flow without a real account.
-  const initialRouteName = isAuthenticated ? getHomeRouteForUser(user) : ROUTES.LOGIN;
+  const initialRouteName = isAuthenticated ? getHomeRouteForUser(user) : ROUTES.WELCOME;
 
   return (
     <Stack.Navigator
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}
     >
+      <Stack.Screen name={ROUTES.WELCOME}>
+        {({ navigation }) => (
+          <WelcomeScreen
+            onIniciarSesion={() => navigation.navigate(ROUTES.LOGIN)}
+            // "Nuevo usuario" (mockup: IniciarSesionn.html): no hay
+            // auto-registro en el Backend (ver Backend/src/api/services/auth.api.js,
+            // las cuentas las crea un admin/trainer), así que por ahora
+            // queda sin acción, igual que "forgot password" en LoginScreen
+            // antes de tener su pantalla — static, no logic.
+            onNuevoUsuario={undefined}
+          />
+        )}
+      </Stack.Screen>
+
       <Stack.Screen name={ROUTES.LOGIN}>
         {({ navigation }) => (
           <LoginScreen
@@ -144,11 +160,7 @@ export default function RootNavigator() {
               });
             }}
             onForgotPassword={() => navigation.navigate(ROUTES.FORGOT_PASSWORD)}
-            onBack={undefined}
-            onProvisionalNewUser={() => navigation.navigate(ROUTES.ONBOARDING)}
-            onProvisionalUser={() => navigation.navigate(ROUTES.USER_HOME)}
-            onProvisionalTrainer={() => navigation.navigate(ROUTES.TRAINER_HOME)}
-            onProvisionalAdmin={() => navigation.navigate(ROUTES.ADMIN_HOME)}
+            onBack={goBack(navigation)}
           />
         )}
       </Stack.Screen>
@@ -270,7 +282,7 @@ export default function RootNavigator() {
               // Backend/src/services/auth.service.js#logout) and clears
               // the persisted session locally.
               await logout();
-              goToLogin(navigation)();
+              goToWelcome(navigation)();
             }}
             onBack={goBack(navigation)}
           />
