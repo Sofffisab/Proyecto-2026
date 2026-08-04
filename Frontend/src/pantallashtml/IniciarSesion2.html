@@ -13,21 +13,51 @@
     <h2>Bienvenido de nuevo👋</h2>
   </div>
     <div class="input">
-         <h2 class="correo">Correo electrónico</h2>
-         <div class="inputimagen">
-             <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Gmail.png" alt="Gmail">
-             <input class="in" type="text" placeholder="ejemplo@gmail.com">
-         </div>
+    <h2 class="correo">Correo electrónico</h2>
+
+    <div class="inputimagen">
+        <img class="icono-izq" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Gmail.png" alt="Gmail">
+
+        <input class="in" type="text" placeholder="ejemplo@gmail.com">
     </div>
-    <div class="input">
-         <h2 class="correo">Contraseña</h2>
-         <div class="inputimagen">
-    <img class="icono-izq" src="Candado2.png" alt="Candado">
-
-    <input class="in" type="password" placeholder="Contraseña">
-
-    <img class="icono-der" src="Ojo.png" alt="Ojo">
 </div>
+    <div class="input">
+    <h2 class="correo">Contraseña</h2>
+
+    <div class="inputimagen">
+        <img class="icono-izq" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Candado.png" alt="Candado">
+
+        <input id="contraseña" class="in" type="password" placeholder="Contraseña">
+
+        <img 
+            class="icono-der" 
+            id="ojo"
+            src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Ojo.png" 
+            alt="Mostrar contraseña"
+        >
     </div>
+</div>
+<h1 class="co">¿Olvidaste tu contraseña?</h1>
+<button>Ingresar</button>
+<div class="nue">
+    <h1 class="te">¿Primera vez?</h1>
+    <h1 class="a">Nuevo usuario</h1>
+</div>
+<script>
+    const ojo = document.getElementById("ojo");
+    const contraseña = document.getElementById("contraseña");
+
+    ojo.addEventListener("click", function() {
+
+        if (contraseña.type === "password") {
+            contraseña.type = "text";
+        } else {
+            contraseña.type = "password";
+        }
+
+    });
+</script>
+
+
 </body>
 </html>
