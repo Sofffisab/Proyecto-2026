@@ -54,15 +54,51 @@ h1{
     left: 18px;
     top: 50%;
     transform: translateY(-50%);
-    width: 18px;
-    height: 15px;
+    width: 13px;
+    height: 11px;
 }
 
 .icono-der{
     position: absolute;
     right: 12px;
-    top: 50%;
+    top: 55%;
     transform: translateY(-50%);
     width: 18px;
-    height: 15px;
+    height: 14px;
+}
+
+.co{
+    display: flex;
+    margin-left: 100px;
+    font-size: xx-small;
+    color: #177E89;
+}
+
+button{
+    display: flex;
+    justify-content: center;
+    border-radius: 9px;
+    align-items: center;
+    width: 200px;
+    height: 30px;
+    margin-left: 15px;
+    margin-top: 30px;
+    background-color: #177E89;
+    color: white;
+    border: none;
+}
+.nue{
+    display: flex;
+    margin-left: 39px;
+    margin-top: 90px;
+    flex-direction: row;
+    font-size: xx-small;
+}
+.te{
+    color: #6C6C6C;
+    font-size: xx-small;
+}
+.a{
+    color: #177E89;
+    font-size: xx-small;
 }
