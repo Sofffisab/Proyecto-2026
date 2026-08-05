@@ -13,7 +13,7 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 import NotificationsScreen from '../screens/shared/NotificationsScreen';
 
-import OnboardingScreen from '../screens/user/OnboardingScreen';
+import { OnboardingGoalScreen, OnboardingLevelScreen, OnboardingDaysScreen, OnboardingTypeScreen } from '../screens/user/OnboardingScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
 import UserHomeScreen from '../screens/user/HomeScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
@@ -21,8 +21,6 @@ import RoutinesScreen from '../screens/user/RoutinesScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
-import AnalyticsScreen from '../screens/user/AnalyticsScreen';
-import TrainersScreen from '../screens/user/TrainersScreen';
 
 import TrainerHomeScreen from '../screens/trainer/HomeScreen';
 import TrainerHistoryScreen from '../screens/trainer/HistoryScreen';
@@ -56,7 +54,10 @@ export const ROUTES = {
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
   NOTIFICATIONS: 'Notifications',
-  ONBOARDING: 'UserOnboarding',
+  ONBOARDING_GOAL: 'UserOnboardingGoal',
+  ONBOARDING_LEVEL: 'UserOnboardingLevel',
+  ONBOARDING_DAYS: 'UserOnboardingDays',
+  ONBOARDING_TYPE: 'UserOnboardingType',
   USER_SETTINGS: 'UserSettings',
   USER_HOME: 'UserHome',
   USER_HISTORY: 'UserHistory',
@@ -64,8 +65,6 @@ export const ROUTES = {
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
-  USER_ANALYTICS: 'UserAnalytics',
-  USER_TRAINERS: 'UserTrainers',
   TRAINER_HOME: 'TrainerHome',
   TRAINER_HISTORY: 'TrainerHistory',
   TRAINER_REPORTS: 'TrainerReports',
@@ -109,7 +108,7 @@ function getHomeRouteForUser(user) {
   if (!user) return ROUTES.WELCOME;
   if (user.role === ROLES.ADMIN.toUpperCase()) return ROUTES.ADMIN_HOME;
   if (user.role === ROLES.TRAINER.toUpperCase()) return ROUTES.TRAINER_HOME;
-  return user.isProfileComplete ? ROUTES.USER_HOME : ROUTES.ONBOARDING;
+  return user.isProfileComplete ? ROUTES.USER_HOME : ROUTES.ONBOARDING_GOAL;
 }
 
 export default function RootNavigator() {
@@ -212,21 +211,85 @@ export default function RootNavigator() {
 
       {/* ---------- User ---------- */}
 
-      <Stack.Screen name={ROUTES.ONBOARDING}>
-        {({ navigation }) => (
-          <OnboardingScreen
+      <Stack.Screen name={ROUTES.ONBOARDING_GOAL}>
+        {({ navigation, route }) => (
+          <OnboardingGoalScreen
             onBack={goBack(navigation)}
-            onContinue={async (payload) => {
-              // Saves objectives/trainingLevel/weeklyTrainingDays/trainingType
-              // via PUT /users/me, then moves on to the remaining required
-              // fields (birthday, medicalConditions, deliveryAddress) in
-              // Settings — see profileCompletion.middleware.js for why both
-              // steps are needed before the profile counts as complete.
-              await updateProfile(payload);
-              navigation.navigate(ROUTES.USER_SETTINGS);
+            value={route.params?.mainGoal ?? null}
+            onSelect={(v) => navigation.setParams({ mainGoal: v })}
+            onContinue={() => {
+              navigation.navigate(ROUTES.ONBOARDING_LEVEL, { mainGoal: route.params?.mainGoal });
             }}
           />
         )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ONBOARDING_LEVEL}>
+        {({ navigation, route }) => (
+          <OnboardingLevelScreen
+            onBack={goBack(navigation)}
+            value={route.params?.currentLevel ?? null}
+            onSelect={(v) => navigation.setParams({ currentLevel: v })}
+            onContinue={() => {
+              const { mainGoal, currentLevel } = route.params ?? {};
+              navigation.navigate(ROUTES.ONBOARDING_DAYS, { mainGoal, currentLevel });
+            }}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ONBOARDING_DAYS}>
+        {({ navigation, route }) => (
+          <OnboardingDaysScreen
+            onBack={goBack(navigation)}
+            value={route.params?.daysPerWeek ?? null}
+            onSelect={(v) => navigation.setParams({ daysPerWeek: v })}
+            onContinue={() => {
+              const { mainGoal, currentLevel, daysPerWeek } = route.params ?? {};
+              navigation.navigate(ROUTES.ONBOARDING_TYPE, { mainGoal, currentLevel, daysPerWeek });
+            }}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.ONBOARDING_TYPE}>
+        {({ navigation, route }) => {
+          const [saving, setSaving] = React.useState(false);
+          const [error, setError] = React.useState(null);
+          const { mainGoal, currentLevel, daysPerWeek } = route.params ?? {};
+          return (
+            <OnboardingTypeScreen
+              onBack={goBack(navigation)}
+              value={route.params?.trainingType ?? null}
+              onSelect={(v) => navigation.setParams({ trainingType: v })}
+              loading={saving}
+              error={error}
+              onContinue={async () => {
+                const trainingType = route.params?.trainingType;
+                setSaving(true);
+                setError(null);
+                try {
+                  // Saves objectives/trainingLevel/weeklyTrainingDays/trainingType
+                  // via PUT /users/me, then moves on to the remaining required
+                  // fields (birthday, medicalConditions, deliveryAddress) in
+                  // Settings — see profileCompletion.middleware.js for why both
+                  // steps are needed before the profile counts as complete.
+                  await updateProfile({
+                    objectives: [mainGoal],
+                    trainingLevel: currentLevel,
+                    weeklyTrainingDays: daysPerWeek,
+                    trainingType,
+                  });
+                  navigation.navigate(ROUTES.USER_SETTINGS);
+                } catch (err) {
+                  setError(err.message);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            />
+          );
+        }}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_SETTINGS}>
@@ -285,8 +348,6 @@ export default function RootNavigator() {
             onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
             onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
             onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
-            onGoToAnalytics={() => navigation.navigate(ROUTES.USER_ANALYTICS)}
-            onGoToTrainers={() => navigation.navigate(ROUTES.USER_TRAINERS)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onLogout={async () => {
               // POST /auth/logout blacklists the token server-side (see
@@ -320,14 +381,6 @@ export default function RootNavigator() {
 
       <Stack.Screen name={ROUTES.USER_WRAPPED}>
         {({ navigation }) => <WrappedScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.USER_ANALYTICS}>
-        {({ navigation }) => <AnalyticsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.USER_TRAINERS}>
-        {({ navigation }) => <TrainersScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
       {/* ---------- Trainer ---------- */}

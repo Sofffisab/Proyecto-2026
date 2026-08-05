@@ -1,148 +1,140 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 
 /**
- * Minimal Profile Personalization Screen (User) - spec section 2.
- * Only appears the first time the user role logs in.
+ * Minimal Profile Personalization (User) - spec sections 4, 5, 6 y 7.
+ * Four separate screens, each with a single selector and its own Back
+ * button, only shown the first time the user role logs in. They only
+ * appear again on subsequent logins if the profile is still incomplete.
  *
  * Selections map exactly to the Backend enums (see
  * Backend/prisma/schema.prisma and Backend/src/validators/user.schemas.js):
- *   - mainGoal        -> objectives: MainGoal[]        (multi-select)
+ *   - mainGoal        -> objectives: MainGoal[]        (single-select, one value)
  *   - currentLevel    -> trainingLevel: ExperienceLevel (single-select)
  *   - daysPerWeek     -> weeklyTrainingDays: TrainingFrequency (single-select)
  *   - trainingType    -> trainingType: TrainingType     (single-select)
- *
- * @param {function} [onBack] - Back button (global rule).
- * @param {function} onContinue - async (payload) => void. Called with the
- *   validated selections; the caller (RootNavigator) is responsible for
- *   persisting them (PUT /users/me) and navigating onward, since the
- *   navigation target depends on the save's outcome.
  */
 const GOAL_KEYS = ['LOSE_WEIGHT', 'GAIN_MUSCLE', 'IMPROVE_HEALTH', 'INCREASE_ENDURANCE'];
 const LEVEL_KEYS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 const DAYS_KEYS = ['ONE_TO_TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'];
 const TRAINING_TYPE_KEYS = ['STRENGTH', 'CARDIO', 'FUNCTIONAL', 'MIXED'];
 
-function OptionGroup({ title, options, selected, onToggle, multi }) {
-  return (
-    <View style={styles.group}>
-      <Text style={styles.groupTitle}>{title}</Text>
-      {options.map(({ key, label }) => {
-        const isSelected = multi ? selected.includes(key) : selected === key;
-        return (
-          <TouchableOpacity
-            key={key}
-            style={[styles.option, isSelected && styles.optionSelected]}
-            onPress={() => onToggle(key)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-              {isSelected ? (multi ? '☑ ' : '● ') : (multi ? '☐ ' : '○ ')}
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-export default function OnboardingScreen({ onBack, onContinue }) {
+/** Shared single-select step screen (pantalla 4/5/6/7). */
+function OnboardingStepScreen({ titleKey, i18nGroup, optionKeys, value, onSelect, onContinue, onBack, loading, error }) {
   const { t } = useTranslation();
-
-  const [goals, setGoals] = useState([]);
-  const [level, setLevel] = useState(null);
-  const [days, setDays] = useState(null);
-  const [trainingType, setTrainingType] = useState(null);
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  const goalOptions = GOAL_KEYS.map((key) => ({ key, label: t(`user.onboarding.goals.${key}`) }));
-  const levelOptions = LEVEL_KEYS.map((key) => ({ key, label: t(`user.onboarding.levels.${key}`) }));
-  const daysOptions = DAYS_KEYS.map((key) => ({ key, label: t(`user.onboarding.days.${key}`) }));
-  const trainingTypeOptions = TRAINING_TYPE_KEYS.map((key) => ({
-    key,
-    label: t(`user.onboarding.trainingTypes.${key}`),
-  }));
-
-  const toggleGoal = (key) =>
-    setGoals((prev) => (prev.includes(key) ? prev.filter((g) => g !== key) : [...prev, key]));
-
-  const handleContinue = async () => {
-    if (goals.length === 0 || !level || !days || !trainingType) {
-      setError(t('user.onboarding.errorSaving'));
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    try {
-      await onContinue({
-        objectives: goals,
-        trainingLevel: level,
-        weeklyTrainingDays: days,
-        trainingType,
-      });
-    } catch (err) {
-      setError(err.message || t('user.onboarding.errorSaving'));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const options = optionKeys.map((key) => ({ key, label: t(`user.onboarding.${i18nGroup}.${key}`) }));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{t('user.onboarding.mainGoal')}</Text>
-      <Text style={styles.hint}>{t('user.onboarding.mainGoalHint')}</Text>
-      <OptionGroup
-        title={t('user.onboarding.mainGoal')}
-        options={goalOptions}
-        selected={goals}
-        onToggle={toggleGoal}
-        multi
-      />
+      <TouchableOpacity onPress={onBack} disabled={loading}>
+        <Text style={styles.backText}>{t('user.onboarding.back')}</Text>
+      </TouchableOpacity>
 
-      <OptionGroup
-        title={t('user.onboarding.currentLevel')}
-        options={levelOptions}
-        selected={level}
-        onToggle={setLevel}
-      />
+      <Text style={styles.title}>{t(titleKey)}</Text>
 
-      <OptionGroup
-        title={t('user.onboarding.daysPerWeek')}
-        options={daysOptions}
-        selected={days}
-        onToggle={setDays}
-      />
-
-      <OptionGroup
-        title={t('user.onboarding.trainingType')}
-        options={trainingTypeOptions}
-        selected={trainingType}
-        onToggle={setTrainingType}
-      />
+      <View style={styles.group}>
+        {options.map(({ key, label }) => {
+          const isSelected = value === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[styles.option, isSelected && styles.optionSelected]}
+              onPress={() => onSelect(key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                {isSelected ? '● ' : '○ '}
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       <TouchableOpacity
-        style={[styles.continueButton, saving && styles.buttonDisabled]}
-        onPress={handleContinue}
-        disabled={saving}
+        style={[styles.continueButton, (loading || !value) && styles.buttonDisabled]}
+        onPress={onContinue}
+        disabled={loading || !value}
       >
-        {saving ? (
+        {loading ? (
           <ActivityIndicator color={globals.colors.background} />
         ) : (
           <Text style={styles.continueButtonText}>{t('user.onboarding.continue')}</Text>
         )}
       </TouchableOpacity>
-
-      <TouchableOpacity onPress={onBack} disabled={saving}>
-        <Text style={styles.backText}>{t('user.onboarding.back')}</Text>
-      </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+/** Pantalla 4: Selector de Objetivo principal (4 opciones). */
+export function OnboardingGoalScreen({ value, onSelect, onContinue, onBack, loading, error }) {
+  return (
+    <OnboardingStepScreen
+      titleKey="user.onboarding.mainGoal"
+      i18nGroup="goals"
+      optionKeys={GOAL_KEYS}
+      value={value}
+      onSelect={onSelect}
+      onContinue={onContinue}
+      onBack={onBack}
+      loading={loading}
+      error={error}
+    />
+  );
+}
+
+/** Pantalla 5: Selector de Nivel actual (3 opciones). */
+export function OnboardingLevelScreen({ value, onSelect, onContinue, onBack, loading, error }) {
+  return (
+    <OnboardingStepScreen
+      titleKey="user.onboarding.currentLevel"
+      i18nGroup="levels"
+      optionKeys={LEVEL_KEYS}
+      value={value}
+      onSelect={onSelect}
+      onContinue={onContinue}
+      onBack={onBack}
+      loading={loading}
+      error={error}
+    />
+  );
+}
+
+/** Pantalla 6: Selector de días de entrenamiento por semana (6 opciones). */
+export function OnboardingDaysScreen({ value, onSelect, onContinue, onBack, loading, error }) {
+  return (
+    <OnboardingStepScreen
+      titleKey="user.onboarding.daysPerWeek"
+      i18nGroup="days"
+      optionKeys={DAYS_KEYS}
+      value={value}
+      onSelect={onSelect}
+      onContinue={onContinue}
+      onBack={onBack}
+      loading={loading}
+      error={error}
+    />
+  );
+}
+
+/** Pantalla 7: Selector de tipo de entrenamiento buscado (4 opciones). */
+export function OnboardingTypeScreen({ value, onSelect, onContinue, onBack, loading, error }) {
+  return (
+    <OnboardingStepScreen
+      titleKey="user.onboarding.trainingType"
+      i18nGroup="trainingTypes"
+      optionKeys={TRAINING_TYPE_KEYS}
+      value={value}
+      onSelect={onSelect}
+      onContinue={onContinue}
+      onBack={onBack}
+      loading={loading}
+      error={error}
+    />
   );
 }
 
@@ -160,20 +152,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: globals.colors.text,
   },
-  hint: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    marginTop: -globals.spacing.xs,
-  },
   group: {
     marginTop: globals.spacing.sm,
     gap: globals.spacing.xs,
-  },
-  groupTitle: {
-    fontSize: globals.fontSize.md,
-    fontWeight: '600',
-    color: globals.colors.text,
-    marginBottom: globals.spacing.xs,
   },
   option: {
     borderWidth: 1,
@@ -220,7 +201,6 @@ const styles = StyleSheet.create({
   backText: {
     color: globals.colors.primary,
     fontSize: globals.fontSize.sm,
-    textAlign: 'center',
-    paddingVertical: globals.spacing.md,
+    paddingVertical: globals.spacing.sm,
   },
 });

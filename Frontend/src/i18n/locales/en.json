@@ -9,13 +9,6 @@
     "cameraPermissionRequired": "Camera access is needed to scan QR codes.",
     "grantCameraAccess": "Grant camera access"
   },
-  "footer": {
-    "home": "Home",
-    "search": "Search",
-    "scan": "Scan",
-    "profile": "Profile",
-    "logout": "Logout"
-  },
   "auth": {
     "login": {
       "appName": "GymBros",
@@ -75,13 +68,11 @@
   "user": {
     "onboarding": {
       "mainGoal": "Main goal",
-      "mainGoalHint": "Select one or more",
       "currentLevel": "Current level",
       "daysPerWeek": "How many days do you train per week",
       "trainingType": "What type of training are you looking for",
       "continue": "Continue",
       "back": "Back",
-      "option": "Option {{number}}",
       "saving": "Saving...",
       "errorSaving": "Could not save your answers. Please try again.",
       "goals": {
@@ -135,9 +126,7 @@
       "testRateTrainer": "For testing: Rate Trainer(s) pop-up",
       "checkInSuccessTitle": "Welcome!",
       "checkInSuccessBody": "Your arrival has been checked in successfully.",
-      "notifications": "Notifications",
-      "analytics": "My stats",
-      "trainers": "Trainers"
+      "notifications": "Notifications"
     },
     "settings": {
       "title": "Settings",
@@ -240,21 +229,7 @@
       "goalsTitle": "Goals",
       "goalsEmpty": "No active goals.",
       "goalProgress": "{{current}} / {{target}} {{unit}}",
-      "goalPercent": "{{percent}}% complete",
-      "manageGoals": "Manage goals (debug/manual)",
-      "manageGoalsNote": "Goals are normally created automatically as you use the gym. This unstyled panel is a manual fallback to add/edit/remove one.",
-      "newGoalAction": "Action (GAIN/LOSE/MAINTAIN)",
-      "newGoalType": "Type (e.g. WEIGHT, STRENGTH...)",
-      "newGoalTarget": "Target value",
-      "newGoalUnit": "Unit (optional)",
-      "addGoal": "Add goal",
-      "updateGoal": "Save",
-      "deleteGoal": "Delete",
-      "logProgress": "Log progress value",
-      "logProgressAction": "Log",
-      "goalSaved": "Saved.",
-      "goalDeleted": "Deleted.",
-      "goalError": "Something went wrong."
+      "goalPercent": "{{percent}}% complete"
     },
     "reports": {
       "target": "Report target",
@@ -533,28 +508,7 @@
       "noUsers": "No members found",
       "inactive": "Inactive",
       "rating": "Rating: {{rating}} / 5",
-      "since": "Member since {{date}}",
-      "viewDetails": "View details",
-      "changeRole": "Change role",
-      "roleChangeSuccess": "Role updated.",
-      "roleChangeError": "Couldn't update the role.",
-      "trainerSpecialtyRequired": "Please enter a specialty to create the trainer profile.",
-      "trainerSpecialtyPlaceholder": "Specialty (required to become a trainer)",
-      "trainerProfileSuccess": "Trainer profile saved.",
-      "trainerProfileError": "Couldn't save the trainer profile.",
-      "userDetailTitle": "Member details",
-      "userDetailLoadError": "Couldn't load this member's details.",
-      "close": "Close",
-      "email": "Email",
-      "role": "Role",
-      "status": "Status",
-      "active": "Active",
-      "medicalConditions": "Medical conditions",
-      "birthDate": "Date of birth",
-      "deliveryAddress": "Delivery address",
-      "objectives": "Main objective",
-      "trainingLevel": "Training level",
-      "notProvided": "Not provided"
+      "since": "Member since {{date}}"
     },
     "rewards": {
       "stockStatusTitle": "Stock status",
@@ -571,23 +525,7 @@
       "marketing": "Marketing item",
       "inactive": "Inactive",
       "markDelivered": "Mark delivered",
-      "catalogTitle": "Reward catalog",
-      "createReward": "Create reward",
-      "editReward": "Edit reward",
-      "namePlaceholder": "Reward name",
-      "descriptionPlaceholder": "Description (optional)",
-      "pointsCostPlaceholder": "Points cost",
-      "stockPlaceholder": "Stock",
-      "isMarketingItem": "Marketing item",
-      "isActive": "Active",
-      "save": "Save",
-      "cancel": "Cancel",
-      "edit": "Edit",
-      "nameAndPointsRequired": "Please enter a name and a valid points cost.",
-      "createSuccess": "Reward created.",
-      "createError": "Couldn't create the reward.",
-      "updateSuccess": "Reward updated.",
-      "updateError": "Couldn't update the reward."
+      "catalogTitle": "Reward catalog"
     },
     "reviewReports": {
       "approvedTitle": "Reports made and approved",
