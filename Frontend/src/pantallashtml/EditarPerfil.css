@@ -240,3 +240,291 @@
   position: relative;
   z-index: 2;
 }
+
+/* ================================= */
+/* RESPONSIVE - 402px x 874px */
+/* ================================= */
+
+@media (max-width: 600px) {
+
+    body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* ---------- TÍTULO ---------- */
+
+    .texto {
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0;
+        padding: 0 20px;
+        box-sizing: border-box;
+    }
+
+    .h1 {
+        font-size: 22px;
+    }
+
+    .Guardar {
+        font-size: 16px;
+    }
+
+
+    /* ---------- FOTO DE PERFIL ---------- */
+
+    .Eimagen {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .imagen {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+    }
+
+    .imagen img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+
+
+    /* ---------- ICONO DE EDITAR FOTO ---------- */
+
+    .foto {
+        position: absolute;
+        margin: 0;
+        width: 30px;
+        height: 30px;
+
+        /* Lo coloca cerca de la esquina inferior derecha
+           de la foto de perfil */
+        left: calc(50% + 35px);
+        top: 155px;
+    }
+
+
+    /* ---------- DROPDOWNS ---------- */
+
+    .EEdropdown,
+    .Edropdown {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .Edropdown {
+        align-items: center;
+    }
+
+    .dropdown {
+        width: calc(100% - 30px);
+        max-width: 370px;
+    }
+
+
+    /* ---------- BOTONES ---------- */
+
+    .btn {
+        width: 100%;
+        height: 50px;
+        padding: 0 10px;
+
+        align-items: center;
+        box-sizing: border-box;
+
+        font-size: 12px;
+    }
+
+
+    /* ---------- ICONOS IZQUIERDOS ---------- */
+
+    .img {
+        width: 25px;
+        height: 25px;
+        margin-top: 0;
+        flex-shrink: 0;
+    }
+
+
+    /* ---------- FLECHAS ---------- */
+
+    .img3,
+    .btn .img6 {
+        width: 25px;
+        height: 25px;
+
+        margin: 0;
+        right: 10px;
+        left: auto;
+    }
+
+
+    .img3 {
+        position: absolute;
+    }
+
+    .btn .img6 {
+        position: absolute;
+    }
+
+
+    /* ---------- TEXTO GUARDADO ---------- */
+
+    .Texto {
+        position: absolute;
+        left: 45px;
+        top: 76%;
+        transform: translateY(-50%);
+        width: calc(100% - 85px);
+
+        margin: 0;
+        padding: 0;
+
+        font-size: 12px;
+        color: black;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        text-align: left;
+    }
+
+    /* ---------- MENÚ ---------- */
+
+    .menu {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .menu.active {
+        width: 100%;
+    }
+
+
+    /* ---------- INPUT ---------- */
+
+    .input-container {
+        width: 100%;
+    }
+
+    .input-container input {
+        width: 100%;
+        height: 40px;
+        box-sizing: border-box;
+    }
+
+    input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+
+    /* ---------- ICONOS DEL INPUT ---------- */
+
+    .icono-vacio,
+    .icono-check {
+        width: 20px;
+        height: 20px;
+        right: 10px;
+    }
+
+
+    /* ---------- MENSAJE DE ERROR ---------- */
+
+    .error-email {
+        font-size: 11px;
+        left: 0;
+    }
+
+
+    /* ---------- BOTONES DE SEXO ---------- */
+
+    .Eboton {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .Eboton button {
+        flex: 1;
+        min-width: 80px;
+        height: 35px;
+    }
+
+
+    /* ---------- ESPACIADOS ---------- */
+
+    .EEdropdown {
+        margin-top: 10px;
+    }
+
+    .EEdropdown .Edropdown {
+        margin-top: 0;
+    }
+
+
+    /* ---------- BARRA INFERIOR ---------- */
+
+    .final {
+        height: 65px;
+        width: 100%;
+
+        gap: 0;
+        justify-content: space-around;
+
+        box-sizing: border-box;
+    }
+
+    .final > img {
+        width: 25px;
+        height: 25px;
+        object-fit: contain;
+    }
+
+
+    /* CÍRCULO DEL QR */
+
+    .circulo {
+        width: 55px;
+        height: 55px;
+        flex-shrink: 0;
+    }
+
+    .qr {
+        width: 30px;
+        height: 30px;
+    }
+    .qr-menu {
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.qr-menu.active {
+    display: flex;
+    background-color: white;
+}
+
+.imagen-qr {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+}
+
+.cuenta{
+  display: flex;
+  margin-top: 30px;
+  align-items: center;
+  color: red;
+  height: 60px;
+  justify-content: center;
+  border-radius: 9px;
+  background-color: #FFFFFF;
+}
+}
