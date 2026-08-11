@@ -13,7 +13,7 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 import NotificationsScreen from '../screens/shared/NotificationsScreen';
 
-import { OnboardingGoalScreen, OnboardingLevelScreen, OnboardingDaysScreen, OnboardingTypeScreen } from '../screens/user/OnboardingScreen';
+import { OnboardingGoalScreen, OnboardingLevelScreen, OnboardingDaysScreen, OnboardingTypeScreen, OnboardingSuccessScreen } from '../screens/user/OnboardingScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
 import UserHomeScreen from '../screens/user/HomeScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
@@ -58,6 +58,7 @@ export const ROUTES = {
   ONBOARDING_LEVEL: 'UserOnboardingLevel',
   ONBOARDING_DAYS: 'UserOnboardingDays',
   ONBOARDING_TYPE: 'UserOnboardingType',
+  ONBOARDING_DONE: 'UserOnboardingDone',
   USER_SETTINGS: 'UserSettings',
   USER_HOME: 'UserHome',
   USER_HISTORY: 'UserHistory',
@@ -215,6 +216,10 @@ export default function RootNavigator() {
         {({ navigation, route }) => (
           <OnboardingGoalScreen
             onBack={goBack(navigation)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
             value={route.params?.mainGoal ?? null}
             onSelect={(v) => navigation.setParams({ mainGoal: v })}
             onContinue={() => {
@@ -228,6 +233,10 @@ export default function RootNavigator() {
         {({ navigation, route }) => (
           <OnboardingLevelScreen
             onBack={goBack(navigation)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
             value={route.params?.currentLevel ?? null}
             onSelect={(v) => navigation.setParams({ currentLevel: v })}
             onContinue={() => {
@@ -242,6 +251,10 @@ export default function RootNavigator() {
         {({ navigation, route }) => (
           <OnboardingDaysScreen
             onBack={goBack(navigation)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
             value={route.params?.daysPerWeek ?? null}
             onSelect={(v) => navigation.setParams({ daysPerWeek: v })}
             onContinue={() => {
@@ -260,6 +273,10 @@ export default function RootNavigator() {
           return (
             <OnboardingTypeScreen
               onBack={goBack(navigation)}
+              onLogout={async () => {
+                await logout();
+                goToWelcome(navigation)();
+              }}
               value={route.params?.trainingType ?? null}
               onSelect={(v) => navigation.setParams({ trainingType: v })}
               loading={saving}
@@ -280,7 +297,7 @@ export default function RootNavigator() {
                     weeklyTrainingDays: daysPerWeek,
                     trainingType,
                   });
-                  navigation.navigate(ROUTES.USER_SETTINGS);
+                  navigation.navigate(ROUTES.ONBOARDING_DONE);
                 } catch (err) {
                   setError(err.message);
                 } finally {
@@ -292,12 +309,26 @@ export default function RootNavigator() {
         }}
       </Stack.Screen>
 
+      <Stack.Screen name={ROUTES.ONBOARDING_DONE}>
+        {({ navigation }) => (
+          <OnboardingSuccessScreen
+            onContinue={() => navigation.navigate(ROUTES.USER_SETTINGS)}
+          />
+        )}
+      </Stack.Screen>
+
       <Stack.Screen name={ROUTES.USER_SETTINGS}>
         {({ navigation }) => (
           <SettingsScreen
+            firstName={user?.firstName ?? ''}
+            lastName={user?.lastName ?? ''}
             email={user?.email ?? ''}
+            userId={user?.id ?? ''}
             age={user?.age ?? null}
             initialValues={{
+              gender: user?.gender ?? null,
+              trainingLevel: user?.trainingLevel ?? null,
+              mainGoal: Array.isArray(user?.objectives) ? user.objectives[0] ?? null : null,
               medicalConditions: Array.isArray(user?.medicalConditions)
                 ? user.medicalConditions.join(', ')
                 : '',
@@ -316,6 +347,11 @@ export default function RootNavigator() {
               // for preferences — two separate Backend resources (see
               // Backend/src/routes/index.js "USERS ROUTES").
               const updatedUser = await updateProfile({
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                gender: payload.gender,
+                trainingLevel: payload.trainingLevel,
+                objectives: payload.objectives,
                 medicalConditions: payload.medicalConditions,
                 birthday: payload.birthday,
                 deliveryAddress: payload.deliveryAddress,

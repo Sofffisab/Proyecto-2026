@@ -7,10 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Minimal-profile screen (onboarding): 4 fixed-option fields. Enum values
-// double as UI labels (see Frontend) — renaming them is safe since the
-// rest of the code treats them as opaque values.
-
 // Main goal — multi-select.
 enum MainGoal {
   LOSE_WEIGHT

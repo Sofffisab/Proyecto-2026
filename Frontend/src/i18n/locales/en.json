@@ -71,8 +71,15 @@
       "currentLevel": "Current level",
       "daysPerWeek": "How many days do you train per week",
       "trainingType": "What type of training are you looking for",
+      "helper": "This helps us personalize your plan.",
       "continue": "Continue",
       "back": "Back",
+      "logout": "Log out",
+      "success": {
+        "title": "All set!",
+        "subtitle": "You can now start organizing your training and reach your goals.",
+        "cta": "Go to my plan"
+      },
       "saving": "Saving...",
       "errorSaving": "Could not save your answers. Please try again.",
       "goals": {
@@ -131,10 +138,26 @@
     "settings": {
       "title": "Settings",
       "subtitle": "Session data and customization",
+      "editProfileTitle": "Edit profile",
       "mail": "Email",
+      "name": "Name",
+      "firstNamePlaceholder": "First name",
+      "lastNamePlaceholder": "Last name",
+      "gender": "Sex",
+      "genders": {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "OTHER": "Other",
+        "PREFER_NOT_TO_SAY": "Prefer not to say"
+      },
+      "trainingLevel": "Experience level",
+      "mainGoal": "Main goal",
       "medicalConditions": "Medical conditions",
       "dateOfBirth": "Date of birth",
       "dateOfBirthPlaceholder": "YYYY-MM-DD",
+      "dayPlaceholder": "DD",
+      "monthPlaceholder": "MM",
+      "yearPlaceholder": "YYYY",
       "currentAge": "Current age: {{age}}",
       "exactAddress": "Exact address",
       "inputPlaceholder": "Enter {{field}}...",
@@ -147,6 +170,8 @@
       "errorSaving": "Could not save your data. Please check the fields and try again.",
       "requiredNotice": "This is your first time here — please complete every field before continuing.",
       "invalidDate": "Enter the date of birth as YYYY-MM-DD.",
+      "qrTitle": "My member QR",
+      "qrSubtitle": "Show this code at the front desk if a staff member needs to look up your account.",
       "changePassword": {
         "title": "Password",
         "rowLabel": "Change password",
