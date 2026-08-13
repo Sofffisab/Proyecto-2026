@@ -36,7 +36,7 @@ img {
 .te{
     display: flex;
     font-size: 19px;
-    margin-left: 1px;
+    margin-right: 9px;
     color: #9D9D9D;
 }
 
@@ -68,6 +68,15 @@ h3{
     display: flex;
     flex-direction: column;
     margin-top: 69px;
+    gap: 1px;
+    margin-left: 9px;
+    justify-content: center;
+}
+
+.botonesa1{
+    display: flex;
+    flex-direction: row;
+    margin-top: 69px;
     gap: 39px;
     margin-left: 9px;
     justify-content: center;
@@ -85,19 +94,33 @@ button{
     font-size: larger;
     border-radius: 9px;
     align-items: center;
+    width: 180px;
+    height: 50px;
+    margin-left: 24px;
+    background-color: #177E89;
+    color: white;
+    border: none;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.ima{
+    width: 19%;
+    justify-content: flex-end;
+    margin-right: 9px;
+}
+
+.sig{
+    display: flex;
+    justify-content: center;
+    font-size: larger;
+    border-radius: 9px;
+    align-items: center;
     width: 360px;
     height: 50px;
     margin-left: 24px;
     background-color: #177E89;
     color: white;
     border: none;
-     border: none;
-    border-radius: 5px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
-}
-
-.ima{
-    width: 9%;
-    justify-content: flex-end;
-    margin-right: 9px;
 }
