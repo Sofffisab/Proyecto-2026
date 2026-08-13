@@ -133,7 +133,9 @@
       "testRateTrainer": "For testing: Rate Trainer(s) pop-up",
       "checkInSuccessTitle": "Welcome!",
       "checkInSuccessBody": "Your arrival has been checked in successfully.",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "logoutConfirmTitle": "Log out?",
+      "logoutConfirmMessage": "Are you sure you want to log out or switch accounts?"
     },
     "settings": {
       "title": "Settings",

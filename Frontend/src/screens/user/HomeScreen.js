@@ -1,10 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Modal } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
-import Header from '../../components/common/Header';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
 import QRScanner from '../../components/common/QRScanner';
 import SocialInteractionPopup from './popups/SocialInteractionPopup';
 import RateTrainerPopup from './popups/RateTrainerPopup';
@@ -18,10 +15,26 @@ import * as challengeApi from '../../api/services/challenge.api';
 import { flushQueue } from '../../offline/offlineQueue';
 
 /**
- * Main Screen (User) - spec section 3.
- * Components: points counter, QR camera button, access to History,
- * Routines, Achievements & Goals, Reports, Ask for Help, Settings, Wrapped,
- * and log out / switch account.
+ * Main Screen (User) - spec section 3 / 8 ("UserHome").
+ *
+ * Visual design ported from src/pantallashtml/Perfil.html + Perfil.css
+ * (web) into React Native, following the project's HTML -> RN conversion
+ * steps:
+ *   1) div/section -> View, free text -> Text, button/a -> TouchableOpacity.
+ *   2) onClick -> onPress.
+ *   3) CSS -> StyleSheet.create at the bottom, camelCase, unitless numbers.
+ *   4) Typography (color/size/weight) moved onto the Text elements.
+ *   5) Default flexDirection is 'column' in RN, so every CSS `display:flex`
+ *      row (".Espacio", ".centro", ".final", ".hexagonos", ".footer") gets
+ *      an explicit `flexDirection: 'row'`.
+ *   6) Text doesn't carry browser default margins, so marginBottom/Top was
+ *      added by hand to match the HTML spacing.
+ * All colors/spacing/radius/fontSize come from src/styles/globals.js
+ * (design tokens), which already match Perfil.css 1:1 (primary #177E89,
+ * avatarPlaceholder grey circle, sectionCard grey blocks, etc).
+ *
+ * NOTE: CSS `clip-path` (used for `.hexagono`) has no RN equivalent, so the
+ * hexagon shape is approximated with a rounded square of the same size.
  *
  * QR scan (POST /qr/scan, via qr.api.js) auto-detects entry/exit/machine/
  * interaction server-side (verification.service.js#processScan) and
@@ -41,7 +54,7 @@ import { flushQueue } from '../../offline/offlineQueue';
  * @param {function} [onGoToSettings]
  * @param {function} [onGoToWrapped]
  * @param {function} [onGoToNotifications]
- * @param {function} [onLogout] - opens "are you sure?" pop-up
+ * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
  * @param {function} [onBack]
  */
 export default function HomeScreen({
@@ -73,6 +86,9 @@ export default function HomeScreen({
 
   // "Arrival successful" pop-up — CHECK_IN branch of handleScanned.
   const [showCheckInSuccess, setShowCheckInSuccess] = useState(false);
+
+  // "Are you sure?" pop-up for the log out / switch account button.
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // GET /gamification/points — refetched every time this screen regains
   // focus (e.g. coming back from Routines after a machine scan awarded
@@ -212,46 +228,128 @@ export default function HomeScreen({
     }
   };
 
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    onLogout && onLogout();
+  };
+
   return (
-    <View style={styles.container}>
-      <Header
-        pageTitle={t('user.home.title')}
-        subtitle={t('user.home.subtitle')}
-        onPressNotifications={onGoToNotifications}
-        unreadCount={unreadCount}
-      />
+    <View style={styles.body}>
+      {/* ---------------- HEADER (".Espacio") ---------------- */}
+      <View style={styles.espacio}>
+        <Text style={styles.h1}>{t('user.home.title')}</Text>
+        <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
+          <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView style={styles.content}>
-        <Card
-          title={t('user.home.pointsAccumulated')}
-          content={pointsLoading ? t('user.home.pointsLoading') : String(points)}
-        />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {/* ---------------- POINTS (".centro") ---------------- */}
+        <View style={styles.centro}>
+          <View style={styles.eCirculoImagen}>
+            <View style={styles.circuloImagen}>
+              <Text style={styles.circuloPuntos}>
+                {pointsLoading ? '…' : String(points)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.resto}>
+            <Text style={styles.h1RestoTitle}>{t('user.home.pointsAccumulated')}</Text>
+            <Text style={styles.h1Mail}>
+              {pointsLoading ? t('user.home.pointsLoading') : t('user.home.subtitle')}
+            </Text>
+            <TouchableOpacity style={styles.scanQrButtonInline} onPress={() => setShowScanQR(true)}>
+              <Text style={styles.scanQrButtonInlineLabel}>{t('user.home.scanQR')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        <View style={styles.buttonGroup}>
-          <Button label={t('user.home.scanQR')} onPress={() => setShowScanQR(true)} />
-          <Button label={t('user.home.history')} onPress={onGoToHistory} variant="secondary" />
-          <Button label={t('user.home.routines')} onPress={onGoToRoutines} variant="secondary" />
-          <Button label={t('user.home.achievementsGoals')} onPress={onGoToAchievementsGoals} variant="secondary" />
-          <Button label={t('user.home.reports')} onPress={onGoToReports} variant="secondary" />
-          <Button
-            label={helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
+        {/* ---------------- QUICK NAV (".final" / ".D1") ---------------- */}
+        <View style={styles.final}>
+          <TouchableOpacity style={styles.d1} onPress={onGoToHistory}>
+            <Text style={styles.d1Icon}>🕘</Text>
+            <Text style={styles.texto}>{t('user.home.history')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.d1} onPress={onGoToRoutines}>
+            <Text style={styles.d1Icon}>📋</Text>
+            <Text style={styles.texto}>{t('user.home.routines')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.d1} onPress={onGoToAchievementsGoals}>
+            <Text style={styles.d1Icon}>🏆</Text>
+            <Text style={styles.texto}>{t('user.home.achievementsGoals')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.d1} onPress={onGoToReports}>
+            <Text style={styles.d1Icon}>📊</Text>
+            <Text style={styles.texto}>{t('user.home.reports')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ---------------- */}
+        <View style={styles.e}>
+          {/* Ask for Help — full-width bar, like .E1 */}
+          <TouchableOpacity
+            style={styles.e1}
             onPress={handleAskForHelp}
-            variant="secondary"
             disabled={helpLoading}
-          />
+          >
+            <Text style={styles.t1}>
+              {helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
+            </Text>
+          </TouchableOpacity>
           {helpFeedback && (
             <Text style={helpFeedback.type === 'error' ? styles.errorText : styles.successText}>
               {helpFeedback.message}
             </Text>
           )}
-          <Button label={t('user.home.settings')} onPress={onGoToSettings} variant="secondary" />
-          <Button label={t('user.home.wrapped')} onPress={onGoToWrapped} variant="secondary" />
-          <Button label={t('user.home.notifications')} onPress={onGoToNotifications} variant="secondary" />
-          <Button label={t('user.home.logout')} onPress={onLogout} variant="danger" />
+
+          {/* Settings / Wrapped / Logout — hexagon-style icon row, like .E2 */}
+          <View style={styles.e2}>
+            <Text style={styles.t2}>{t('user.home.settings')}</Text>
+            <View style={styles.hexagonos}>
+              <TouchableOpacity style={styles.hexagono} onPress={onGoToSettings}>
+                <Text style={styles.hexagonoIcon}>⚙️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.hexagono} onPress={onGoToWrapped}>
+                <Text style={styles.hexagonoIcon}>🎁</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.hexagono} onPress={onGoToNotifications}>
+                <Text style={styles.hexagonoIcon}>🔔</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.hexagono, styles.hexagonoDanger]}
+                onPress={() => setShowLogoutConfirm(true)}
+              >
+                <Text style={styles.hexagonoIcon}>🚪</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Logout — full-width danger bar, like .E3 */}
+          <TouchableOpacity style={styles.e3} onPress={() => setShowLogoutConfirm(true)}>
+            <Text style={styles.t3}>{t('user.home.logout')}</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
       </ScrollView>
+
+      {/* ---------------- FOOTER (".footer") ---------------- */}
+      <View style={styles.footer}>
+        <Image source={require('../../assets/Imagen.png')} style={styles.footerImg} />
+        <Image source={require('../../assets/Vector (3).png')} style={styles.footerImg} />
+        <TouchableOpacity style={styles.circulo} onPress={() => setShowScanQR(true)}>
+          <Image source={require('../../assets/boxicons_qr-scan.png')} style={styles.qr} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onGoToAchievementsGoals}>
+          <Image source={require('../../assets/proicons_trophy.png')} style={styles.footerImg} />
+        </TouchableOpacity>
+        <Image source={require('../../assets/Group 49.png')} style={styles.footerImg} />
+      </View>
 
       {/* Check-in success pop-up (spec section 3 QR logic). */}
       <Modal
@@ -264,7 +362,35 @@ export default function HomeScreen({
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('user.home.checkInSuccessTitle')}</Text>
             <Text>{t('user.home.checkInSuccessBody')}</Text>
-            <Button label={t('common.close')} onPress={() => setShowCheckInSuccess(false)} />
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowCheckInSuccess(false)}>
+              <Text style={styles.modalButtonLabel}>{t('common.close')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Log out / switch account confirmation pop-up ("¿estás seguro?"). */}
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('user.home.logoutConfirmTitle')}</Text>
+            <Text>{t('user.home.logoutConfirmMessage')}</Text>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.modalButtonSecondaryLabel}>{t('common.no')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonDanger]} onPress={confirmLogout}>
+                <Text style={styles.modalButtonLabel}>{t('common.yes')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -324,7 +450,9 @@ export default function HomeScreen({
                   >
                     {scanFeedback.message}
                   </Text>
-                  <Button label={t('common.close')} onPress={closeScanQR} />
+                  <TouchableOpacity style={styles.modalButton} onPress={closeScanQR}>
+                    <Text style={styles.modalButtonLabel}>{t('common.close')}</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -336,17 +464,215 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  // ---------------- body ----------------
+  body: {
     flex: 1,
     backgroundColor: globals.colors.background,
   },
-  content: {
+
+  // ---------------- HEADER (".Espacio") ----------------
+  espacio: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+  },
+  h1: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: globals.colors.text,
+  },
+  headerIconButton: {
+    position: 'relative',
+  },
+  espacioImg: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: globals.colors.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // ---------------- scroll wrapper ----------------
+  scroll: {
     flex: 1,
-    padding: globals.spacing.md,
   },
-  buttonGroup: {
-    marginTop: globals.spacing.md,
+  scrollContent: {
+    paddingBottom: globals.spacing.lg,
   },
+
+  // ---------------- POINTS (".centro") ----------------
+  centro: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 35,
+    width: '100%',
+    marginTop: 20,
+  },
+  eCirculoImagen: {
+    // wraps the circle, mirrors ".ECirculoImagen"
+  },
+  circuloImagen: {
+    width: 120,
+    height: 120,
+    backgroundColor: globals.colors.avatarPlaceholder,
+    borderRadius: 60,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circuloPuntos: {
+    fontSize: globals.fontSize.xxl,
+    fontWeight: 'bold',
+    color: globals.colors.text,
+  },
+  resto: {
+    flexDirection: 'column',
+  },
+  h1RestoTitle: {
+    fontSize: 20,
+    marginBottom: 8,
+    color: globals.colors.text,
+  },
+  h1Mail: {
+    color: globals.colors.textMuted,
+    fontSize: 13,
+    marginBottom: 0,
+  },
+  scanQrButtonInline: {
+    backgroundColor: globals.colors.primary,
+    borderRadius: globals.radius.full,
+    height: 30,
+    paddingHorizontal: 14,
+    marginTop: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  scanQrButtonInlineLabel: {
+    color: globals.colors.secondary,
+    fontWeight: '600',
+    fontSize: globals.fontSize.sm,
+  },
+
+  // ---------------- QUICK NAV (".final" / ".D1") ----------------
+  final: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+    width: '100%',
+    marginTop: 35,
+    paddingHorizontal: 10,
+    gap: 5,
+  },
+  d1: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '25%',
+  },
+  d1Icon: {
+    fontSize: 20,
+    marginBottom: 5,
+  },
+  texto: {
+    fontSize: 10,
+    color: globals.colors.textMuted,
+    textAlign: 'center',
+  },
+
+  // ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ----------------
+  e: {
+    flexDirection: 'column',
+    gap: 10,
+    width: '100%',
+    marginTop: 30,
+    paddingHorizontal: globals.spacing.md,
+    paddingBottom: 110,
+  },
+  e1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 100,
+    width: '100%',
+    backgroundColor: globals.colors.sectionCard,
+    borderRadius: globals.radius.md,
+  },
+  e2: {
+    flexDirection: 'column',
+    height: 100,
+    width: '100%',
+    backgroundColor: globals.colors.sectionCard,
+    borderRadius: globals.radius.md,
+    justifyContent: 'center',
+  },
+  e3: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 100,
+    width: '100%',
+    backgroundColor: globals.colors.danger,
+    borderRadius: globals.radius.md,
+  },
+  t1: {
+    fontSize: 14,
+    margin: 10,
+    color: globals.colors.text,
+  },
+  t2: {
+    fontSize: 14,
+    margin: 10,
+    color: globals.colors.text,
+  },
+  t3: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: globals.colors.secondary,
+  },
+
+  // ---------------- hexágonos ----------------
+  hexagonos: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+    gap: 15,
+    alignItems: 'center',
+  },
+  hexagono: {
+    // clip-path polygon() has no RN equivalent — approximated with a
+    // rounded square of the same footprint as ".hexagono" (45x50).
+    width: 45,
+    height: 50,
+    backgroundColor: globals.colors.primary,
+    borderRadius: globals.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hexagonoDanger: {
+    backgroundColor: globals.colors.danger,
+  },
+  hexagonoIcon: {
+    fontSize: 18,
+  },
+
   backLink: {
     textAlign: 'center',
     color: globals.colors.textMuted,
@@ -355,15 +681,19 @@ const styles = StyleSheet.create({
   errorText: {
     color: globals.colors.danger,
     fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
     marginBottom: globals.spacing.sm,
     textAlign: 'center',
   },
   successText: {
     color: globals.colors.primary,
     fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
     marginBottom: globals.spacing.sm,
     textAlign: 'center',
   },
+
+  // ---------------- QR scanner modal ----------------
   scannerContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -377,6 +707,8 @@ const styles = StyleSheet.create({
     color: globals.colors.text,
     marginBottom: globals.spacing.sm,
   },
+
+  // ---------------- generic confirm/success modal ----------------
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -394,5 +726,63 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: globals.colors.text,
     marginBottom: globals.spacing.md,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: globals.spacing.sm,
+    marginTop: globals.spacing.md,
+  },
+  modalButton: {
+    backgroundColor: globals.colors.primary,
+    paddingVertical: globals.spacing.sm,
+    paddingHorizontal: globals.spacing.lg,
+    borderRadius: globals.radius.md,
+    alignItems: 'center',
+    marginTop: globals.spacing.md,
+  },
+  modalButtonLabel: {
+    color: globals.colors.secondary,
+    fontWeight: '600',
+  },
+  modalButtonSecondary: {
+    backgroundColor: globals.colors.secondary,
+    borderWidth: 1,
+    borderColor: globals.colors.border,
+  },
+  modalButtonSecondaryLabel: {
+    color: globals.colors.text,
+    fontWeight: '600',
+  },
+  modalButtonDanger: {
+    backgroundColor: globals.colors.danger,
+  },
+
+  // ---------------- FOOTER (".footer") ----------------
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    height: 75,
+    backgroundColor: globals.colors.badge,
+  },
+  footerImg: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
+  },
+  circulo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 60,
+    width: 60,
+    backgroundColor: globals.colors.primary,
+    borderRadius: 30,
+  },
+  qr: {
+    width: 35,
+    height: 35,
   },
 });

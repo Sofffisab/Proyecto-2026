@@ -68,8 +68,8 @@ const LEVEL_OPTIONS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 const GOAL_OPTIONS = ['LOSE_WEIGHT', 'GAIN_MUSCLE', 'IMPROVE_HEALTH', 'INCREASE_ENDURANCE'];
 
 const FIELDS = [
-  { key: 'medicalConditions', labelKey: 'user.settings.medicalConditions' },
-  { key: 'exactAddress', labelKey: 'user.settings.exactAddress' },
+  { key: 'medicalConditions', labelKey: 'user.settings.medicalConditions', icon: '\u2764' },
+  { key: 'exactAddress', labelKey: 'user.settings.exactAddress', icon: '\uD83C\uDFE0' },
 ];
 
 const PREFERENCES = [
@@ -85,17 +85,41 @@ function initialsFor(firstName, lastName) {
   return (a + b).toUpperCase() || '?';
 }
 
+/**
+ * Left-side row icon. The original web mockup (EditarPerfil.html) uses PNG
+ * assets from src/assets (Group 31.png, basil_envelope-outline.png, etc.);
+ * here we keep the same visual slot (a small square icon before the label)
+ * but render it with a plain-text glyph so this component has zero new
+ * asset/dependency requirements. Swap `Text` for an `Image` pointing at the
+ * matching asset if/when those get wired into the RN bundle.
+ */
+function RowIcon({ glyph }) {
+  return (
+    <View style={styles.rowIconWrap}>
+      <Text style={styles.rowIconGlyph}>{glyph}</Text>
+    </View>
+  );
+}
+
+/** Chevron on the right of every accordion row (".img3"/".img6" in the CSS: rotates 90deg when open). */
+function RowArrow({ open }) {
+  return (
+    <Text style={[styles.fieldArrow, open && styles.fieldArrowOpen]}>{'\u203A'}</Text>
+  );
+}
+
 /** A row that expands into pill-style single-select options. */
-function PillSelectRow({ label, options, optionLabel, value, onChange, disabled }) {
+function PillSelectRow({ icon, label, options, optionLabel, value, onChange, disabled }) {
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.fieldBlock}>
       <TouchableOpacity style={styles.fieldRow} onPress={() => setOpen((p) => !p)} activeOpacity={0.8}>
+        <RowIcon glyph={icon} />
         <Text style={styles.fieldLabel}>{label}</Text>
         <Text style={styles.fieldValuePreview} numberOfLines={1}>
           {value ? optionLabel(value) : ''}
         </Text>
-        <Text style={[styles.fieldArrow, open && styles.fieldArrowOpen]}>{'>'}</Text>
+        <RowArrow open={open} />
       </TouchableOpacity>
 
       {open && (
@@ -254,7 +278,7 @@ export default function SettingsScreen({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Top bar: back chevron + title + "Guardar" link, per the mockup. */}
+      {/* Top bar: back chevron + title + "Guardar" link (.texto / .h1 / .Guardar). */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onBack} disabled={saving} hitSlop={12} style={styles.topBarSide}>
           <Text style={styles.backChevron}>{'‹'}</Text>
@@ -269,22 +293,28 @@ export default function SettingsScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Avatar (initials placeholder — there's no photo upload field on
-          the Backend User model yet, so this can't be a real picture). */}
+      {/* Avatar (.imagen) + edit-photo badge (.foto). Initials placeholder —
+          there's no photo upload field on the Backend User model yet, so
+          this can't be a real picture; the pencil badge is decorative only,
+          matching the mockup's edit-icon overlay. */}
       <View style={styles.avatarBlock}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarInitials}>{initialsFor(firstNameValue, lastNameValue)}</Text>
+        </View>
+        <View style={styles.avatarEditBadge}>
+          <Text style={styles.avatarEditGlyph}>{'\u270E'}</Text>
         </View>
       </View>
 
       {/* Nombre */}
       <View style={styles.fieldBlock}>
         <TouchableOpacity style={styles.fieldRow} onPress={() => toggle('name')} activeOpacity={0.8}>
+          <RowIcon glyph={"\uD83D\uDC64"} />
           <Text style={styles.fieldLabel}>{t('user.settings.name')}</Text>
           <Text style={styles.fieldValuePreview} numberOfLines={1}>
             {[firstNameValue, lastNameValue].filter(Boolean).join(' ')}
           </Text>
-          <Text style={[styles.fieldArrow, openField === 'name' && styles.fieldArrowOpen]}>{'>'}</Text>
+          <RowArrow open={openField === 'name'} />
         </TouchableOpacity>
         {openField === 'name' && (
           <View style={styles.inputWrapper}>
@@ -311,6 +341,7 @@ export default function SettingsScreen({
       {/* Correo electrónico: not editable */}
       <View style={styles.fieldBlock}>
         <View style={styles.fieldRow}>
+          <RowIcon glyph={"\u2709"} />
           <Text style={styles.fieldLabel}>{t('user.settings.mail')}</Text>
         </View>
         <View style={styles.inputWrapper}>
@@ -321,11 +352,12 @@ export default function SettingsScreen({
       {/* Fecha de nacimiento: day / month / year */}
       <View style={styles.fieldBlock}>
         <TouchableOpacity style={styles.fieldRow} onPress={() => toggle('dateOfBirth')} activeOpacity={0.8}>
+          <RowIcon glyph={"\uD83C\uDF82"} />
           <Text style={styles.fieldLabel}>{t('user.settings.dateOfBirth')}</Text>
           <Text style={styles.fieldValuePreview} numberOfLines={1}>
             {day && month && year ? `${day}/${month}/${year}` : ''}
           </Text>
-          <Text style={[styles.fieldArrow, openField === 'dateOfBirth' && styles.fieldArrowOpen]}>{'>'}</Text>
+          <RowArrow open={openField === 'dateOfBirth'} />
         </TouchableOpacity>
         {openField === 'dateOfBirth' && (
           <View style={styles.inputWrapper}>
@@ -368,6 +400,7 @@ export default function SettingsScreen({
 
       {/* Sexo */}
       <PillSelectRow
+        icon={'\u26A7'}
         label={t('user.settings.gender')}
         options={GENDER_OPTIONS}
         optionLabel={genderLabel}
@@ -378,6 +411,7 @@ export default function SettingsScreen({
 
       {/* Nivel de experiencia */}
       <PillSelectRow
+        icon={'\uD83C\uDFCB'}
         label={t('user.settings.trainingLevel')}
         options={LEVEL_OPTIONS}
         optionLabel={levelLabel}
@@ -388,6 +422,7 @@ export default function SettingsScreen({
 
       {/* Objetivo principal */}
       <PillSelectRow
+        icon={'\uD83C\uDFC6'}
         label={t('user.settings.mainGoal')}
         options={GOAL_OPTIONS}
         optionLabel={goalLabel}
@@ -397,17 +432,18 @@ export default function SettingsScreen({
       />
 
       {/* Required free-text fields (medical conditions, exact address) */}
-      {FIELDS.map(({ key, labelKey }) => {
+      {FIELDS.map(({ key, labelKey, icon }) => {
         const isOpen = openField === key;
         const label = t(labelKey);
         return (
           <View key={key} style={styles.fieldBlock}>
             <TouchableOpacity style={styles.fieldRow} onPress={() => toggle(key)} activeOpacity={0.8}>
+              <RowIcon glyph={icon} />
               <Text style={styles.fieldLabel}>{label}</Text>
               <Text style={styles.fieldValuePreview} numberOfLines={1}>
                 {values[key] ? values[key] : ''}
               </Text>
-              <Text style={[styles.fieldArrow, isOpen && styles.fieldArrowOpen]}>{'>'}</Text>
+              <RowArrow open={isOpen} />
             </TouchableOpacity>
 
             {isOpen && (
@@ -452,8 +488,9 @@ export default function SettingsScreen({
               onPress={() => setPasswordOpen((prev) => !prev)}
               activeOpacity={0.8}
             >
+              <RowIcon glyph={'\uD83D\uDD12'} />
               <Text style={styles.fieldLabel}>{t('user.settings.changePassword.rowLabel')}</Text>
-              <Text style={[styles.fieldArrow, passwordOpen && styles.fieldArrowOpen]}>{'>'}</Text>
+              <RowArrow open={passwordOpen} />
             </TouchableOpacity>
 
             {passwordOpen && (
@@ -571,6 +608,7 @@ const styles = StyleSheet.create({
   avatarBlock: {
     alignItems: 'center',
     marginVertical: globals.spacing.lg,
+    position: 'relative',
   },
   avatarCircle: {
     width: 88,
@@ -585,6 +623,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: globals.colors.background,
   },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: '32%',
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: globals.radius.full,
+    backgroundColor: globals.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: globals.colors.background,
+  },
+  avatarEditGlyph: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.background,
+  },
+  rowIconWrap: {
+    width: 28,
+    alignItems: 'center',
+    marginRight: globals.spacing.xs,
+  },
+  rowIconGlyph: {
+    fontSize: globals.fontSize.md,
+  },
   sectionTitle: {
     fontSize: globals.fontSize.lg,
     fontWeight: 'bold',
@@ -594,11 +657,16 @@ const styles = StyleSheet.create({
     marginBottom: globals.spacing.xs,
   },
   fieldBlock: {
-    backgroundColor: globals.colors.secondary,
+    backgroundColor: globals.colors.background,
     marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.xs,
+    marginTop: globals.spacing.sm,
     borderRadius: globals.radius.md,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -689,12 +757,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: globals.colors.secondary,
+    backgroundColor: globals.colors.background,
     marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.xs,
+    marginTop: globals.spacing.sm,
     paddingHorizontal: globals.spacing.md,
     paddingVertical: globals.spacing.md,
     borderRadius: globals.radius.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
   checkbox: {
     fontSize: globals.fontSize.lg,
