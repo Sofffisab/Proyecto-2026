@@ -1,5 +1,6 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { redis } from "../config/index.js";
+import { logger } from "../utils/logger.js";
 
 // Serverless deploy needs a shared store across instances (Redis) instead
 // of express-rate-limit's default in-memory one; falls back locally
@@ -11,22 +12,42 @@ function redisStore(prefix) {
 
   return {
     async increment(key) {
-      const redisKey = `ratelimit:${prefix}:${key}`;
-      const totalHits = await redis.incr(redisKey);
-      if (totalHits === 1) {
-        await redis.expire(redisKey, 15 * 60);
+      try {
+        const redisKey = `ratelimit:${prefix}:${key}`;
+        const totalHits = await redis.incr(redisKey);
+        if (totalHits === 1) {
+          await redis.expire(redisKey, 15 * 60);
+        }
+        const ttl = await redis.ttl(redisKey);
+        return {
+          totalHits,
+          resetTime: new Date(Date.now() + Math.max(ttl, 0) * 1000),
+        };
+      } catch (err) {
+        // Fail OPEN, not closed: if Upstash is unreachable (DNS failure,
+        // instance paused/deleted, network blip), a rate limiter must
+        // never be the reason auth/API requests start 500ing. Log it so
+        // it's visible, but let the request through uncounted for this
+        // window instead of throwing.
+        logger.warn(
+          `[rateLimiter] Redis unreachable, allowing request through (prefix="${prefix}"): ${err.message}`
+        );
+        return { totalHits: 1, resetTime: new Date(Date.now() + 15 * 60 * 1000) };
       }
-      const ttl = await redis.ttl(redisKey);
-      return {
-        totalHits,
-        resetTime: new Date(Date.now() + Math.max(ttl, 0) * 1000),
-      };
     },
     async decrement(key) {
-      await redis.decr(`ratelimit:${prefix}:${key}`);
+      try {
+        await redis.decr(`ratelimit:${prefix}:${key}`);
+      } catch (err) {
+        logger.warn(`[rateLimiter] Redis decrement failed (prefix="${prefix}"): ${err.message}`);
+      }
     },
     async resetKey(key) {
-      await redis.del(`ratelimit:${prefix}:${key}`);
+      try {
+        await redis.del(`ratelimit:${prefix}:${key}`);
+      } catch (err) {
+        logger.warn(`[rateLimiter] Redis resetKey failed (prefix="${prefix}"): ${err.message}`);
+      }
     },
   };
 }

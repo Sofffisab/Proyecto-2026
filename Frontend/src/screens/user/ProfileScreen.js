@@ -4,6 +4,7 @@ import Svg, { Polygon } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
+import BottomNav from '../../components/common/BottomNav';
 import SocialInteractionPopup from './popups/SocialInteractionPopup';
 import RateTrainerPopup from './popups/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
@@ -288,6 +289,7 @@ export default function ProfileScreen({
 
   const initials = `${(user?.firstName || '').charAt(0)}${(user?.lastName || '').charAt(0)}`.toUpperCase();
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || t('user.home.title');
+  const mainGoalLabel = Array.isArray(user?.objectives) ? user.objectives[0] : null;
 
   return (
     <View style={styles.body}>
@@ -365,16 +367,39 @@ export default function ProfileScreen({
             <Text style={styles.t1}>{t('user.home.currentPlan')}</Text>
           </TouchableOpacity>
 
-          {/* Personal data — card with quick-access icons, like .E2 */}
+          {/* Personal data — two info items (profession, current goal),
+              like the "Datos personales" card in the mockup. Tapping
+              either one opens Editar Perfil, since that's where both are
+              actually edited. */}
           <View style={styles.e2}>
             <Text style={styles.t2}>{t('user.home.personalData')}</Text>
-            <View style={styles.hexagonos}>
-              <Hexagon color={globals.colors.primary} onPress={onGoToSettings}>
-                <Text style={styles.hexagonoIcon}>⚙️</Text>
-              </Hexagon>
-              <Hexagon color={globals.colors.danger} onPress={onGoToWrapped}>
-                <Text style={styles.hexagonoIcon}>🎁</Text>
-              </Hexagon>
+            <View style={styles.datosRow}>
+              <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
+                <View style={[styles.datoIconWrap, styles.datoIconWrapProfesion]}>
+                  <Text style={styles.datoIcon}>💼</Text>
+                </View>
+                <View style={styles.datoTextWrap}>
+                  <Text style={styles.datoLabel} numberOfLines={1}>
+                    {t('user.home.profession')}
+                  </Text>
+                  <Text style={styles.datoValue} numberOfLines={1}>
+                    {user?.profession || t('user.home.notSpecified')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
+                <View style={[styles.datoIconWrap, styles.datoIconWrapObjetivo]}>
+                  <Text style={styles.datoIcon}>🎯</Text>
+                </View>
+                <View style={styles.datoTextWrap}>
+                  <Text style={styles.datoValue} numberOfLines={1}>
+                    {mainGoalLabel || t('user.home.notSpecified')}
+                  </Text>
+                  <Text style={styles.datoLabel} numberOfLines={1}>
+                    {t('user.home.currentGoal')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -388,8 +413,8 @@ export default function ProfileScreen({
               <Hexagon color={styles.hexagonoTeal.backgroundColor} onPress={onGoToAchievementsGoals}>
                 <Text style={styles.hexagonoIcon}>💪</Text>
               </Hexagon>
-              <Hexagon color={styles.hexagonoNavy.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>🔥</Text>
+              <Hexagon color={styles.hexagonoMaroon.backgroundColor} onPress={onGoToAchievementsGoals}>
+                <Text style={styles.hexagonoIcon}>📅</Text>
               </Hexagon>
               <Hexagon color={styles.hexagonoOrange.backgroundColor} onPress={onGoToAchievementsGoals}>
                 <Text style={styles.hexagonoIcon}>👑</Text>
@@ -436,22 +461,16 @@ export default function ProfileScreen({
         <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
       </ScrollView>
 
-      {/* ---------------- FOOTER (".footer") ---------------- */}
-      <View style={styles.footer}>
-        <Image source={require('../../assets/Imagen.png')} style={styles.footerImg} />
-        <TouchableOpacity onPress={onGoToHome}>
-          <Image source={require('../../assets/Vector (3).png')} style={styles.footerImg} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.circulo} onPress={() => setShowScanQR(true)}>
-          <Image source={require('../../assets/boxicons_qr-scan.png')} style={styles.qr} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onGoToAchievementsGoals}>
-          <Image source={require('../../assets/proicons_trophy.png')} style={styles.footerImg} />
-        </TouchableOpacity>
-        {/* "usuario" tab — this screen IS its destination, so it's shown
-            active/highlighted instead of being pressable to itself. */}
-        <Image source={require('../../assets/Group 49.png')} style={[styles.footerImg, styles.footerImgActive]} />
-      </View>
+      {/* ---------------- FOOTER ----------------
+          Shared component: same 5 buttons -> same 5 destinations on every
+          screen that has it. This IS the "profile" destination, so that
+          tab is passed as `active` instead of a handler. */}
+      <BottomNav
+        active="profile"
+        onGoToHome={onGoToHome}
+        onScanQR={() => setShowScanQR(true)}
+        onGoToAchievements={onGoToAchievementsGoals}
+      />
 
       {/* Check-in success pop-up (spec section 3 QR logic). */}
       <Modal
@@ -806,6 +825,49 @@ const styles = StyleSheet.create({
     color: globals.colors.secondary,
   },
 
+  // ---------------- "Datos personales" info items ----------------
+  datosRow: {
+    flexDirection: 'row',
+    width: '100%',
+    paddingHorizontal: 10,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  datoItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  datoIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: globals.radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  datoIconWrapProfesion: {
+    backgroundColor: '#DCEEF2',
+  },
+  datoIconWrapObjetivo: {
+    backgroundColor: '#FBE7D4',
+  },
+  datoIcon: {
+    fontSize: 16,
+  },
+  datoTextWrap: {
+    flexShrink: 1,
+  },
+  datoLabel: {
+    fontSize: 11,
+    color: globals.colors.textMuted,
+  },
+  datoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: globals.colors.text,
+  },
+
   // ---------------- hexágonos ----------------
   hexagonos: {
     flexDirection: 'row',
@@ -836,8 +898,8 @@ const styles = StyleSheet.create({
   hexagonoTeal: {
     backgroundColor: '#177E89',
   },
-  hexagonoNavy: {
-    backgroundColor: '#2C3E50',
+  hexagonoMaroon: {
+    backgroundColor: '#6B3F4D',
   },
   hexagonoOrange: {
     backgroundColor: '#F2994A',
@@ -929,36 +991,5 @@ const styles = StyleSheet.create({
   },
   modalButtonDanger: {
     backgroundColor: globals.colors.danger,
-  },
-
-  // ---------------- FOOTER (".footer") ----------------
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    height: 75,
-    backgroundColor: globals.colors.badge,
-  },
-  footerImg: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-  },
-  footerImgActive: {
-    tintColor: globals.colors.primary,
-  },
-  circulo: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 60,
-    width: 60,
-    backgroundColor: globals.colors.primary,
-    borderRadius: 30,
-  },
-  qr: {
-    width: 35,
-    height: 35,
   },
 });
