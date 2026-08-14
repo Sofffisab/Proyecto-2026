@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { redis } from "../config/index.js";
 
 // Serverless deploy needs a shared store across instances (Redis) instead
@@ -51,8 +51,13 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisStore("api"),
-  // Key on user ID (post-auth) instead of IP, to avoid shared-IP blocking
-  keyGenerator: (req) => req.user?.id || req.ip,
+  // Key on user ID (post-auth) instead of IP, to avoid shared-IP blocking.
+  // Falls back to IP for unauthenticated requests — must go through
+  // ipKeyGenerator so IPv6 addresses are normalized per-subnet instead of
+  // per-exact-address (otherwise an IPv6 user could bypass the limit by
+  // varying the host part of their address). See:
+  // https://express-rate-limit.github.io/ERR_ERL_KEY_GEN_IPV6/
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req.ip),
   message: {
     success: false,
     message: "Too many requests",

@@ -109,7 +109,7 @@
       }
     },
     "home": {
-      "title": "Home",
+      "title": "Your Profile",
       "subtitle": "Your summary for today",
       "pointsAccumulated": "Points accumulated",
       "pointsLoading": "Loading...",
@@ -129,6 +129,14 @@
       "wrapped": "Year Wrapped",
       "logout": "Log out / Switch account",
       "back": "Back",
+      "member": "Member",
+      "trainingsCompleted": "Trainings\ncompleted",
+      "currentStreak": "Current streak\n(trainings)",
+      "achievementsObtained": "Achievements\nobtained",
+      "totalPoints": "Total\npoints",
+      "currentPlan": "Current plan",
+      "personalData": "Personal data",
+      "achievements": "Achievements",
       "testSocialInteraction": "For testing: Social Interaction pop-up",
       "testRateTrainer": "For testing: Rate Trainer(s) pop-up",
       "checkInSuccessTitle": "Welcome!",

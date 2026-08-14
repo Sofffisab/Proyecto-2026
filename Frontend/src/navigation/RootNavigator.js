@@ -15,7 +15,7 @@ import NotificationsScreen from '../screens/shared/NotificationsScreen';
 
 import { OnboardingGoalScreen, OnboardingLevelScreen, OnboardingDaysScreen, OnboardingTypeScreen, OnboardingSuccessScreen } from '../screens/user/OnboardingScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
-import UserHomeScreen from '../screens/user/HomeScreen';
+import ProfileScreen from '../screens/user/ProfileScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
 import RoutinesScreen from '../screens/user/RoutinesScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
@@ -60,7 +60,9 @@ export const ROUTES = {
   ONBOARDING_TYPE: 'UserOnboardingType',
   ONBOARDING_DONE: 'UserOnboardingDone',
   USER_SETTINGS: 'UserSettings',
-  USER_HOME: 'UserHome',
+  // "usuario" (person) footer icon -> pantalla "Tu perfil" (was mistakenly
+  // called/used as "home"; now its own dedicated route/screen).
+  USER_PROFILE: 'UserProfile',
   USER_HISTORY: 'UserHistory',
   USER_ROUTINES: 'UserRoutines',
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
@@ -109,7 +111,7 @@ function getHomeRouteForUser(user) {
   if (!user) return ROUTES.WELCOME;
   if (user.role === ROLES.ADMIN.toUpperCase()) return ROUTES.ADMIN_HOME;
   if (user.role === ROLES.TRAINER.toUpperCase()) return ROUTES.TRAINER_HOME;
-  return user.isProfileComplete ? ROUTES.USER_HOME : ROUTES.ONBOARDING_GOAL;
+  return user.isProfileComplete ? ROUTES.USER_PROFILE : ROUTES.ONBOARDING_GOAL;
 }
 
 export default function RootNavigator() {
@@ -362,10 +364,11 @@ export default function RootNavigator() {
               });
 
               // First-time completion (coming from Onboarding): once the
-              // profile is complete, go straight to Home instead of back
-              // to Onboarding. Otherwise (editing from Home), just return.
+              // profile is complete, go straight to the Profile screen
+              // instead of back to Onboarding. Otherwise (editing from
+              // Profile), just return there.
               if (updatedUser.isProfileComplete) {
-                navigation.reset({ index: 0, routes: [{ name: ROUTES.USER_HOME }] });
+                navigation.reset({ index: 0, routes: [{ name: ROUTES.USER_PROFILE }] });
               } else {
                 goBack(navigation)();
               }
@@ -375,9 +378,9 @@ export default function RootNavigator() {
         )}
       </Stack.Screen>
 
-      <Stack.Screen name={ROUTES.USER_HOME}>
+      <Stack.Screen name={ROUTES.USER_PROFILE}>
         {({ navigation }) => (
-          <UserHomeScreen
+          <ProfileScreen
             onGoToHistory={() => navigation.navigate(ROUTES.USER_HISTORY)}
             onGoToRoutines={() => navigation.navigate(ROUTES.USER_ROUTINES)}
             onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}

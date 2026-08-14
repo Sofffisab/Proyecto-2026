@@ -16,7 +16,17 @@ import * as challengeApi from '../../api/services/challenge.api';
 import { flushQueue } from '../../offline/offlineQueue';
 
 /**
- * Main Screen (User) - spec section 3 / 8 ("UserHome").
+ * User Profile screen ("Tu perfil") - reached by tapping the "usuario"
+ * (person) icon in the bottom nav bar, present on most screens after
+ * login. Shows the data configured previously in the mandatory first-time
+ * Settings flow (name, photo, stats, current plan, achievements).
+ *
+ * IMPORTANT: this used to live inside HomeScreen.js / ROUTES.USER_HOME by
+ * mistake — conceptually it's the "person" tab destination, not a "house"
+ * dashboard (the app's bottom bar has a separate, still-unbuilt house
+ * icon for that). It was moved into its own file/route (USER_PROFILE) so
+ * the "person" icon and the "house" icon can point at two different
+ * screens instead of being conflated into one.
  *
  * Visual design ported from src/pantallashtml/Perfil.html + Perfil.css
  * (web) into React Native, following the project's HTML -> RN conversion
@@ -35,7 +45,13 @@ import { flushQueue } from '../../offline/offlineQueue';
  * avatarPlaceholder grey circle, sectionCard grey blocks, etc).
  *
  * NOTE: CSS `clip-path` (used for `.hexagono`) has no RN equivalent, so the
- * hexagon shape is approximated with a rounded square of the same size.
+ * hexagon shape is drawn with react-native-svg (see the Hexagon component
+ * below) instead of the plain rounded-square approximation this screen
+ * used to fall back to.
+ *
+ * The "..." button (top-right) opens Editar Perfil (SettingsScreen) —
+ * matches the "Editar perfil" mockups. Saving there navigates back to
+ * this exact screen (ROUTES.USER_PROFILE), not to a generic "home".
  *
  * QR scan (POST /qr/scan, via qr.api.js) auto-detects entry/exit/machine/
  * interaction server-side (verification.service.js#processScan) and
@@ -52,9 +68,10 @@ import { flushQueue } from '../../offline/offlineQueue';
  * @param {function} [onGoToRoutines]
  * @param {function} [onGoToAchievementsGoals]
  * @param {function} [onGoToReports] - navigates to the Reports Screen (spec section 3)
- * @param {function} [onGoToSettings]
+ * @param {function} [onGoToSettings] - opens Editar Perfil (the "..." button)
  * @param {function} [onGoToWrapped]
  * @param {function} [onGoToNotifications]
+ * @param {function} [onGoToHome] - "house" footer icon; separate dashboard, not this screen
  * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
  * @param {function} [onBack]
  */
@@ -92,7 +109,7 @@ function Hexagon({ color, onPress, children }) {
   );
 }
 
-export default function HomeScreen({
+export default function ProfileScreen({
   onGoToHistory,
   onGoToRoutines,
   onGoToAchievementsGoals,
@@ -100,6 +117,7 @@ export default function HomeScreen({
   onGoToSettings,
   onGoToWrapped,
   onGoToNotifications,
+  onGoToHome,
   onLogout,
   onBack,
 }) {
@@ -276,14 +294,21 @@ export default function HomeScreen({
       {/* ---------------- HEADER (".Espacio") ---------------- */}
       <View style={styles.espacio}>
         <Text style={styles.h1}>{t('user.home.title')}</Text>
-        <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
-          <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
+            <Text style={styles.headerBellIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {/* "..." -> Editar perfil (SettingsScreen). Al guardar ahí,
+              la navegación vuelve a esta misma pantalla ("Tu perfil"). */}
+          <TouchableOpacity onPress={onGoToSettings} style={styles.headerIconButton}>
+            <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -303,7 +328,7 @@ export default function HomeScreen({
             )}
           </View>
           <View style={styles.resto}>
-            <Text style={styles.h1RestoTitle}>{fullName}</Text>
+            <Text style={styles.h1RestoTitle}>{fullName.toUpperCase()}</Text>
             <Text style={styles.h1Mail}>{user?.email || ''}</Text>
             <TouchableOpacity style={styles.scanQrButtonInline} onPress={onGoToSettings}>
               <Text style={styles.scanQrButtonInlineLabel}>{t('user.home.member')}</Text>
@@ -375,21 +400,29 @@ export default function HomeScreen({
           {/* Quick nav row */}
           <View style={styles.quickNavRow}>
             <TouchableOpacity style={styles.quickNavItem} onPress={onGoToHistory}>
-              <Text style={styles.d1Icon}>🕘</Text>
+              <View style={styles.quickNavIconWrap}>
+                <Text style={styles.d1Icon}>🕘</Text>
+              </View>
               <Text style={styles.texto}>{t('user.home.history')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickNavItem} onPress={onGoToReports}>
-              <Text style={styles.d1Icon}>📊</Text>
+              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapReports]}>
+                <Text style={styles.d1Icon}>📊</Text>
+              </View>
               <Text style={styles.texto}>{t('user.home.reports')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickNavItem} onPress={handleAskForHelp} disabled={helpLoading}>
-              <Text style={styles.d1Icon}>🆘</Text>
+              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapSos]}>
+                <Text style={styles.d1Icon}>🆘</Text>
+              </View>
               <Text style={styles.texto}>
                 {helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickNavItem} onPress={() => setShowLogoutConfirm(true)}>
-              <Text style={styles.d1Icon}>🚪</Text>
+              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapLogout]}>
+                <Text style={styles.d1Icon}>🚪</Text>
+              </View>
               <Text style={styles.texto}>{t('user.home.logout')}</Text>
             </TouchableOpacity>
           </View>
@@ -406,14 +439,18 @@ export default function HomeScreen({
       {/* ---------------- FOOTER (".footer") ---------------- */}
       <View style={styles.footer}>
         <Image source={require('../../assets/Imagen.png')} style={styles.footerImg} />
-        <Image source={require('../../assets/Vector (3).png')} style={styles.footerImg} />
+        <TouchableOpacity onPress={onGoToHome}>
+          <Image source={require('../../assets/Vector (3).png')} style={styles.footerImg} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.circulo} onPress={() => setShowScanQR(true)}>
           <Image source={require('../../assets/boxicons_qr-scan.png')} style={styles.qr} />
         </TouchableOpacity>
         <TouchableOpacity onPress={onGoToAchievementsGoals}>
           <Image source={require('../../assets/proicons_trophy.png')} style={styles.footerImg} />
         </TouchableOpacity>
-        <Image source={require('../../assets/Group 49.png')} style={styles.footerImg} />
+        {/* "usuario" tab — this screen IS its destination, so it's shown
+            active/highlighted instead of being pressable to itself. */}
+        <Image source={require('../../assets/Group 49.png')} style={[styles.footerImg, styles.footerImgActive]} />
       </View>
 
       {/* Check-in success pop-up (spec section 3 QR logic). */}
@@ -549,8 +586,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: globals.colors.text,
   },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   headerIconButton: {
     position: 'relative',
+  },
+  headerBellIcon: {
+    fontSize: 20,
   },
   espacioImg: {
     width: 30,
@@ -585,58 +630,62 @@ const styles = StyleSheet.create({
 
   // ---------------- POINTS (".centro") ----------------
   centro: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 35,
     width: '100%',
-    marginTop: 20,
+    marginTop: 10,
   },
   eCirculoImagen: {
     // wraps the circle, mirrors ".ECirculoImagen"
   },
   circuloImagen: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
     backgroundColor: globals.colors.avatarPlaceholder,
-    borderRadius: 60,
+    borderRadius: 45,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   circuloImagenPhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     flexShrink: 0,
   },
   circuloPuntos: {
-    fontSize: globals.fontSize.xxl,
+    fontSize: globals.fontSize.xl,
     fontWeight: 'bold',
     color: globals.colors.text,
   },
   resto: {
     flexDirection: 'column',
+    alignItems: 'center',
+    marginTop: 12,
   },
   h1RestoTitle: {
-    fontSize: 20,
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
     color: globals.colors.text,
+    textAlign: 'center',
   },
   h1Mail: {
     color: globals.colors.textMuted,
     fontSize: 13,
     marginBottom: 0,
+    textAlign: 'center',
   },
   scanQrButtonInline: {
     backgroundColor: globals.colors.primary,
     borderRadius: globals.radius.full,
-    height: 30,
-    paddingHorizontal: 14,
-    marginTop: 15,
+    height: 28,
+    paddingHorizontal: 16,
+    marginTop: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   scanQrButtonInlineLabel: {
     color: globals.colors.secondary,
@@ -687,6 +736,24 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     width: '25%',
+  },
+  quickNavIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: globals.radius.md,
+    backgroundColor: globals.colors.sectionCard,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  quickNavIconWrapReports: {
+    backgroundColor: '#DCE9F5',
+  },
+  quickNavIconWrapSos: {
+    backgroundColor: globals.colors.danger,
+  },
+  quickNavIconWrapLogout: {
+    backgroundColor: '#F0DFC8',
   },
 
   // ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ----------------
@@ -877,6 +944,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     resizeMode: 'contain',
+  },
+  footerImgActive: {
+    tintColor: globals.colors.primary,
   },
   circulo: {
     flexDirection: 'row',
