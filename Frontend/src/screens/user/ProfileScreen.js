@@ -12,7 +12,6 @@ import { useAuth } from '../../context/AuthContext';
 import * as gamificationApi from '../../api/services/gamification.api';
 import * as qrApi from '../../api/services/qr.api';
 import * as assistanceApi from '../../api/services/assistance.api';
-import * as notificationApi from '../../api/services/notification.api';
 import * as challengeApi from '../../api/services/challenge.api';
 import { flushQueue } from '../../offline/offlineQueue';
 
@@ -65,16 +64,11 @@ import { flushQueue } from '../../offline/offlineQueue';
  *   - MACHINE / USER (social challenge pairing) -> generic success/error
  *     feedback bar, same as before.
  *
- * @param {function} [onGoToHistory]
  * @param {function} [onGoToRoutines]
  * @param {function} [onGoToAchievementsGoals]
- * @param {function} [onGoToReports] - navigates to the Reports Screen (spec section 3)
  * @param {function} [onGoToSettings] - opens Editar Perfil (the "..." button)
  * @param {function} [onGoToWrapped]
- * @param {function} [onGoToNotifications]
  * @param {function} [onGoToHome] - "house" footer icon; separate dashboard, not this screen
- * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
- * @param {function} [onBack]
  */
 
 // True hexagon badge (".hexagono" in Perfil.css uses clip-path: polygon()).
@@ -111,16 +105,11 @@ function Hexagon({ color, onPress, children }) {
 }
 
 export default function ProfileScreen({
-  onGoToHistory,
   onGoToRoutines,
   onGoToAchievementsGoals,
-  onGoToReports,
   onGoToSettings,
   onGoToWrapped,
-  onGoToNotifications,
   onGoToHome,
-  onLogout,
-  onBack,
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -141,16 +130,11 @@ export default function ProfileScreen({
   // "Arrival successful" pop-up — CHECK_IN branch of handleScanned.
   const [showCheckInSuccess, setShowCheckInSuccess] = useState(false);
 
-  // "Are you sure?" pop-up for the log out / switch account button.
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
   // GET /gamification/points — refetched every time this screen regains
   // focus (e.g. coming back from Routines after a machine scan awarded
   // points), not just on first mount.
   const [points, setPoints] = useState(0);
   const [pointsLoading, setPointsLoading] = useState(true);
-
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadPoints = useCallback(async () => {
     try {
@@ -162,15 +146,6 @@ export default function ProfileScreen({
       // blocking the whole Home screen over a transient network error.
     } finally {
       setPointsLoading(false);
-    }
-  }, []);
-
-  const loadUnreadCount = useCallback(async () => {
-    try {
-      const { data } = await notificationApi.getUnreadCount();
-      setUnreadCount(data?.count ?? 0);
-    } catch {
-      // Silent — the bell just won't show a badge this time.
     }
   }, []);
 
@@ -188,11 +163,10 @@ export default function ProfileScreen({
   useFocusEffect(
     useCallback(() => {
       loadPoints();
-      loadUnreadCount();
       loadActiveChallenge();
       // Best-effort silent retry of anything queued while offline.
       flushQueue();
-    }, [loadPoints, loadUnreadCount, loadActiveChallenge])
+    }, [loadPoints, loadActiveChallenge])
   );
 
   // QR scan flow — real camera via expo-camera (see QRScanner component).
@@ -263,30 +237,6 @@ export default function ProfileScreen({
     }
   };
 
-  // Ask for Help flow (POST /assistance/request). Fire-and-confirm: the
-  // Backend picks/prioritizes the trainer and pushes the notification to
-  // them (spec section 3), so the member just gets a confirmation here.
-  const [helpLoading, setHelpLoading] = useState(false);
-  const [helpFeedback, setHelpFeedback] = useState(null);
-
-  const handleAskForHelp = async () => {
-    try {
-      setHelpLoading(true);
-      setHelpFeedback(null);
-      await assistanceApi.requestAssistance();
-      setHelpFeedback({ type: 'success', message: t('user.home.helpRequested') });
-    } catch (err) {
-      setHelpFeedback({ type: 'error', message: err.message || t('user.home.helpError') });
-    } finally {
-      setHelpLoading(false);
-    }
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
-    onLogout && onLogout();
-  };
-
   const initials = `${(user?.firstName || '').charAt(0)}${(user?.lastName || '').charAt(0)}`.toUpperCase();
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || t('user.home.title');
   const mainGoalLabel = Array.isArray(user?.objectives) ? user.objectives[0] : null;
@@ -297,14 +247,6 @@ export default function ProfileScreen({
       <View style={styles.espacio}>
         <Text style={styles.h1}>{t('user.home.title')}</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
-            <Text style={styles.headerBellIcon}>🔔</Text>
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
           {/* "..." -> Editar perfil (SettingsScreen). Al guardar ahí,
               la navegación vuelve a esta misma pantalla ("Tu perfil"). */}
           <TouchableOpacity onPress={onGoToSettings} style={styles.headerIconButton}>
@@ -421,44 +363,7 @@ export default function ProfileScreen({
               </Hexagon>
             </View>
           </View>
-
-          {/* Quick nav row */}
-          <View style={styles.quickNavRow}>
-            <TouchableOpacity style={styles.quickNavItem} onPress={onGoToHistory}>
-              <View style={styles.quickNavIconWrap}>
-                <Text style={styles.d1Icon}>🕘</Text>
-              </View>
-              <Text style={styles.texto}>{t('user.home.history')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={onGoToReports}>
-              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapReports]}>
-                <Text style={styles.d1Icon}>📊</Text>
-              </View>
-              <Text style={styles.texto}>{t('user.home.reports')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={handleAskForHelp} disabled={helpLoading}>
-              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapSos]}>
-                <Text style={styles.d1Icon}>🆘</Text>
-              </View>
-              <Text style={styles.texto}>
-                {helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={() => setShowLogoutConfirm(true)}>
-              <View style={[styles.quickNavIconWrap, styles.quickNavIconWrapLogout]}>
-                <Text style={styles.d1Icon}>🚪</Text>
-              </View>
-              <Text style={styles.texto}>{t('user.home.logout')}</Text>
-            </TouchableOpacity>
-          </View>
-          {helpFeedback && (
-            <Text style={helpFeedback.type === 'error' ? styles.errorText : styles.successText}>
-              {helpFeedback.message}
-            </Text>
-          )}
         </View>
-
-        <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
       </ScrollView>
 
       {/* ---------------- FOOTER ----------------
@@ -486,32 +391,6 @@ export default function ProfileScreen({
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowCheckInSuccess(false)}>
               <Text style={styles.modalButtonLabel}>{t('common.close')}</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Log out / switch account confirmation pop-up ("¿estás seguro?"). */}
-      <Modal
-        visible={showLogoutConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLogoutConfirm(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('user.home.logoutConfirmTitle')}</Text>
-            <Text>{t('user.home.logoutConfirmMessage')}</Text>
-            <View style={styles.confirmRow}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setShowLogoutConfirm(false)}
-              >
-                <Text style={styles.modalButtonSecondaryLabel}>{t('common.no')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalButtonDanger]} onPress={confirmLogout}>
-                <Text style={styles.modalButtonLabel}>{t('common.yes')}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -613,30 +492,10 @@ const styles = StyleSheet.create({
   headerIconButton: {
     position: 'relative',
   },
-  headerBellIcon: {
-    fontSize: 20,
-  },
   espacioImg: {
     width: 30,
     height: 30,
     resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: globals.colors.danger,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
 
   // ---------------- scroll wrapper ----------------
@@ -741,38 +600,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: globals.colors.textMuted,
     textAlign: 'center',
-  },
-
-  // ---------------- QUICK NAV ROW (below sections) ----------------
-  quickNavRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    width: '100%',
-    marginTop: 5,
-  },
-  quickNavItem: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '25%',
-  },
-  quickNavIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: globals.radius.md,
-    backgroundColor: globals.colors.sectionCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  quickNavIconWrapReports: {
-    backgroundColor: '#DCE9F5',
-  },
-  quickNavIconWrapSos: {
-    backgroundColor: globals.colors.danger,
-  },
-  quickNavIconWrapLogout: {
-    backgroundColor: '#F0DFC8',
   },
 
   // ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ----------------
@@ -908,11 +735,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
-  backLink: {
-    textAlign: 'center',
-    color: globals.colors.textMuted,
-    marginVertical: globals.spacing.lg,
-  },
   errorText: {
     color: globals.colors.danger,
     fontSize: globals.fontSize.sm,
