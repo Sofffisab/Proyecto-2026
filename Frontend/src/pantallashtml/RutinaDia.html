@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="RutinaDia.css">
+     
     <title>Document</title>
 </head>
 <body>
@@ -126,26 +127,8 @@
          <button>Agregar ejercicios</button>
     </div>
     
-    
+    <script src="RutinaDia.js"></script>
 </body>
 </html>
 
 
-<script>
-  const input = document.getElementById("tituloInput");
-const cantidad = document.getElementById("cantidad");
-const vacio = document.querySelector(".icono-vacio");
-const check = document.querySelector(".icono-check");
-
-input.addEventListener("input", () => {
-    cantidad.textContent = input.value.length;
-
-    if (input.value.trim() !== "") {
-        vacio.style.display = "none";
-        check.style.display = "block";
-    } else {
-        vacio.style.display = "block";
-        check.style.display = "none";
-    }
-});
-</script>
