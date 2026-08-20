@@ -108,16 +108,16 @@ export function AuthProvider({ children }) {
       onTokensRefreshed: ({ accessToken: newAccess }) => {
         setAccessToken(newAccess);
         // Persist immediately so a refreshed token survives an app restart.
-        AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-          const saved = raw ? JSON.parse(raw) : {};
-          persistSession({ ...saved, accessToken: newAccess });
-        });
+        // Built from state already in this closure (user/refreshTokenValue)
+        // instead of a get-then-set round trip — see updateLocalUser above
+        // for why that pattern is unsafe when writes can overlap.
+        persistSession({ user, accessToken: newAccess, refreshToken: refreshTokenValue });
       },
       onSessionExpired: () => {
         clearSession();
       },
     });
-  }, [accessToken, refreshTokenValue, clearSession, persistSession]);
+  }, [accessToken, refreshTokenValue, user, clearSession, persistSession]);
 
   const login = useCallback(
     async (email, password) => {
@@ -179,18 +179,29 @@ export function AuthProvider({ children }) {
   }, [persistSession]);
 
   // Cheap local-only update (e.g. optimistic UI) without a round trip.
+  //
+  // IMPORTANT: this used to read the persisted session back from
+  // AsyncStorage before re-writing it (get-then-set). That's a race: when
+  // two updates fire back-to-back (e.g. SettingsScreen's onSave calls
+  // updateProfile() then updateSettings() in sequence), the second one's
+  // AsyncStorage.getItem() can resolve BEFORE the first one's write has
+  // landed, so it persists a stale copy that clobbers the just-saved
+  // profile fields. The in-memory `user` state stayed correct (that's why
+  // the change was visible immediately after saving), but the persisted
+  // copy didn't — so a reload/reopen showed the old data.
+  //
+  // Fix: build the full session to persist from state that's already in
+  // this closure (accessToken/refreshTokenValue) instead of round-tripping
+  // through storage, so each call is a single atomic write.
   const updateLocalUser = useCallback(
     (patch) => {
       setUser((prev) => {
         const next = { ...prev, ...patch };
-        AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-          const saved = raw ? JSON.parse(raw) : {};
-          persistSession({ ...saved, user: next });
-        });
+        persistSession({ user: next, accessToken, refreshToken: refreshTokenValue });
         return next;
       });
     },
-    [persistSession]
+    [persistSession, accessToken, refreshTokenValue]
   );
 
   // PUT /users/me — used by Onboarding and Settings screens. Note: for a

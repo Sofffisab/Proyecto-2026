@@ -4,6 +4,7 @@ import Svg, { Polygon } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
+import BottomNav from '../../components/common/BottomNav';
 import SocialInteractionPopup from './popups/SocialInteractionPopup';
 import RateTrainerPopup from './popups/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
@@ -13,7 +14,24 @@ import * as qrApi from '../../api/services/qr.api';
 import * as assistanceApi from '../../api/services/assistance.api';
 import * as notificationApi from '../../api/services/notification.api';
 import * as challengeApi from '../../api/services/challenge.api';
+import * as routineApi from '../../api/services/routine.api';
+import * as historyApi from '../../api/services/history.api';
 import { flushQueue } from '../../offline/offlineQueue';
+
+// Mon..Sun short labels for the week row (".hexagonos"-style row of dots
+// in the new Home design). Hardcoded like the rest of this screen's icon
+// glyphs (🕘📊🆘🚪 below) rather than translated, since they're single
+// letters tied to a fixed visual slot, not sentences.
+const WEEK_DAY_LETTERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+// JS's Date#getDay() is Sun=0..Sat=6; the design's week row is Mon..Sun.
+function mondayFirstIndex(jsDay) {
+  return (jsDay + 6) % 7;
+}
+
+function toDateKey(date) {
+  return date.toISOString().split('T')[0];
+}
 
 /**
  * Main Screen (User) - spec section 3 / 8 ("UserHome").
@@ -100,6 +118,7 @@ export default function HomeScreen({
   onGoToSettings,
   onGoToWrapped,
   onGoToNotifications,
+  onGoToProfile,
   onLogout,
   onBack,
 }) {
@@ -132,6 +151,23 @@ export default function HomeScreen({
   const [pointsLoading, setPointsLoading] = useState(true);
 
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // GET /routines/today — powers the "HOY" hero card and the "PRÓXIMO
+  // ENTRENAMIENTO" card. `content` is free-form JSON (Routine model has no
+  // fixed exercise-count/duration/day-of-week fields), so those bits fall
+  // back to sensible placeholders when a routine doesn't specify them —
+  // same "data gap" pattern already used elsewhere on this screen (e.g.
+  // the rateTrainer trainer-name fallback above).
+  const [todayRoutine, setTodayRoutine] = useState(null);
+  const [nextRoutine, setNextRoutine] = useState(null);
+  const [routinesLoading, setRoutinesLoading] = useState(true);
+
+  // GET /history/machine-usage — grouped by day; used to mark which days
+  // of *this* week the user actually trained, for the week row of dots
+  // and the "X de Y entrenamientos completados" progress card. There's no
+  // dedicated "weekly schedule" endpoint, so this is the closest real
+  // signal available or the trick counts as invented data.
+  const [weekActivity, setWeekActivity] = useState({}); // { 'YYYY-MM-DD': true }
 
   const loadPoints = useCallback(async () => {
     try {
@@ -166,14 +202,56 @@ export default function HomeScreen({
     }
   }, []);
 
+  const loadTodayRoutines = useCallback(async () => {
+    try {
+      setRoutinesLoading(true);
+      const { data } = await routineApi.getTodayOptions();
+      const saved = data?.routines ?? [];
+      // Prefer the user's own saved/AI-accepted routines; fall back to the
+      // always-available free routine so the hero card is never empty.
+      const first = saved[0] ?? (data?.freeRoutine ?? null);
+      const second = saved[1] ?? (saved[0] ? data?.freeRoutine : null);
+      setTodayRoutine(first);
+      setNextRoutine(second ?? null);
+    } catch {
+      // Best-effort — the hero card just falls back to its empty state.
+    } finally {
+      setRoutinesLoading(false);
+    }
+  }, []);
+
+  const loadWeekActivity = useCallback(async () => {
+    try {
+      const { data } = await historyApi.getDailyMachineUsageLog();
+      const grouped = data ?? {};
+      const today = new Date();
+      const mondayOffset = mondayFirstIndex(today.getDay());
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - mondayOffset);
+
+      const activity = {};
+      for (let i = 0; i < 7; i += 1) {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        const key = toDateKey(day);
+        activity[key] = Boolean(grouped[key] && grouped[key].length > 0);
+      }
+      setWeekActivity(activity);
+    } catch {
+      // Silent — the week row just shows no checkmarks this time.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadPoints();
       loadUnreadCount();
       loadActiveChallenge();
+      loadTodayRoutines();
+      loadWeekActivity();
       // Best-effort silent retry of anything queued while offline.
       flushQueue();
-    }, [loadPoints, loadUnreadCount, loadActiveChallenge])
+    }, [loadPoints, loadUnreadCount, loadActiveChallenge, loadTodayRoutines, loadWeekActivity])
   );
 
   // QR scan flow — real camera via expo-camera (see QRScanner component).
@@ -269,21 +347,54 @@ export default function HomeScreen({
   };
 
   const initials = `${(user?.firstName || '').charAt(0)}${(user?.lastName || '').charAt(0)}`.toUpperCase();
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || t('user.home.title');
+
+  // Week-row + progress-card numbers, derived from loadWeekActivity's
+  // real (if sparse) machine-usage-by-day signal.
+  const weekDoneCount = Object.values(weekActivity).filter(Boolean).length;
+  const weekKeys = Object.keys(weekActivity).sort();
+  const todayIndex = mondayFirstIndex(new Date().getDay());
+  const todayKey = toDateKey(new Date());
+
+  const todayDayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric' });
+  const nextDayLabel = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric' });
+  })();
+
+  const routineExerciseCount = (routine) => {
+    const exercises = routine?.content?.exercises;
+    return Array.isArray(exercises) ? exercises.length : null;
+  };
+  const routineDuration = (routine) => routine?.content?.durationMinutes ?? null;
 
   return (
     <View style={styles.body}>
       {/* ---------------- HEADER (".Espacio") ---------------- */}
       <View style={styles.espacio}>
-        <Text style={styles.h1}>{t('user.home.title')}</Text>
-        <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
-          <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.espacioGreeting}>
+          <Text style={styles.h1}>{t('user.home.greeting', { name: user?.firstName || t('user.home.member') })}</Text>
+          <Text style={styles.espacioSubtitle}>{t('user.home.greetingSubtitle')}</Text>
+        </View>
+        <View style={styles.espacioActions}>
+          <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
+            <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onGoToProfile}>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.headerAvatarPhoto} />
+            ) : (
+              <View style={styles.headerAvatar}>
+                <Text style={styles.headerAvatarText}>{initials || '🙂'}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -291,56 +402,120 @@ export default function HomeScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---------------- PROFILE HEADER (".centro") ---------------- */}
-        <View style={styles.centro}>
-          <View style={styles.eCirculoImagen}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.circuloImagenPhoto} />
-            ) : (
-              <View style={styles.circuloImagen}>
-                <Text style={styles.circuloPuntos}>{initials || '🙂'}</Text>
-              </View>
+        {/* ---------------- TODAY HERO CARD ---------------- */}
+        <TouchableOpacity style={styles.heroCard} onPress={onGoToRoutines} activeOpacity={0.9}>
+          <View style={styles.heroTextCol}>
+            <Text style={styles.heroLabel}>
+              {t('user.home.todayLabel')} • {todayDayLabel}
+            </Text>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {routinesLoading
+                ? '…'
+                : todayRoutine?.name || t('user.home.noRoutineTitle')}
+            </Text>
+            <Text style={styles.heroMeta}>
+              {routinesLoading
+                ? ' '
+                : [
+                    routineExerciseCount(todayRoutine) != null
+                      ? t('user.home.exercisesCount', { count: routineExerciseCount(todayRoutine) })
+                      : null,
+                    routineDuration(todayRoutine) != null
+                      ? t('user.home.durationMinutes', { count: routineDuration(todayRoutine) })
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' • ')}
+            </Text>
+            <View style={styles.heroButton}>
+              <Text style={styles.heroButtonLabel}>{t('user.home.startTraining')} →</Text>
+            </View>
+          </View>
+          <View style={styles.heroImageWrap}>
+            <Text style={styles.heroImageEmoji}>💪</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* ---------------- NEXT TRAINING ---------------- */}
+        <Text style={styles.sectionLabel}>{t('user.home.nextTrainingLabel')}</Text>
+        <TouchableOpacity style={styles.nextCard} onPress={onGoToRoutines}>
+          <View style={styles.nextCardIcon}>
+            <Text style={styles.nextCardIconText}>📅</Text>
+          </View>
+          <View style={styles.nextCardTextCol}>
+            <Text style={styles.nextCardDay}>{nextDayLabel}</Text>
+            <Text style={styles.nextCardTitle}>
+              {routinesLoading
+                ? '…'
+                : nextRoutine?.name || t('user.home.noRoutineTitle')}
+            </Text>
+            {routineExerciseCount(nextRoutine) != null && (
+              <Text style={styles.nextCardMeta}>
+                {t('user.home.exercisesCount', { count: routineExerciseCount(nextRoutine) })}
+              </Text>
             )}
           </View>
-          <View style={styles.resto}>
-            <Text style={styles.h1RestoTitle}>{fullName}</Text>
-            <Text style={styles.h1Mail}>{user?.email || ''}</Text>
-            <TouchableOpacity style={styles.scanQrButtonInline} onPress={onGoToSettings}>
-              <Text style={styles.scanQrButtonInlineLabel}>{t('user.home.member')}</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.viewScheduleLink} onPress={onGoToRoutines}>
+          {t('user.home.viewFullSchedule')} ›
+        </Text>
+
+        {/* ---------------- WEEK ROW ---------------- */}
+        <View style={styles.weekRow}>
+          {WEEK_DAY_LETTERS.map((letter, i) => {
+            const key = weekKeys[i];
+            const done = key ? Boolean(weekActivity[key]) : false;
+            const isToday = i === todayIndex;
+            return (
+              <View key={`${letter}-${i}`} style={styles.weekDayCol}>
+                <Text style={styles.weekDayLetter}>{letter}</Text>
+                <View
+                  style={[
+                    styles.weekDot,
+                    done && styles.weekDotDone,
+                    isToday && !done && styles.weekDotToday,
+                  ]}
+                >
+                  {done && <Text style={styles.weekDotCheck}>✓</Text>}
+                </View>
+              </View>
+            );
+          })}
         </View>
 
-        {/* ---------------- STATS (".final" / ".D1") ---------------- */}
-        <View style={styles.final}>
-          <View style={styles.d1}>
-            <Text style={styles.d1Number}>{pointsLoading ? '…' : '28'}</Text>
-            <Text style={styles.texto}>{t('user.home.trainingsCompleted')}</Text>
+        {/* ---------------- PROGRESS CARD ---------------- */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressIcon}>
+            <Text style={styles.progressIconText}>📈</Text>
           </View>
-          <View style={styles.d1}>
-            <Text style={styles.d1Number}>14</Text>
-            <Text style={styles.texto}>{t('user.home.currentStreak')}</Text>
-          </View>
-          <View style={styles.d1}>
-            <Text style={styles.d1Number}>6</Text>
-            <Text style={styles.texto}>{t('user.home.achievementsObtained')}</Text>
-          </View>
-          <View style={styles.d1}>
-            <Text style={styles.d1Number}>
-              {pointsLoading ? '…' : points.toLocaleString()}
+          <View style={styles.progressTextCol}>
+            <Text style={styles.progressTitle}>
+              {t('user.home.trainingsCompletedThisWeek', { done: weekDoneCount, total: WEEK_DAY_LETTERS.length })}
             </Text>
-            <Text style={styles.texto}>{t('user.home.totalPoints')}</Text>
+            <Text style={styles.progressSubtitle}>{t('user.home.keepGoing')}</Text>
+          </View>
+          <View style={styles.progressPointsPill}>
+            <Text style={styles.progressPointsText}>
+              {pointsLoading ? '…' : points.toLocaleString()} {t('user.home.pointsShort')}
+            </Text>
           </View>
         </View>
 
-        {/* ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ---------------- */}
-        <View style={styles.e}>
-          {/* Current plan — full-width card, like .E1 */}
-          <TouchableOpacity style={styles.e1} onPress={onGoToRoutines}>
-            <Text style={styles.t1}>{t('user.home.currentPlan')}</Text>
-          </TouchableOpacity>
+        {/* ---------------- MOTIVATIONAL QUOTE BANNER ---------------- */}
+        <TouchableOpacity style={styles.quoteBanner} onPress={onGoToAchievementsGoals}>
+          <Text style={styles.quoteIcon}>🏆</Text>
+          <Text style={styles.quoteText}>{t('user.home.motivationalQuote')}</Text>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
 
-          {/* Personal data — card with quick-access icons, like .E2 */}
+        {/* ---------------- QUICK ACCESS (components from the previous
+            design that aren't represented above: settings, wrapped,
+            achievement badges, history, reports, ask for help, logout) --- */}
+        <View style={styles.e}>
+          <Text style={styles.sectionLabel}>{t('user.home.quickAccess')}</Text>
+
           <View style={styles.e2}>
             <Text style={styles.t2}>{t('user.home.personalData')}</Text>
             <View style={styles.hexagonos}>
@@ -353,7 +528,6 @@ export default function HomeScreen({
             </View>
           </View>
 
-          {/* Achievements — hexagon badge row, like .E3 */}
           <View style={styles.e2}>
             <Text style={styles.t2}>{t('user.home.achievements')}</Text>
             <View style={styles.hexagonos}>
@@ -372,7 +546,6 @@ export default function HomeScreen({
             </View>
           </View>
 
-          {/* Quick nav row */}
           <View style={styles.quickNavRow}>
             <TouchableOpacity style={styles.quickNavItem} onPress={onGoToHistory}>
               <Text style={styles.d1Icon}>🕘</Text>
@@ -403,18 +576,17 @@ export default function HomeScreen({
         <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
       </ScrollView>
 
-      {/* ---------------- FOOTER (".footer") ---------------- */}
-      <View style={styles.footer}>
-        <Image source={require('../../assets/Imagen.png')} style={styles.footerImg} />
-        <Image source={require('../../assets/Vector (3).png')} style={styles.footerImg} />
-        <TouchableOpacity style={styles.circulo} onPress={() => setShowScanQR(true)}>
-          <Image source={require('../../assets/boxicons_qr-scan.png')} style={styles.qr} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onGoToAchievementsGoals}>
-          <Image source={require('../../assets/proicons_trophy.png')} style={styles.footerImg} />
-        </TouchableOpacity>
-        <Image source={require('../../assets/Group 49.png')} style={styles.footerImg} />
-      </View>
+      {/* ---------------- FOOTER ----------------
+          Shared component: same 5 buttons -> same 5 destinations on every
+          screen that has it. This IS the "home" destination, so that tab
+          is passed as `active` instead of a handler. */}
+      <BottomNav
+        active="home"
+        onGoToCalendar={onGoToRoutines}
+        onScanQR={() => setShowScanQR(true)}
+        onGoToAchievements={onGoToAchievementsGoals}
+        onGoToProfile={onGoToProfile}
+      />
 
       {/* Check-in success pop-up (spec section 3 QR logic). */}
       <Modal
@@ -539,23 +711,55 @@ const styles = StyleSheet.create({
   espacio: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     width: '100%',
     paddingVertical: 15,
     paddingHorizontal: 20,
+  },
+  espacioGreeting: {
+    flexShrink: 1,
+    paddingRight: 10,
   },
   h1: {
     fontSize: 22,
     fontWeight: 'bold',
     color: globals.colors.text,
   },
+  espacioSubtitle: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginTop: 4,
+  },
+  espacioActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   headerIconButton: {
     position: 'relative',
   },
   espacioImg: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
     resizeMode: 'contain',
+  },
+  headerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: globals.colors.avatarPlaceholder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarPhoto: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  headerAvatarText: {
+    fontSize: globals.fontSize.sm,
+    fontWeight: 'bold',
+    color: globals.colors.text,
   },
   badge: {
     position: 'absolute',
@@ -583,88 +787,230 @@ const styles = StyleSheet.create({
     paddingBottom: globals.spacing.lg,
   },
 
-  // ---------------- POINTS (".centro") ----------------
-  centro: {
+  // ---------------- TODAY HERO CARD ----------------
+  heroCard: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 35,
-    width: '100%',
-    marginTop: 20,
+    backgroundColor: globals.colors.background,
+    borderWidth: 1,
+    borderColor: globals.colors.border,
+    borderRadius: globals.radius.lg,
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.md,
+    overflow: 'hidden',
   },
-  eCirculoImagen: {
-    // wraps the circle, mirrors ".ECirculoImagen"
+  heroTextCol: {
+    flex: 1,
+    padding: globals.spacing.md,
   },
-  circuloImagen: {
-    width: 120,
-    height: 120,
-    backgroundColor: globals.colors.avatarPlaceholder,
-    borderRadius: 60,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: globals.colors.primary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
   },
-  circuloImagenPhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    flexShrink: 0,
-  },
-  circuloPuntos: {
-    fontSize: globals.fontSize.xxl,
+  heroTitle: {
+    fontSize: globals.fontSize.xl,
     fontWeight: 'bold',
     color: globals.colors.text,
+    marginBottom: 6,
   },
-  resto: {
-    flexDirection: 'column',
-  },
-  h1RestoTitle: {
-    fontSize: 20,
-    marginBottom: 8,
-    color: globals.colors.text,
-  },
-  h1Mail: {
+  heroMeta: {
+    fontSize: globals.fontSize.sm,
     color: globals.colors.textMuted,
-    fontSize: 13,
-    marginBottom: 0,
+    marginBottom: globals.spacing.md,
   },
-  scanQrButtonInline: {
+  heroButton: {
     backgroundColor: globals.colors.primary,
     borderRadius: globals.radius.full,
-    height: 30,
-    paddingHorizontal: 14,
-    marginTop: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignSelf: 'flex-start',
   },
-  scanQrButtonInlineLabel: {
-    color: globals.colors.secondary,
+  heroButtonLabel: {
+    color: '#fff',
     fontWeight: '600',
     fontSize: globals.fontSize.sm,
   },
-
-  // ---------------- QUICK NAV (".final" / ".D1") ----------------
-  final: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    width: '100%',
-    marginTop: 35,
-    paddingHorizontal: 10,
-    gap: 5,
-  },
-  d1: {
-    flexDirection: 'column',
+  heroImageWrap: {
+    width: 110,
+    backgroundColor: globals.colors.sectionCard,
     alignItems: 'center',
-    width: '25%',
+    justifyContent: 'center',
   },
-  d1Number: {
-    fontSize: globals.fontSize.lg,
-    fontWeight: 'bold',
+  heroImageEmoji: {
+    fontSize: 40,
+  },
+
+  // ---------------- NEXT TRAINING ----------------
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: globals.colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.lg,
+    marginBottom: globals.spacing.sm,
+  },
+  nextCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: globals.colors.sectionCard,
+    borderRadius: globals.radius.md,
+    marginHorizontal: globals.spacing.md,
+    padding: globals.spacing.md,
+    gap: globals.spacing.sm,
+  },
+  nextCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: globals.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextCardIconText: {
+    fontSize: 18,
+  },
+  nextCardTextCol: {
+    flex: 1,
+  },
+  nextCardDay: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginBottom: 2,
+    textTransform: 'capitalize',
+  },
+  nextCardTitle: {
+    fontSize: globals.fontSize.md,
+    fontWeight: '600',
     color: globals.colors.text,
-    marginBottom: 4,
   },
+  nextCardMeta: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginTop: 2,
+  },
+  chevron: {
+    fontSize: 22,
+    color: globals.colors.textMuted,
+  },
+  viewScheduleLink: {
+    color: globals.colors.primary,
+    fontWeight: '600',
+    fontSize: globals.fontSize.sm,
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.sm,
+  },
+
+  // ---------------- WEEK ROW ----------------
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.lg,
+  },
+  weekDayCol: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  weekDayLetter: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    fontWeight: '600',
+  },
+  weekDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: globals.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekDotDone: {
+    backgroundColor: globals.colors.primary,
+    borderColor: globals.colors.primary,
+  },
+  weekDotToday: {
+    borderColor: globals.colors.primary,
+    borderWidth: 2,
+  },
+  weekDotCheck: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+
+  // ---------------- PROGRESS CARD ----------------
+  progressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: globals.colors.sectionCard,
+    borderRadius: globals.radius.md,
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.lg,
+    padding: globals.spacing.md,
+    gap: globals.spacing.sm,
+  },
+  progressIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: globals.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressIconText: {
+    fontSize: 18,
+  },
+  progressTextCol: {
+    flex: 1,
+  },
+  progressTitle: {
+    fontSize: globals.fontSize.md,
+    fontWeight: '600',
+    color: globals.colors.text,
+  },
+  progressSubtitle: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.textMuted,
+    marginTop: 2,
+  },
+  progressPointsPill: {
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.full,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  progressPointsText: {
+    fontSize: globals.fontSize.sm,
+    fontWeight: '700',
+    color: globals.colors.primary,
+  },
+
+  // ---------------- MOTIVATIONAL QUOTE BANNER ----------------
+  quoteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E7F3F4',
+    borderRadius: globals.radius.md,
+    marginHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.md,
+    padding: globals.spacing.md,
+    gap: globals.spacing.sm,
+  },
+  quoteIcon: {
+    fontSize: 18,
+  },
+  quoteText: {
+    flex: 1,
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.text,
+  },
+
   d1Icon: {
     fontSize: 20,
     marginBottom: 5,
@@ -698,14 +1044,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: globals.spacing.md,
     paddingBottom: 110,
   },
-  e1: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 100,
-    width: '100%',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
-  },
   e2: {
     flexDirection: 'column',
     height: 100,
@@ -714,29 +1052,10 @@ const styles = StyleSheet.create({
     borderRadius: globals.radius.md,
     justifyContent: 'center',
   },
-  e3: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 100,
-    width: '100%',
-    backgroundColor: globals.colors.danger,
-    borderRadius: globals.radius.md,
-  },
-  t1: {
-    fontSize: 14,
-    margin: 10,
-    color: globals.colors.text,
-  },
   t2: {
     fontSize: 14,
     margin: 10,
     color: globals.colors.text,
-  },
-  t3: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: globals.colors.secondary,
   },
 
   // ---------------- hexágonos ----------------

@@ -1,24 +1,3 @@
-// src/screens/user/HistoryScreen.js
-//
-// History Screen (User) - spec section 4: "Muestra de forma detallada:
-// interacciones sociales, interacciones con el entrenador, qué máquinas
-// usaron y qué día, si les dieron algún logro o premio, cuándo suman
-// puntos, si hicieron alguna denuncia, cuándo llegaron y cuándo se
-// fueron."
-//
-// No single Backend endpoint returns this combined feed, so this screen
-// fetches from seven different resources in parallel and renders them as
-// separate sections (still "one History screen", just not one flat list):
-//   - GET /gym/sessions              -> arrival/departure (gym.api.js)
-//   - GET /history/machine-usage     -> machines used, by day (history.api.js)
-//   - GET /history/interactions      -> trainer + social interactions (history.api.js)
-//   - GET /gamification/badges       -> achievements (gamification.api.js)
-//   - GET /rewards/redemptions/me    -> prizes received (reward.api.js)
-//   - GET /gamification/points       -> points log (gamification.api.js)
-//   - GET /complaints/me             -> reports filed (complaint.api.js)
-// Promise.allSettled is used so one failing section doesn't blank the
-// rest of the screen.
-
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';

@@ -16,6 +16,7 @@ import NotificationsScreen from '../screens/shared/NotificationsScreen';
 import { OnboardingGoalScreen, OnboardingLevelScreen, OnboardingDaysScreen, OnboardingTypeScreen, OnboardingSuccessScreen } from '../screens/user/OnboardingScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
 import ProfileScreen from '../screens/user/ProfileScreen';
+import UserHomeScreen from '../screens/user/HomeScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
 import RoutinesScreen from '../screens/user/RoutinesScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
@@ -63,6 +64,9 @@ export const ROUTES = {
   // "usuario" (person) footer icon -> pantalla "Tu perfil" (was mistakenly
   // called/used as "home"; now its own dedicated route/screen).
   USER_PROFILE: 'UserProfile',
+  // "casita" (house) footer icon -> separate dashboard screen
+  // (src/screens/user/HomeScreen.js), distinct from USER_PROFILE.
+  USER_HOME: 'UserHome',
   USER_HISTORY: 'UserHistory',
   USER_ROUTINES: 'UserRoutines',
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
@@ -388,10 +392,31 @@ export default function RootNavigator() {
             onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
             onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            onGoToHome={() => navigation.navigate(ROUTES.USER_HOME)}
             onLogout={async () => {
               // POST /auth/logout blacklists the token server-side (see
               // Backend/src/services/auth.service.js#logout) and clears
               // the persisted session locally.
+              await logout();
+              goToWelcome(navigation)();
+            }}
+            onBack={goBack(navigation)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_HOME}>
+        {({ navigation }) => (
+          <UserHomeScreen
+            onGoToHistory={() => navigation.navigate(ROUTES.USER_HISTORY)}
+            onGoToRoutines={() => navigation.navigate(ROUTES.USER_ROUTINES)}
+            onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
+            onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
+            onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
+            onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
+            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
+            onLogout={async () => {
               await logout();
               goToWelcome(navigation)();
             }}
@@ -405,11 +430,25 @@ export default function RootNavigator() {
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_ROUTINES}>
-        {({ navigation }) => <RoutinesScreen onBack={goBack(navigation)} />}
+        {({ navigation }) => (
+          <RoutinesScreen
+            onBack={goBack(navigation)}
+            onGoToHome={() => navigation.navigate(ROUTES.USER_HOME)}
+            onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
+            onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
+          />
+        )}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_ACHIEVEMENTS_GOALS}>
-        {({ navigation }) => <AchievementsGoalsScreen onBack={goBack(navigation)} />}
+        {({ navigation }) => (
+          <AchievementsGoalsScreen
+            onBack={goBack(navigation)}
+            onGoToRoutines={() => navigation.navigate(ROUTES.USER_ROUTINES)}
+            onGoToHome={() => navigation.navigate(ROUTES.USER_HOME)}
+            onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
+          />
+        )}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_REPORTS}>

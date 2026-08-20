@@ -1,20 +1,10 @@
-// src/screens/user/AchievementsGoalsScreen.js
-//
-// Achievements & Goals Screen (User) - spec section 6:
-// "Muestra qué logros tiene, qué puntos tiene acumulados y cuánto va de
-// progreso en cada una de sus metas."
-//
-// Backed by three endpoints, fetched in parallel:
-//   - GET /gamification/points  -> totalPoints          (gamification.api.js)
-//   - GET /gamification/badges  -> unlocked achievements (gamification.api.js)
-//   - GET /goals                -> active goals + progress (progress.api.js)
-// Promise.allSettled so one failing section doesn't blank the rest.
 
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
+import BottomNav from '../../components/common/BottomNav';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as gamificationApi from '../../api/services/gamification.api';
 import * as progressApi from '../../api/services/progress.api';
@@ -36,8 +26,11 @@ function Section({ title, loading, empty, emptyLabel, children }) {
 
 /**
  * @param {function} [onBack]
+ * @param {function} [onGoToRoutines] - "calendar" footer icon
+ * @param {function} [onGoToHome] - "house" footer icon
+ * @param {function} [onGoToProfile] - "person" footer icon
  */
-export default function AchievementsGoalsScreen({ onBack }) {
+export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoToHome, onGoToProfile }) {
   const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
@@ -148,6 +141,19 @@ export default function AchievementsGoalsScreen({ onBack }) {
 
         <Text style={styles.backLink} onPress={onBack}>{t('user.achievementsGoals.back')}</Text>
       </ScrollView>
+
+      {/* ---------------- FOOTER ----------------
+          Shared component: same 5 buttons -> same 5 destinations on every
+          screen that has it. This IS the "trophy" destination, so that tab
+          is passed as `active` instead of a handler. The QR (camera) button
+          has no handler here — Achievements has no scan flow, so it just
+          renders disabled, same as any screen without one. */}
+      <BottomNav
+        active="trophy"
+        onGoToCalendar={onGoToRoutines}
+        onGoToHome={onGoToHome}
+        onGoToProfile={onGoToProfile}
+      />
     </View>
   );
 }

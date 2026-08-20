@@ -21,13 +21,17 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
+import BottomNav from '../../components/common/BottomNav';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as routineApi from '../../api/services/routine.api';
 
 /**
  * @param {function} [onBack]
+ * @param {function} [onGoToHome] - "house" footer icon
+ * @param {function} [onGoToProfile] - "person" footer icon
+ * @param {function} [onGoToAchievementsGoals] - "trophy" footer icon
  */
-export default function RoutinesScreen({ onBack }) {
+export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGoToAchievementsGoals }) {
   const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
@@ -235,6 +239,17 @@ export default function RoutinesScreen({ onBack }) {
 
         <Text style={styles.backLink} onPress={onBack}>{t('user.routines.back')}</Text>
       </ScrollView>
+
+      {/* ---------------- FOOTER ----------------
+          Shared component: same 5 buttons -> same 5 destinations on every
+          screen that has it. This IS the "calendar" destination, so that
+          tab is passed as `active` instead of a handler. */}
+      <BottomNav
+        active="calendar"
+        onGoToHome={onGoToHome}
+        onGoToProfile={onGoToProfile}
+        onGoToAchievements={onGoToAchievementsGoals}
+      />
     </View>
   );
 }

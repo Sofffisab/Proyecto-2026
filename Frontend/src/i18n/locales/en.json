@@ -146,7 +146,21 @@
       "checkInSuccessBody": "Your arrival has been checked in successfully.",
       "notifications": "Notifications",
       "logoutConfirmTitle": "Log out?",
-      "logoutConfirmMessage": "Are you sure you want to log out or switch accounts?"
+      "logoutConfirmMessage": "Are you sure you want to log out or switch accounts?",
+      "greeting": "Hi, {{name}}! 👋",
+      "greetingSubtitle": "Ready to keep pushing your limits today.",
+      "todayLabel": "Today",
+      "exercisesCount": "{{count}} exercises",
+      "durationMinutes": "{{count}} min",
+      "startTraining": "Start training",
+      "nextTrainingLabel": "Next training",
+      "viewFullSchedule": "View full schedule",
+      "trainingsCompletedThisWeek": "{{done}} of {{total}} trainings completed",
+      "keepGoing": "Keep it up, you're on track.",
+      "pointsShort": "pts",
+      "motivationalQuote": "Today's discipline is tomorrow's result.",
+      "noRoutineTitle": "No routine yet",
+      "quickAccess": "Quick access"
     },
     "settings": {
       "title": "Settings",

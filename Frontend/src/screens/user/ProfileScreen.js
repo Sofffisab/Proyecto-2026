@@ -69,6 +69,7 @@ import { flushQueue } from '../../offline/offlineQueue';
  * @param {function} [onGoToSettings] - opens Editar Perfil (the "..." button)
  * @param {function} [onGoToWrapped]
  * @param {function} [onGoToHome] - "house" footer icon; separate dashboard, not this screen
+ * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
  */
 
 // True hexagon badge (".hexagono" in Perfil.css uses clip-path: polygon()).
@@ -110,9 +111,18 @@ export default function ProfileScreen({
   onGoToSettings,
   onGoToWrapped,
   onGoToHome,
+  onLogout,
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+
+  // "Cerrar sesión" — asks for confirmation before actually logging out,
+  // same pattern used elsewhere in the app for destructive actions.
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    onLogout && onLogout();
+  };
 
   // The Social Interaction pop-up appears at a random moment decided by
   // the Backend (jobs/challenge.job.js assigns a SocialChallenge); there's
@@ -363,8 +373,39 @@ export default function ProfileScreen({
               </Hexagon>
             </View>
           </View>
+
+          {/* Log out — like ".E3" (full-width danger card) */}
+          <TouchableOpacity style={styles.e3} onPress={() => setShowLogoutConfirm(true)}>
+            <Text style={styles.t3}>{t('user.home.logout')}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Log out confirmation pop-up. */}
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('user.home.logoutConfirmTitle')}</Text>
+            <Text>{t('user.home.logoutConfirmMessage')}</Text>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.modalButtonSecondaryLabel}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonDanger]} onPress={confirmLogout}>
+                <Text style={styles.modalButtonLabel}>{t('user.home.logout')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ---------------- FOOTER ----------------
           Shared component: same 5 buttons -> same 5 destinations on every
@@ -373,6 +414,7 @@ export default function ProfileScreen({
       <BottomNav
         active="profile"
         onGoToHome={onGoToHome}
+        onGoToCalendar={onGoToRoutines}
         onScanQR={() => setShowScanQR(true)}
         onGoToAchievements={onGoToAchievementsGoals}
       />
