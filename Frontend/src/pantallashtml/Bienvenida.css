@@ -153,12 +153,138 @@ button{
     flex-direction: column;
 }
 
-.vie{
+.vie, .vier{
     display: flex;
     font-size: xx-small;
     color: #6C6C6C;
 }
 
+.vier{
+    display: flex;
+    margin-bottom: 19px;
+}
+
 .espal{
     font-size: 19px;
+}
+
+.imag{
+    display: flex;
+    justify-content: flex-end;
+    width: 97px;
+}
+
+.i{
+    display: flex;
+    width: 46px;
+    margin-left: 9px;
+}
+
+h3:not(.abaj):not(.vie):not(.espal):not(.txt2){
+    font-size: x-small;
+    margin-left: 9px;
+    color: #177E89;
+}
+
+.caja2, .caja3{
+     display: flex;
+    flex-direction: row;
+    width: 90%;
+    height: 90px;
+    margin-left: 9px;
+    background-color: white;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+     display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: 23px;
+}
+
+.footer{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 75px;
+    background-color: #EDECEC;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 0;
+    z-index: 100;
+}
+
+.footer img{
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.circulo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    width: 60px;
+    background-color: #177E89;
+    border-radius: 50%;
+}
+
+.qr{
+    width: 35px !important;
+    height: 35px !important;
+    margin: 0;
+}
+
+.L{
+    display: flex;
+    flex-direction: column;
+}
+
+.vis{
+    width: 29px;
+}
+
+.txt{
+    display: flex;
+    flex-direction: column;
+}
+
+.txt1{
+    color: black;
+    font-size: 10px;
+}
+
+.txt2{
+    color: #9D9D9D;
+    font-size: 10px;
+    margin-right: 9px;
+}
+
+.cuadradofinal{
+      display: flex;
+    flex-direction: row;
+    width: 90%;
+    height: 36px;
+    margin-left: 9px;
+    background-color: #DFE9EA;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+     display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: 39px;
+}
+
+.img2{
+    width: 23px;
+    margin-left: 9px;
+}
+
+.ma{
+    display: flex;
+    font-size: 9px;
+    color: black;
+    margin-bottom: 2px;
 }
