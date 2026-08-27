@@ -288,3 +288,9 @@ h3:not(.abaj):not(.vie):not(.espal):not(.txt2){
     color: black;
     margin-bottom: 2px;
 }
+
+.casa{
+    display: flex;
+    flex-direction: column;
+    margin-top: 26px;
+}
