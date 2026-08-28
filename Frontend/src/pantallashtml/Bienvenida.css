@@ -97,12 +97,13 @@ button{
     color: white;
     border: none;
      border: none;
-    border-radius: 5px;
+    border-radius: 11px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .A{
     display: flex;
+    margin-left: 29px;
     flex-direction: row;
     color: #177E89;
 }
@@ -180,7 +181,7 @@ button{
     margin-left: 9px;
 }
 
-h3:not(.abaj):not(.vie):not(.espal):not(.txt2){
+h3:not(.abaj):not(.vie):not(.espal):not(.txt2):not(.vier){
     font-size: x-small;
     margin-left: 9px;
     color: #177E89;

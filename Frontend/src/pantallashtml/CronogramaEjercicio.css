@@ -1,0 +1,21 @@
+img{
+    width: 14%;
+}
+
+.texto{
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+}
+
+.a{
+    display: flex;
+    margin-left: 39px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 19px
+}
+
+.aaa{
+    display: flex;
+    width: 80%;
+}
