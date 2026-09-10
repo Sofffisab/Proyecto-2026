@@ -43,6 +43,24 @@ h2{
     color: #6C6C6C;
 }
 
+button{
+    display: flex;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 290px;
+    align-items: center;
+    width: 340px;
+    height: 48px;
+    margin-left: 8%;
+    background-color: #177E89;
+    color: white;
+    border: none;
+     border: none;
+    border-radius: 11px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
+    margin-top: 40px;
+}
+
 .h4{
     display: flex;
     color: #6C6C6C;
