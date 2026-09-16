@@ -334,7 +334,7 @@ export default function RootNavigator() {
             initialValues={{
               gender: user?.gender ?? null,
               trainingLevel: user?.trainingLevel ?? null,
-              mainGoal: Array.isArray(user?.objectives) ? user.objectives[0] ?? null : null,
+              objectives: Array.isArray(user?.objectives) ? user.objectives : [],
               medicalConditions: Array.isArray(user?.medicalConditions)
                 ? user.medicalConditions.join(', ')
                 : '',
@@ -378,6 +378,10 @@ export default function RootNavigator() {
               }
             }}
             onBack={goBack(navigation)}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
           />
         )}
       </Stack.Screen>

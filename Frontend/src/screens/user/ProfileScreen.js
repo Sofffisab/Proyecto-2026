@@ -654,9 +654,9 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   e1: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 100,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    height: 150,
     width: '100%',
     backgroundColor: globals.colors.sectionCard,
     borderRadius: globals.radius.md,

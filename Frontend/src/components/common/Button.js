@@ -8,10 +8,10 @@ import globals from '../../styles/globals';
  * @param {function} onPress  - Callback fired when the button is pressed.
  * @param {string}   [variant='primary'] - Visual style: 'primary' | 'secondary' | 'danger'.
  */
-function Button({ label, onPress, variant = 'primary', disabled = false }) {
+function Button({ label, onPress, variant = 'primary', disabled = false, style }) {
   return (
     <TouchableOpacity
-      style={[styles.base, styles[variant], disabled && styles.disabled]}
+      style={[styles.base, styles[variant], disabled && styles.disabled, style]}
       onPress={onPress}
       activeOpacity={0.8}
       disabled={disabled}

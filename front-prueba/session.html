@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sesión activa</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f2f2f2; display:flex; justify-content:center; padding-top:40px; }
+  .card { background:#fff; padding:30px; border-radius:10px; width:500px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+  h2 { margin-top:0; }
+  h3 { margin-bottom:5px; color:#2d6cdf; }
+  pre { background:#eee; padding:10px; border-radius:6px; white-space:pre-wrap; word-break:break-all; font-size:12px; }
+  button { padding:10px 16px; margin-top:8px; margin-right:8px; border:none; border-radius:6px; background:#2d6cdf; color:#fff; cursor:pointer; font-size:14px; }
+  button:hover { background:#1e54b8; }
+  button.secondary { background:#888; }
+  button.secondary:hover { background:#666; }
+  .error { color:#c0392b; font-size:13px; margin-top:5px; }
+  .ok { color:#27ae60; font-size:13px; margin-top:5px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Entraste a la sesión:</h2>
+
+  <h3>Usuario</h3>
+  <pre id="userInfo"></pre>
+
+  <h3>Access Token</h3>
+  <pre id="accessTokenInfo"></pre>
+
+  <h3>Refresh Token</h3>
+  <pre id="refreshTokenInfo"></pre>
+
+  <button onclick="testMe()">Probar /users/me con access token</button>
+  <button onclick="testRefresh()">Probar refrescar token</button>
+  <button class="secondary" onclick="logout()">Cerrar sesión</button>
+
+  <div id="meResult"></div>
+  <div id="refreshResult"></div>
+</div>
+
+<script>
+const API_URL = "http://localhost:3000/api/v1";
+
+function loadSession() {
+  const accessToken = localStorage.getItem("accessToken");
+  const refreshToken = localStorage.getItem("refreshToken");
+  const user = localStorage.getItem("user");
+
+  if (!accessToken || !refreshToken || !user) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  document.getElementById('userInfo').innerText = JSON.stringify(JSON.parse(user), null, 2);
+  document.getElementById('accessTokenInfo').innerText = accessToken;
+  document.getElementById('refreshTokenInfo').innerText = refreshToken;
+}
+
+async function testMe() {
+  const resultDiv = document.getElementById('meResult');
+  resultDiv.innerHTML = "";
+  const accessToken = localStorage.getItem("accessToken");
+
+  try {
+    const res = await fetch(`${API_URL}/users/me`, {
+      headers: { "Authorization": "Bearer " + accessToken }
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      resultDiv.innerHTML = `<div class="ok">OK: access token válido. Respuesta de /users/me:</div><pre>${JSON.stringify(data.data, null, 2)}</pre>`;
+    } else {
+      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "token inválido"}</div>`;
+    }
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="error">No se pudo conectar al backend (${err.message})</div>`;
+  }
+}
+
+async function testRefresh() {
+  const resultDiv = document.getElementById('refreshResult');
+  resultDiv.innerHTML = "";
+  const refreshToken = localStorage.getItem("refreshToken");
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      localStorage.setItem("accessToken", data.data.accessToken);
+      document.getElementById('accessTokenInfo').innerText = data.data.accessToken;
+      resultDiv.innerHTML = `<div class="ok">OK: se generó un nuevo access token con el refresh token.</div>`;
+    } else {
+      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "refresh token inválido"}</div>`;
+    }
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="error">No se pudo conectar al backend (${err.message})</div>`;
+  }
+}
+
+async function logout() {
+  const accessToken = localStorage.getItem("accessToken");
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + accessToken }
+    });
+  } catch (e) {
+    // ignorar errores de red al hacer logout
+  }
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  window.location.href = "index.html";
+}
+
+loadSession();
+</script>
+
+</body>
+</html>

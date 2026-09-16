@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Modal,
   StyleSheet,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -17,66 +18,73 @@ import { useTranslation } from '../../i18n/I18nContext';
  * Edit Profile / Settings & customization Screen (User) - spec section 7.
  * If it's the first time, the system redirects here and doesn't allow
  * leaving until everything is completed. Required fields (except email,
- * which isn't editable): medical conditions, date of birth, exact address.
- * Each row is an accordion: tap the row to reveal the input.
+ * which isn't editable server-side): medical conditions, date of birth,
+ * exact address.
  *
- * Visual spec (per the "Editar perfil" mockup): a top bar with a back
- * chevron, the "Editar perfil" title and a "Guardar" link; an avatar; then
- * accordion rows for name / email / birthday / sex / experience level /
- * main goal, followed by the pre-existing required fields, preferences,
- * change-password, and a personal QR code. There is no self-service
- * "delete account" here on purpose — only an ADMIN can delete/deactivate
- * an account (see Backend/src/routes/index.js "PATCH /users/:id/status",
- * ADMIN-only).
+ * Visual spec ported 1:1 from the "Editar perfil" mockups:
+ *   - a top bar with a back chevron, "Editar perfil" title and "Guardar";
+ *   - an avatar with a pencil edit badge;
+ *   - ONE continuous white card, rows separated by hairlines (not
+ *     individually-shadowed blocks) for: Nombre, Correo electrónico,
+ *     Fecha de nacimiento, Sexo, Nivel de entrenamiento;
+ *   - each editable row expands in place and shows a small teal
+ *     check-circle button to confirm/collapse it (the "basil_check-solid"
+ *     asset concept, drawn here as a checkmark on a teal circle);
+ *   - Correo electrónico shows a red border + "Información incorrecta"
+ *     under it while the typed value isn't a valid email shape;
+ *   - Sexo expands into 3 equal-width pill buttons (Masculino / Femenino
+ *     / Otro), matching the mockup's segmented-control look;
+ *   - Objetivo principal and Lesiones/enfermedades are both tag lists:
+ *     selected tags render as filled teal chips with a small "-" to
+ *     remove them, plus a "+" tile that opens a tiny "¿Qué querés
+ *     agregar?" prompt to add a custom one — matching the mockup's
+ *     "Agregue aqui" popovers;
+ *   - "Mi QR" section, unchanged from before (already matched the mockup);
+ *   - the bottom red button was framed as "Eliminar cuenta" in the
+ *     visual references, but per product decision this triggers a normal
+ *     logout instead (self-service account deletion isn't a thing — only
+ *     ADMIN can deactivate accounts, see Backend "PATCH /users/:id/status").
+ *     Kept in the same red/danger slot, labeled as logout, calls `onLogout`.
  *
  * Field <-> Backend mapping (see Backend/src/validators/user.schemas.js
  * #updateUserSchema):
- *   firstName / lastName -> firstName / lastName: string
+ *   firstName / lastName -> firstName / lastName: string (edited here as
+ *                            a single "Nombre" field, split on the last
+ *                            space when saving)
  *   gender              -> gender: "MALE"|"FEMALE"|"OTHER"|"PREFER_NOT_TO_SAY"
- *   trainingLevel       -> trainingLevel: ExperienceLevel (same 3 options as Onboarding)
- *   mainGoal            -> objectives: MainGoal[] (edited here as a single value, like Onboarding)
- *   medicalConditions   -> medicalConditions: string[] (comma-separated here)
+ *   trainingLevel       -> trainingLevel: ExperienceLevel
+ *   objectives          -> objectives: MainGoal[] (real multi-select now;
+ *                            the Backend already stores an array)
+ *   medicalConditions   -> medicalConditions: string[]
  *   dateOfBirth         -> birthday: ISO datetime string
  *   exactAddress        -> deliveryAddress: string
  *   noTrainerHelp       -> disableAssistance: boolean
  *   noMachineApp        -> machineTrackingOptOut: boolean
  *
- * The QR code shown here is a client-side "member badge" built from the
- * user's own id — it's for gym staff to look someone up by eye/camera, and
- * is NOT wired into the machine/entry-exit scan flow (see
- * Backend/src/services/verification.service.js#processScan, which only
- * understands MACHINE and ENTRY_EXIT payloads). Scanning it elsewhere in
- * the app won't do anything.
+ * Email is shown as an editable-looking field (matches the mockup) but is
+ * validated client-side only and deliberately NOT sent in the onSave
+ * payload — the session email isn't patchable through this endpoint.
  *
  * @param {string}   [firstName]
  * @param {string}   [lastName]
- * @param {string}   [email] - Session email, not editable.
+ * @param {string}   [email] - Session email, shown but not saved.
  * @param {string}   [userId] - Encoded into the personal QR code.
- * @param {number|null} [age] - Derived server-side from birthday (never
- *   editable directly — see Backend/src/utils/age.js#calculateAge).
- * @param {object}   [initialValues] - Pre-fill from the current user, so
- *   re-opening Settings later shows what's already saved.
- * @param {function} onSave - async (patch) => void — patch may include any
- *   of: firstName, lastName, gender, trainingLevel, objectives,
- *   medicalConditions, birthday, deliveryAddress, disableAssistance,
- *   machineTrackingOptOut.
+ * @param {number|null} [age] - Derived server-side from birthday.
+ * @param {object}   [initialValues] - Pre-fill from the current user.
+ * @param {function} onSave - async (patch) => void
  * @param {function} [onChangePassword]
  * @param {function} [onBack]
+ * @param {function} [onLogout] - fired by the bottom red button.
  */
-const GENDER_OPTIONS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'];
+const GENDER_OPTIONS = ['MALE', 'FEMALE', 'OTHER'];
 const LEVEL_OPTIONS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 const GOAL_OPTIONS = ['LOSE_WEIGHT', 'GAIN_MUSCLE', 'IMPROVE_HEALTH', 'INCREASE_ENDURANCE'];
-
-const FIELDS = [
-  { key: 'medicalConditions', labelKey: 'user.settings.medicalConditions', icon: '\u2764' },
-  { key: 'exactAddress', labelKey: 'user.settings.exactAddress', icon: '\uD83C\uDFE0' },
+const MONTHS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
 ];
 
-const PREFERENCES = [
-  { key: 'noTrainerHelp', labelKey: 'user.settings.noTrainerHelp' },
-  { key: 'noMachineApp', labelKey: 'user.settings.noMachineApp' },
-];
-
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function initialsFor(firstName, lastName) {
@@ -85,14 +93,7 @@ function initialsFor(firstName, lastName) {
   return (a + b).toUpperCase() || '?';
 }
 
-/**
- * Left-side row icon. The original web mockup (EditarPerfil.html) uses PNG
- * assets from src/assets (Group 31.png, basil_envelope-outline.png, etc.);
- * here we keep the same visual slot (a small square icon before the label)
- * but render it with a plain-text glyph so this component has zero new
- * asset/dependency requirements. Swap `Text` for an `Image` pointing at the
- * matching asset if/when those get wired into the RN bundle.
- */
+/** Left-side row icon slot (glyph-based, zero new asset requirement). */
 function RowIcon({ glyph }) {
   return (
     <View style={styles.rowIconWrap}>
@@ -101,14 +102,72 @@ function RowIcon({ glyph }) {
   );
 }
 
-/** Chevron on the right of every accordion row (".img3"/".img6" in the CSS: rotates 90deg when open). */
+/** Chevron on the right of every accordion row; rotates when open. */
 function RowArrow({ open }) {
+  return <Text style={[styles.fieldArrow, open && styles.fieldArrowOpen]}>{'\u203A'}</Text>;
+}
+
+/** Small teal circle + checkmark used to confirm/collapse an inline edit. */
+function ConfirmCheck({ onPress, error }) {
   return (
-    <Text style={[styles.fieldArrow, open && styles.fieldArrowOpen]}>{'\u203A'}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.confirmCheck, error && styles.confirmCheckError]}
+      hitSlop={8}
+    >
+      <Text style={styles.confirmCheckGlyph}>{'\u2713'}</Text>
+    </TouchableOpacity>
   );
 }
 
-/** A row that expands into pill-style single-select options. */
+/** A row that expands into a single confirmable text input. */
+function TextFieldRow({
+  icon,
+  label,
+  value,
+  placeholder,
+  onChangeText,
+  isOpen,
+  onToggle,
+  disabled,
+  errorText,
+  keyboardType,
+}) {
+  const hasError = Boolean(errorText);
+  return (
+    <View style={styles.fieldBlock}>
+      <TouchableOpacity style={styles.fieldRow} onPress={onToggle} activeOpacity={0.8}>
+        <RowIcon glyph={icon} />
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {!isOpen && (
+          <Text style={styles.fieldValuePreview} numberOfLines={1}>
+            {value || ''}
+          </Text>
+        )}
+        <RowArrow open={isOpen} />
+      </TouchableOpacity>
+      {isOpen && (
+        <View style={styles.inputWrapper}>
+          <View style={styles.inputWithCheckRow}>
+            <TextInput
+              style={[styles.input, styles.inputFlex, hasError && styles.inputError]}
+              placeholder={placeholder}
+              placeholderTextColor={globals.colors.textMuted}
+              value={value}
+              onChangeText={onChangeText}
+              editable={!disabled}
+              keyboardType={keyboardType}
+            />
+            <ConfirmCheck onPress={onToggle} error={hasError} />
+          </View>
+          {hasError && <Text style={styles.inlineErrorText}>{errorText}</Text>}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** A row that expands into equal-width pill buttons (single-select). */
 function PillSelectRow({ icon, label, options, optionLabel, value, onChange, disabled }) {
   const [open, setOpen] = useState(false);
   return (
@@ -123,17 +182,17 @@ function PillSelectRow({ icon, label, options, optionLabel, value, onChange, dis
       </TouchableOpacity>
 
       {open && (
-        <View style={styles.pillWrap}>
+        <View style={styles.segmentWrap}>
           {options.map((opt) => {
             const selected = value === opt;
             return (
               <TouchableOpacity
                 key={opt}
-                style={[styles.pill, selected && styles.pillSelected]}
+                style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
                 onPress={() => onChange(opt)}
                 disabled={disabled}
               >
-                <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
+                <Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextSelected]}>
                   {optionLabel(opt)}
                 </Text>
               </TouchableOpacity>
@@ -145,6 +204,230 @@ function PillSelectRow({ icon, label, options, optionLabel, value, onChange, dis
   );
 }
 
+/**
+ * A row that expands into a tag list (multi-select) with a "+" tile that
+ * opens a tiny prompt for adding a free-text custom tag — matches the
+ * "¿Que objetivo te gustaria agregar?" / "Agregue aqui" popovers.
+ */
+function TagFieldRow({
+  icon,
+  label,
+  selected,
+  presetOptions,
+  optionLabel,
+  onToggleOption,
+  onAddCustom,
+  onRemoveCustom,
+  customTags,
+  isOpen,
+  onToggle,
+  addPromptTitle,
+  addPlaceholder,
+  hintText,
+  disabled,
+}) {
+  const [showAddPrompt, setShowAddPrompt] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const previewText = selected.length
+    ? selected.map((s) => optionLabel(s)).join(' · ')
+    : '';
+
+  const confirmAdd = () => {
+    const trimmed = draft.trim();
+    if (trimmed) onAddCustom(trimmed);
+    setDraft('');
+    setShowAddPrompt(false);
+  };
+
+  return (
+    <View style={styles.fieldBlock}>
+      <TouchableOpacity style={styles.fieldRow} onPress={onToggle} activeOpacity={0.8}>
+        <RowIcon glyph={icon} />
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {!isOpen && (
+          <Text style={styles.fieldValuePreview} numberOfLines={1}>
+            {previewText}
+          </Text>
+        )}
+        <RowArrow open={isOpen} />
+      </TouchableOpacity>
+
+      {isOpen && (
+        <View style={styles.tagWrap}>
+          {presetOptions.map((opt) => {
+            const isSelected = selected.includes(opt);
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+                onPress={() => onToggleOption(opt)}
+                disabled={disabled}
+              >
+                <Text style={[styles.tagChipText, isSelected && styles.tagChipTextSelected]} numberOfLines={1}>
+                  {optionLabel(opt)}
+                </Text>
+                {isSelected && <Text style={styles.tagChipRemove}>{'\u2212'}</Text>}
+              </TouchableOpacity>
+            );
+          })}
+
+          {customTags.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={[styles.tagChip, styles.tagChipSelected]}
+              onPress={() => onRemoveCustom(tag)}
+              disabled={disabled}
+            >
+              <Text style={[styles.tagChipText, styles.tagChipTextSelected]} numberOfLines={1}>
+                {tag}
+              </Text>
+              <Text style={styles.tagChipRemove}>{'\u2212'}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TouchableOpacity
+            style={styles.tagAddButton}
+            onPress={() => setShowAddPrompt(true)}
+            disabled={disabled}
+          >
+            <Text style={styles.tagAddButtonGlyph}>{'+'}</Text>
+          </TouchableOpacity>
+
+          {hintText && (selected.length + customTags.length === 0) && (
+            <Text style={styles.tagHintText}>{hintText}</Text>
+          )}
+        </View>
+      )}
+
+      <Modal visible={showAddPrompt} transparent animationType="fade" onRequestClose={() => setShowAddPrompt(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.addPromptCard}>
+            <Text style={styles.addPromptTitle}>{addPromptTitle}</Text>
+            <View style={styles.inputWithCheckRow}>
+              <TextInput
+                style={[styles.input, styles.inputFlex]}
+                placeholder={addPlaceholder}
+                placeholderTextColor={globals.colors.textMuted}
+                value={draft}
+                onChangeText={setDraft}
+                autoFocus
+              />
+              <ConfirmCheck onPress={confirmAdd} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+/** Day / month / year row that opens a month+year wheel-style modal. */
+function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth, onChangeYear, isOpen, onToggle, ageHint, disabled, monthLabel }) {
+  const [showWheel, setShowWheel] = useState(false);
+  const monthIndex = month ? parseInt(month, 10) - 1 : null;
+
+  return (
+    <View style={styles.fieldBlock}>
+      <TouchableOpacity style={styles.fieldRow} onPress={onToggle} activeOpacity={0.8}>
+        <RowIcon glyph={icon} />
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {!isOpen && (
+          <Text style={styles.fieldValuePreview} numberOfLines={1}>
+            {day && month && year ? `${day} / ${monthLabel(monthIndex)} / ${year}` : ''}
+          </Text>
+        )}
+        <RowArrow open={isOpen} />
+      </TouchableOpacity>
+
+      {isOpen && (
+        <View style={styles.inputWrapper}>
+          <View style={styles.dateRow}>
+            <TextInput
+              style={[styles.input, styles.dateInput]}
+              placeholder="DD"
+              placeholderTextColor={globals.colors.textMuted}
+              value={day}
+              onChangeText={onChangeDay}
+              keyboardType="number-pad"
+              maxLength={2}
+              editable={!disabled}
+            />
+            <TouchableOpacity
+              style={[styles.input, styles.dateInput, styles.dateMonthButton]}
+              onPress={() => setShowWheel(true)}
+              disabled={disabled}
+            >
+              <Text style={styles.dateMonthButtonText} numberOfLines={1}>
+                {month ? monthLabel(monthIndex) : 'mes'}
+              </Text>
+            </TouchableOpacity>
+            <TextInput
+              style={[styles.input, styles.dateInput, styles.dateInputYear]}
+              placeholder="AAAA"
+              placeholderTextColor={globals.colors.textMuted}
+              value={year}
+              onChangeText={onChangeYear}
+              keyboardType="number-pad"
+              maxLength={4}
+              editable={!disabled}
+            />
+          </View>
+          {ageHint != null && <Text style={styles.ageHint}>{ageHint}</Text>}
+        </View>
+      )}
+
+      {/* Month/year wheel-style picker modal — teal header, scrollable
+          month list, matches the "Noviembre / 1627" mockup panel. */}
+      <Modal visible={showWheel} transparent animationType="slide" onRequestClose={() => setShowWheel(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.wheelCard}>
+            <View style={styles.wheelHeader}>
+              <Text style={styles.wheelHeaderText}>
+                {(month ? monthLabel(monthIndex) : 'Mes')} / {year || 'Año'}
+              </Text>
+            </View>
+            <ScrollView style={styles.wheelList}>
+              {MONTHS.map((m, idx) => {
+                const value = String(idx + 1).padStart(2, '0');
+                const isSelected = value === month;
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.wheelRow, isSelected && styles.wheelRowSelected]}
+                    onPress={() => onChangeMonth(value)}
+                  >
+                    <Text style={[styles.wheelRowText, isSelected && styles.wheelRowTextSelected]}>
+                      {monthLabel(idx)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.inputWithCheckRow}>
+              <TextInput
+                style={[styles.input, styles.inputFlex]}
+                placeholder="Año"
+                placeholderTextColor={globals.colors.textMuted}
+                value={year}
+                onChangeText={onChangeYear}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+              <ConfirmCheck onPress={() => setShowWheel(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const PREFERENCES = [
+  { key: 'noTrainerHelp', labelKey: 'user.settings.noTrainerHelp' },
+  { key: 'noMachineApp', labelKey: 'user.settings.noMachineApp' },
+];
+
 export default function SettingsScreen({
   firstName = '',
   lastName = '',
@@ -155,25 +438,50 @@ export default function SettingsScreen({
   onSave,
   onChangePassword,
   onBack,
+  onLogout,
 }) {
   const { t } = useTranslation();
   const [openField, setOpenField] = useState(null);
+  const toggle = (key) => setOpenField((prev) => (prev === key ? null : key));
 
-  const [firstNameValue, setFirstNameValue] = useState(firstName);
-  const [lastNameValue, setLastNameValue] = useState(lastName);
+  // ---- Nombre: single combined field, split on save ----
+  const [nameValue, setNameValue] = useState([firstName, lastName].filter(Boolean).join(' '));
+
+  // ---- Correo: visual only, not sent to the backend ----
+  const [emailValue, setEmailValue] = useState(email);
+  const emailError = emailValue.length > 0 && !EMAIL_RE.test(emailValue)
+    ? t('user.settings.emailInvalid')
+    : null;
+
   const [gender, setGender] = useState(initialValues.gender ?? null);
   const [trainingLevel, setTrainingLevel] = useState(initialValues.trainingLevel ?? null);
-  const [mainGoal, setMainGoal] = useState(initialValues.mainGoal ?? null);
 
-  const initialDate = initialValues.dateOfBirth ?? ''; // "YYYY-MM-DD" or ''
+  // ---- Objetivo principal: now a real multi-select ----
+  const initialGoals = Array.isArray(initialValues.objectives) ? initialValues.objectives : [];
+  const [selectedGoals, setSelectedGoals] = useState(initialGoals.filter((g) => GOAL_OPTIONS.includes(g)));
+  const [customGoals, setCustomGoals] = useState(initialGoals.filter((g) => !GOAL_OPTIONS.includes(g)));
+
+  // ---- Lesiones / enfermedades: multi-select + custom ----
+  const initialConditions = Array.isArray(initialValues.medicalConditionsList)
+    ? initialValues.medicalConditionsList
+    : (initialValues.medicalConditions
+        ? initialValues.medicalConditions.split(',').map((s) => s.trim()).filter(Boolean)
+        : []);
+  const CONDITION_PRESETS = ['injuries', 'heartCondition', 'asthma', 'diabetes', 'none'];
+  const [selectedConditions, setSelectedConditions] = useState(
+    initialConditions.filter((c) => CONDITION_PRESETS.includes(c))
+  );
+  const [customConditions, setCustomConditions] = useState(
+    initialConditions.filter((c) => !CONDITION_PRESETS.includes(c))
+  );
+
+  const initialDate = initialValues.dateOfBirth ?? '';
   const [year, setYear] = useState(initialDate ? initialDate.slice(0, 4) : '');
   const [month, setMonth] = useState(initialDate ? initialDate.slice(5, 7) : '');
   const [day, setDay] = useState(initialDate ? initialDate.slice(8, 10) : '');
 
-  const [values, setValues] = useState({
-    medicalConditions: initialValues.medicalConditions ?? '',
-    exactAddress: initialValues.exactAddress ?? '',
-  });
+  const [exactAddress, setExactAddress] = useState(initialValues.exactAddress ?? '');
+
   const [preferences, setPreferences] = useState({
     noTrainerHelp: Boolean(initialValues.disableAssistance),
     noMachineApp: Boolean(initialValues.machineTrackingOptOut),
@@ -181,8 +489,6 @@ export default function SettingsScreen({
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // "Cambiar contraseña" (PATCH /users/me/password) - separate mini-form,
-  // independent from the profile fields above.
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -191,23 +497,34 @@ export default function SettingsScreen({
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
 
-  const toggle = (key) => setOpenField((prev) => (prev === key ? null : key));
-
-  const handleChange = (key, text) => setValues((prev) => ({ ...prev, [key]: text }));
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const togglePreference = (key) => setPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const genderLabel = (key) => t(`user.settings.genders.${key}`);
   const levelLabel = (key) => t(`user.onboarding.levels.${key}`);
-  const goalLabel = (key) => t(`user.onboarding.goals.${key}`);
+  const goalLabel = (key) => (GOAL_OPTIONS.includes(key) ? t(`user.onboarding.goals.${key}`) : key);
+  const conditionLabel = (key) =>
+    CONDITION_PRESETS.includes(key) ? t(`user.settings.conditionPresets.${key}`) : key;
+  const monthLabel = (idx) => (idx == null ? '' : t(`user.settings.months.${MONTHS[idx]}`));
+
+  const toggleGoal = (g) =>
+    setSelectedGoals((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  const addCustomGoal = (text) => setCustomGoals((prev) => Array.from(new Set([...prev, text])));
+  const removeCustomGoal = (text) => setCustomGoals((prev) => prev.filter((x) => x !== text));
+
+  const toggleCondition = (c) =>
+    setSelectedConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  const addCustomCondition = (text) => setCustomConditions((prev) => Array.from(new Set([...prev, text])));
+  const removeCustomCondition = (text) => setCustomConditions((prev) => prev.filter((x) => x !== text));
 
   const handleSave = async () => {
-    const { medicalConditions, exactAddress } = values;
+    const allConditions = [...selectedConditions, ...customConditions];
     const dateOfBirth = year && month && day
       ? `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
       : '';
 
-    if (!firstNameValue.trim() || !lastNameValue.trim() || !medicalConditions.trim() || !dateOfBirth || !exactAddress.trim()) {
+    if (!nameValue.trim() || allConditions.length === 0 || !dateOfBirth || !exactAddress.trim()) {
       setError(t('user.settings.errorSaving'));
       return;
     }
@@ -215,26 +532,25 @@ export default function SettingsScreen({
       setError(t('user.settings.invalidDate'));
       return;
     }
-
     const birthdayIso = new Date(`${dateOfBirth}T00:00:00.000Z`);
     if (Number.isNaN(birthdayIso.getTime())) {
       setError(t('user.settings.invalidDate'));
       return;
     }
 
+    const [firstNamePart, ...rest] = nameValue.trim().split(/\s+/);
+    const lastNamePart = rest.join(' ');
+
     setSaving(true);
     setError(null);
     try {
       await onSave({
-        firstName: firstNameValue.trim(),
-        lastName: lastNameValue.trim(),
+        firstName: firstNamePart,
+        lastName: lastNamePart,
         gender: gender ?? undefined,
         trainingLevel: trainingLevel ?? undefined,
-        objectives: mainGoal ? [mainGoal] : undefined,
-        medicalConditions: medicalConditions
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        objectives: [...selectedGoals, ...customGoals],
+        medicalConditions: allConditions,
         birthday: birthdayIso.toISOString(),
         deliveryAddress: exactAddress.trim(),
         disableAssistance: preferences.noTrainerHelp,
@@ -260,7 +576,6 @@ export default function SettingsScreen({
       setPasswordError(t('user.settings.changePassword.errorMismatch'));
       return;
     }
-
     setPasswordSaving(true);
     setPasswordError(null);
     try {
@@ -276,9 +591,14 @@ export default function SettingsScreen({
     }
   };
 
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    onLogout && onLogout();
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Top bar: back chevron + title + "Guardar" link (.texto / .h1 / .Guardar). */}
+      {/* Top bar: back chevron + title + "Guardar" link */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onBack} disabled={saving} hitSlop={12} style={styles.topBarSide}>
           <Text style={styles.backChevron}>{'‹'}</Text>
@@ -293,188 +613,140 @@ export default function SettingsScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Avatar (.imagen) + edit-photo badge (.foto). Initials placeholder —
-          there's no photo upload field on the Backend User model yet, so
-          this can't be a real picture; the pencil badge is decorative only,
-          matching the mockup's edit-icon overlay. */}
+      {/* Avatar + edit-photo badge */}
       <View style={styles.avatarBlock}>
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitials}>{initialsFor(firstNameValue, lastNameValue)}</Text>
+          <Text style={styles.avatarInitials}>{initialsFor(firstName, lastName)}</Text>
         </View>
         <View style={styles.avatarEditBadge}>
           <Text style={styles.avatarEditGlyph}>{'\u270E'}</Text>
         </View>
       </View>
 
-      {/* Nombre */}
-      <View style={styles.fieldBlock}>
-        <TouchableOpacity style={styles.fieldRow} onPress={() => toggle('name')} activeOpacity={0.8}>
-          <RowIcon glyph={"\uD83D\uDC64"} />
-          <Text style={styles.fieldLabel}>{t('user.settings.name')}</Text>
-          <Text style={styles.fieldValuePreview} numberOfLines={1}>
-            {[firstNameValue, lastNameValue].filter(Boolean).join(' ')}
-          </Text>
-          <RowArrow open={openField === 'name'} />
-        </TouchableOpacity>
-        {openField === 'name' && (
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('user.settings.firstNamePlaceholder')}
-              placeholderTextColor={globals.colors.textMuted}
-              value={firstNameValue}
-              onChangeText={setFirstNameValue}
-              editable={!saving}
-            />
-            <TextInput
-              style={[styles.input, { marginTop: globals.spacing.xs }]}
-              placeholder={t('user.settings.lastNamePlaceholder')}
-              placeholderTextColor={globals.colors.textMuted}
-              value={lastNameValue}
-              onChangeText={setLastNameValue}
-              editable={!saving}
-            />
-          </View>
-        )}
+      {/* ---------------- ONE continuous card ---------------- */}
+      <View style={styles.card}>
+        <TextFieldRow
+          icon={"\uD83D\uDC64"}
+          label={t('user.settings.name')}
+          value={nameValue}
+          placeholder={t('user.settings.firstNamePlaceholder')}
+          onChangeText={setNameValue}
+          isOpen={openField === 'name'}
+          onToggle={() => toggle('name')}
+          disabled={saving}
+        />
+
+        <TextFieldRow
+          icon={"\u2709"}
+          label={t('user.settings.mail')}
+          value={emailValue}
+          placeholder={t('user.settings.mail')}
+          onChangeText={setEmailValue}
+          isOpen={openField === 'mail'}
+          onToggle={() => toggle('mail')}
+          disabled={saving}
+          errorText={openField === 'mail' ? emailError : null}
+          keyboardType="email-address"
+        />
+
+        <BirthdayRow
+          icon={"\uD83C\uDF82"}
+          label={t('user.settings.dateOfBirth')}
+          day={day}
+          month={month}
+          year={year}
+          onChangeDay={setDay}
+          onChangeMonth={setMonth}
+          onChangeYear={setYear}
+          isOpen={openField === 'dateOfBirth'}
+          onToggle={() => toggle('dateOfBirth')}
+          ageHint={age != null ? t('user.settings.currentAge', { age }) : null}
+          disabled={saving}
+          monthLabel={monthLabel}
+        />
+
+        <PillSelectRow
+          icon={'\u26A7'}
+          label={t('user.settings.gender')}
+          options={GENDER_OPTIONS}
+          optionLabel={genderLabel}
+          value={gender}
+          onChange={setGender}
+          disabled={saving}
+        />
+
+        <PillSelectRow
+          icon={'\uD83C\uDFCB'}
+          label={t('user.settings.trainingLevel')}
+          options={LEVEL_OPTIONS}
+          optionLabel={levelLabel}
+          value={trainingLevel}
+          onChange={setTrainingLevel}
+          disabled={saving}
+        />
+
+        <TagFieldRow
+          icon={'\uD83C\uDFC6'}
+          label={t('user.settings.mainGoal')}
+          selected={selectedGoals}
+          presetOptions={GOAL_OPTIONS}
+          optionLabel={goalLabel}
+          onToggleOption={toggleGoal}
+          onAddCustom={addCustomGoal}
+          onRemoveCustom={removeCustomGoal}
+          customTags={customGoals}
+          isOpen={openField === 'mainGoal'}
+          onToggle={() => toggle('mainGoal')}
+          addPromptTitle={t('user.settings.addGoalPrompt')}
+          addPlaceholder={t('user.settings.addGoalPlaceholder')}
+          disabled={saving}
+        />
+
+        <TagFieldRow
+          icon={'\u2764'}
+          label={t('user.settings.medicalConditions')}
+          selected={selectedConditions}
+          presetOptions={CONDITION_PRESETS}
+          optionLabel={conditionLabel}
+          onToggleOption={toggleCondition}
+          onAddCustom={addCustomCondition}
+          onRemoveCustom={removeCustomCondition}
+          customTags={customConditions}
+          isOpen={openField === 'medicalConditions'}
+          onToggle={() => toggle('medicalConditions')}
+          addPromptTitle={t('user.settings.addConditionPrompt')}
+          addPlaceholder={t('user.settings.addConditionPlaceholder')}
+          hintText={t('user.settings.conditionsHint')}
+          disabled={saving}
+        />
+
+        <TextFieldRow
+          icon={"\uD83C\uDFE0"}
+          label={t('user.settings.exactAddress')}
+          value={exactAddress}
+          placeholder={t('user.settings.inputPlaceholder', { field: t('user.settings.exactAddress').toLowerCase() })}
+          onChangeText={setExactAddress}
+          isOpen={openField === 'exactAddress'}
+          onToggle={() => toggle('exactAddress')}
+          disabled={saving}
+        />
       </View>
-
-      {/* Correo electrónico: not editable */}
-      <View style={styles.fieldBlock}>
-        <View style={styles.fieldRow}>
-          <RowIcon glyph={"\u2709"} />
-          <Text style={styles.fieldLabel}>{t('user.settings.mail')}</Text>
-        </View>
-        <View style={styles.inputWrapper}>
-          <TextInput style={[styles.input, styles.inputDisabled]} value={email} editable={false} />
-        </View>
-      </View>
-
-      {/* Fecha de nacimiento: day / month / year */}
-      <View style={styles.fieldBlock}>
-        <TouchableOpacity style={styles.fieldRow} onPress={() => toggle('dateOfBirth')} activeOpacity={0.8}>
-          <RowIcon glyph={"\uD83C\uDF82"} />
-          <Text style={styles.fieldLabel}>{t('user.settings.dateOfBirth')}</Text>
-          <Text style={styles.fieldValuePreview} numberOfLines={1}>
-            {day && month && year ? `${day}/${month}/${year}` : ''}
-          </Text>
-          <RowArrow open={openField === 'dateOfBirth'} />
-        </TouchableOpacity>
-        {openField === 'dateOfBirth' && (
-          <View style={styles.inputWrapper}>
-            <View style={styles.dateRow}>
-              <TextInput
-                style={[styles.input, styles.dateInput]}
-                placeholder={t('user.settings.dayPlaceholder')}
-                placeholderTextColor={globals.colors.textMuted}
-                value={day}
-                onChangeText={setDay}
-                keyboardType="number-pad"
-                maxLength={2}
-                editable={!saving}
-              />
-              <TextInput
-                style={[styles.input, styles.dateInput]}
-                placeholder={t('user.settings.monthPlaceholder')}
-                placeholderTextColor={globals.colors.textMuted}
-                value={month}
-                onChangeText={setMonth}
-                keyboardType="number-pad"
-                maxLength={2}
-                editable={!saving}
-              />
-              <TextInput
-                style={[styles.input, styles.dateInput, styles.dateInputYear]}
-                placeholder={t('user.settings.yearPlaceholder')}
-                placeholderTextColor={globals.colors.textMuted}
-                value={year}
-                onChangeText={setYear}
-                keyboardType="number-pad"
-                maxLength={4}
-                editable={!saving}
-              />
-            </View>
-            {age != null && <Text style={styles.ageHint}>{t('user.settings.currentAge', { age })}</Text>}
-          </View>
-        )}
-      </View>
-
-      {/* Sexo */}
-      <PillSelectRow
-        icon={'\u26A7'}
-        label={t('user.settings.gender')}
-        options={GENDER_OPTIONS}
-        optionLabel={genderLabel}
-        value={gender}
-        onChange={setGender}
-        disabled={saving}
-      />
-
-      {/* Nivel de experiencia */}
-      <PillSelectRow
-        icon={'\uD83C\uDFCB'}
-        label={t('user.settings.trainingLevel')}
-        options={LEVEL_OPTIONS}
-        optionLabel={levelLabel}
-        value={trainingLevel}
-        onChange={setTrainingLevel}
-        disabled={saving}
-      />
-
-      {/* Objetivo principal */}
-      <PillSelectRow
-        icon={'\uD83C\uDFC6'}
-        label={t('user.settings.mainGoal')}
-        options={GOAL_OPTIONS}
-        optionLabel={goalLabel}
-        value={mainGoal}
-        onChange={setMainGoal}
-        disabled={saving}
-      />
-
-      {/* Required free-text fields (medical conditions, exact address) */}
-      {FIELDS.map(({ key, labelKey, icon }) => {
-        const isOpen = openField === key;
-        const label = t(labelKey);
-        return (
-          <View key={key} style={styles.fieldBlock}>
-            <TouchableOpacity style={styles.fieldRow} onPress={() => toggle(key)} activeOpacity={0.8}>
-              <RowIcon glyph={icon} />
-              <Text style={styles.fieldLabel}>{label}</Text>
-              <Text style={styles.fieldValuePreview} numberOfLines={1}>
-                {values[key] ? values[key] : ''}
-              </Text>
-              <RowArrow open={isOpen} />
-            </TouchableOpacity>
-
-            {isOpen && (
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('user.settings.inputPlaceholder', { field: label.toLowerCase() })}
-                  placeholderTextColor={globals.colors.textMuted}
-                  value={values[key] ?? ''}
-                  onChangeText={(text) => handleChange(key, text)}
-                  editable={!saving}
-                />
-              </View>
-            )}
-          </View>
-        );
-      })}
 
       {/* Preferences */}
       <Text style={styles.sectionTitle}>{t('user.settings.preferencesTitle')}</Text>
-      {PREFERENCES.map(({ key, labelKey }) => (
-        <TouchableOpacity
-          key={key}
-          style={styles.preferenceRow}
-          onPress={() => togglePreference(key)}
-          disabled={saving}
-        >
-          <Text style={styles.fieldLabel}>{t(labelKey)}</Text>
-          <Text style={styles.checkbox}>{preferences[key] ? '☑' : '☐'}</Text>
-        </TouchableOpacity>
-      ))}
+      <View style={styles.card}>
+        {PREFERENCES.map(({ key, labelKey }, idx) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.preferenceRow, idx > 0 && styles.rowDivider]}
+            onPress={() => togglePreference(key)}
+            disabled={saving}
+          >
+            <Text style={styles.fieldLabel}>{t(labelKey)}</Text>
+            <Text style={styles.checkbox}>{preferences[key] ? '☑' : '☐'}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -482,7 +754,7 @@ export default function SettingsScreen({
       {onChangePassword && (
         <>
           <Text style={styles.sectionTitle}>{t('user.settings.changePassword.title')}</Text>
-          <View style={styles.fieldBlock}>
+          <View style={styles.card}>
             <TouchableOpacity
               style={styles.fieldRow}
               onPress={() => setPasswordOpen((prev) => !prev)}
@@ -543,7 +815,7 @@ export default function SettingsScreen({
         </>
       )}
 
-      {/* Personal QR (display-only member badge — see file header comment) */}
+      {/* Personal QR (display-only member badge) */}
       {userId ? (
         <View style={styles.qrSection}>
           <Text style={styles.sectionTitle}>{t('user.settings.qrTitle')}</Text>
@@ -561,7 +833,44 @@ export default function SettingsScreen({
           <Button label={t('user.settings.save')} onPress={handleSave} />
         )}
         <Button label={t('user.settings.back')} onPress={onBack} variant="secondary" disabled={saving} />
+
+        {/* Same red/danger slot the mockups show at the bottom of Editar
+            Perfil — wired to a normal logout (with confirmation) instead
+            of account deletion, per product decision. */}
+        {onLogout && (
+          <Button
+            label={t('user.settings.logoutButton')}
+            onPress={() => setShowLogoutConfirm(true)}
+            variant="danger"
+            disabled={saving}
+          />
+        )}
       </View>
+
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.addPromptCard}>
+            <Text style={styles.addPromptTitle}>{t('user.home.logoutConfirmTitle')}</Text>
+            <Text style={styles.fieldLabel}>{t('user.home.logoutConfirmMessage')}</Text>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.modalButtonSecondaryLabel}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonDanger]} onPress={confirmLogout}>
+                <Text style={styles.modalButtonLabel}>{t('user.settings.logoutButton')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -640,6 +949,19 @@ const styles = StyleSheet.create({
     fontSize: globals.fontSize.sm,
     color: globals.colors.background,
   },
+
+  card: {
+    backgroundColor: globals.colors.background,
+    marginHorizontal: globals.spacing.md,
+    borderRadius: globals.radius.md,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
   rowIconWrap: {
     width: 28,
     alignItems: 'center',
@@ -656,17 +978,14 @@ const styles = StyleSheet.create({
     marginTop: globals.spacing.lg,
     marginBottom: globals.spacing.xs,
   },
+
   fieldBlock: {
-    backgroundColor: globals.colors.background,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.sm,
-    borderRadius: globals.radius.md,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    borderTopWidth: 1,
+    borderTopColor: globals.colors.border,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: globals.colors.border,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -698,6 +1017,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: globals.spacing.md,
     paddingBottom: globals.spacing.md,
   },
+  inputWithCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: globals.spacing.xs,
+  },
   input: {
     borderWidth: 1,
     borderColor: globals.colors.border,
@@ -707,9 +1031,34 @@ const styles = StyleSheet.create({
     color: globals.colors.text,
     backgroundColor: globals.colors.background,
   },
-  inputDisabled: {
-    color: globals.colors.textMuted,
+  inputFlex: {
+    flex: 1,
   },
+  inputError: {
+    borderColor: globals.colors.danger,
+  },
+  inlineErrorText: {
+    color: globals.colors.danger,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+  },
+
+  confirmCheck: {
+    width: 30,
+    height: 30,
+    borderRadius: globals.radius.full,
+    backgroundColor: globals.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCheckError: {
+    backgroundColor: globals.colors.danger,
+  },
+  confirmCheckGlyph: {
+    color: globals.colors.background,
+    fontWeight: '700',
+  },
+
   dateRow: {
     flexDirection: 'row',
     gap: globals.spacing.xs,
@@ -717,6 +1066,13 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     textAlign: 'center',
+  },
+  dateMonthButton: {
+    justifyContent: 'center',
+  },
+  dateMonthButtonText: {
+    textAlign: 'center',
+    color: globals.colors.text,
   },
   dateInputYear: {
     flex: 1.4,
@@ -726,48 +1082,149 @@ const styles = StyleSheet.create({
     color: globals.colors.textMuted,
     marginTop: globals.spacing.xs,
   },
-  pillWrap: {
+
+  segmentWrap: {
+    flexDirection: 'row',
+    gap: globals.spacing.xs,
+    paddingHorizontal: globals.spacing.md,
+    paddingBottom: globals.spacing.md,
+  },
+  segmentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: globals.colors.border,
+    borderRadius: globals.radius.full,
+    paddingVertical: globals.spacing.sm,
+    alignItems: 'center',
+    backgroundColor: globals.colors.background,
+  },
+  segmentButtonSelected: {
+    borderColor: globals.colors.primary,
+    backgroundColor: globals.colors.primary,
+  },
+  segmentButtonText: {
+    fontSize: globals.fontSize.sm,
+    color: globals.colors.text,
+  },
+  segmentButtonTextSelected: {
+    color: globals.colors.background,
+    fontWeight: '600',
+  },
+
+  tagWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: globals.spacing.xs,
     paddingHorizontal: globals.spacing.md,
     paddingBottom: globals.spacing.md,
+    alignItems: 'center',
   },
-  pill: {
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: globals.colors.border,
     borderRadius: globals.radius.full,
     paddingHorizontal: globals.spacing.md,
     paddingVertical: globals.spacing.sm,
     backgroundColor: globals.colors.background,
+    gap: globals.spacing.xs,
   },
-  pillSelected: {
+  tagChipSelected: {
     borderColor: globals.colors.primary,
     backgroundColor: globals.colors.primary,
   },
-  pillText: {
+  tagChipText: {
     fontSize: globals.fontSize.sm,
     color: globals.colors.text,
+    maxWidth: 160,
   },
-  pillTextSelected: {
+  tagChipTextSelected: {
     color: globals.colors.background,
     fontWeight: '600',
   },
+  tagChipRemove: {
+    color: globals.colors.background,
+    fontWeight: '700',
+  },
+  tagAddButton: {
+    width: 34,
+    height: 34,
+    borderRadius: globals.radius.full,
+    backgroundColor: globals.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagAddButtonGlyph: {
+    color: globals.colors.background,
+    fontSize: globals.fontSize.md,
+    fontWeight: '700',
+  },
+  tagHintText: {
+    width: '100%',
+    color: globals.colors.danger,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+  },
+
+  addPromptCard: {
+    width: '85%',
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.lg,
+    padding: globals.spacing.lg,
+  },
+  addPromptTitle: {
+    fontSize: globals.fontSize.md,
+    fontWeight: '700',
+    color: globals.colors.text,
+    marginBottom: globals.spacing.md,
+  },
+
+  wheelCard: {
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.lg,
+    overflow: 'hidden',
+  },
+  wheelHeader: {
+    backgroundColor: globals.colors.primary,
+    paddingVertical: globals.spacing.md,
+    alignItems: 'center',
+  },
+  wheelHeaderText: {
+    color: globals.colors.background,
+    fontWeight: '700',
+    fontSize: globals.fontSize.md,
+  },
+  wheelList: {
+    maxHeight: 260,
+  },
+  wheelRow: {
+    paddingVertical: globals.spacing.md,
+    paddingHorizontal: globals.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: globals.colors.border,
+  },
+  wheelRowSelected: {
+    backgroundColor: globals.colors.backgroundAlt,
+  },
+  wheelRowText: {
+    fontSize: globals.fontSize.md,
+    color: globals.colors.text,
+    textAlign: 'center',
+  },
+  wheelRowTextSelected: {
+    color: globals.colors.primary,
+    fontWeight: '700',
+  },
+
   preferenceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: globals.colors.background,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.sm,
     paddingHorizontal: globals.spacing.md,
     paddingVertical: globals.spacing.md,
-    borderRadius: globals.radius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
   },
   checkbox: {
     fontSize: globals.fontSize.lg,
@@ -807,5 +1264,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: globals.spacing.md,
     marginTop: globals.spacing.lg,
     gap: globals.spacing.sm,
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: globals.spacing.sm,
+    marginTop: globals.spacing.md,
+  },
+  modalButton: {
+    backgroundColor: globals.colors.primary,
+    paddingVertical: globals.spacing.sm,
+    paddingHorizontal: globals.spacing.lg,
+    borderRadius: globals.radius.md,
+    alignItems: 'center',
+    marginTop: globals.spacing.md,
+  },
+  modalButtonLabel: {
+    color: globals.colors.secondary,
+    fontWeight: '600',
+  },
+  modalButtonSecondary: {
+    backgroundColor: globals.colors.secondary,
+    borderWidth: 1,
+    borderColor: globals.colors.border,
+  },
+  modalButtonSecondaryLabel: {
+    color: globals.colors.text,
+    fontWeight: '600',
+  },
+  modalButtonDanger: {
+    backgroundColor: globals.colors.danger,
   },
 });
