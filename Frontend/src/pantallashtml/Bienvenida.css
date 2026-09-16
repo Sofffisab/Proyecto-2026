@@ -43,14 +43,255 @@ h2{
 }
 
 
-.aaa{
-  width: 46%;
+.aaa {
+    width: 46%;
+    border-radius: 8px;
+
+    /* Efecto de desvanecido */
+    -webkit-mask-image: 
+        linear-gradient(to right, transparent 0%, black 35%, black 100%),
+        linear-gradient(to top, transparent 0%, black 30%, black 100%);
+
+    -webkit-mask-composite: source-in;
+    mask-image: 
+        linear-gradient(to right, transparent 0%, black 65%, black 100%),
+        linear-gradient(to top, transparent 0%, black 30%, black 100%);
+    mask-composite: intersect;
+}
+
+.mus{
+    margin-top: -10px;
+    font-size: 160%;
+}
+
+h3{
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.ti{
+    font-size: small;
+    margin-left: 19px;
+    word-spacing: 19px;
+    margin-top: -10px;
+    color: #9D9D9D;
 }
 
 .Cuadrado{
      display: flex;
+     flex-direction: column;
     width: 45%;
-    height: 190px;
+    height: 210px;
     background-color: #FFFFFF;
-     box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
+}
+
+button{
+    display: flex;
+    justify-content: center;
+    font-size: 11px;
+    border-radius: 290px;
+    align-items: center;
+    width: 170px;
+    height: 36px;
+    margin-left: 3px;
+    background-color: #177E89;
+    color: white;
+    border: none;
+     border: none;
+    border-radius: 11px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.A{
+    display: flex;
+    margin-left: 29px;
+    flex-direction: row;
+    color: #177E89;
+}
+
+.arr{
+    display: flex;
+    margin-left: 6px;
+}
+
+.abaj{
+    font-size: x-small;
+    margin-left: 9px;
+    color: #6C6C6C;
+}
+
+.caja{
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    height: 90px;
+    margin-left: 9px;
+    background-color: white;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.caja{
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: 9px;
+}
+
+.calendar{
+    display: flex;
+    width: 58px;
+    height: 58px;
+    margin-left: 17px;
+}
+
+.di{
+    display: flex;
+    flex-direction: column;
+}
+
+.calendari{
+    display: flex;
+    flex-direction: column;
+}
+
+.vie, .vier{
+    display: flex;
+    font-size: xx-small;
+    color: #6C6C6C;
+}
+
+.vier{
+    display: flex;
+    margin-bottom: 19px;
+}
+
+.espal{
+    font-size: 19px;
+}
+
+.imag{
+    display: flex;
+    justify-content: flex-end;
+    width: 97px;
+}
+
+.i{
+    display: flex;
+    width: 46px;
+    margin-left: 9px;
+}
+
+h3:not(.abaj):not(.vie):not(.espal):not(.txt2):not(.vier){
+    font-size: x-small;
+    margin-left: 9px;
+    color: #177E89;
+}
+
+.caja2, .caja3{
+     display: flex;
+    flex-direction: row;
+    width: 90%;
+    height: 90px;
+    margin-left: 9px;
+    background-color: white;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+     display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: 23px;
+}
+
+.footer{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 75px;
+    background-color: #EDECEC;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 0;
+    z-index: 100;
+}
+
+.footer img{
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.circulo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    width: 60px;
+    background-color: #177E89;
+    border-radius: 50%;
+}
+
+.qr{
+    width: 35px !important;
+    height: 35px !important;
+    margin: 0;
+}
+
+.L{
+    display: flex;
+    flex-direction: column;
+}
+
+.vis{
+    width: 29px;
+}
+
+.txt{
+    display: flex;
+    flex-direction: column;
+}
+
+.txt1{
+    color: black;
+    font-size: 10px;
+}
+
+.txt2{
+    color: #9D9D9D;
+    font-size: 10px;
+    margin-right: 9px;
+}
+
+.cuadradofinal{
+      display: flex;
+    flex-direction: row;
+    width: 90%;
+    height: 36px;
+    margin-left: 9px;
+    background-color: #DFE9EA;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+     display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: 39px;
+}
+
+.img2{
+    width: 23px;
+    margin-left: 9px;
+}
+
+.ma{
+    display: flex;
+    font-size: 9px;
+    color: black;
+    margin-bottom: 2px;
+}
+
+.casa{
+    display: flex;
+    flex-direction: column;
+    margin-top: 26px;
 }
