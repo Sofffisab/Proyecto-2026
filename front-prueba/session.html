@@ -15,6 +15,15 @@
   button.secondary:hover { background:#666; }
   .error { color:#c0392b; font-size:13px; margin-top:5px; }
   .ok { color:#27ae60; font-size:13px; margin-top:5px; }
+  .pref-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee; font-size:14px; }
+  .pref-row span.label { color:#555; }
+  .pref-row span.value { font-weight:bold; }
+  .value.on { color:#27ae60; }
+  .value.off { color:#c0392b; }
+  .provisional { background:#e0a800; }
+  .provisional:hover { background:#c69500; }
+  input, select { width:100%; padding:8px; margin:6px 0; box-sizing:border-box; border:1px solid #ccc; border-radius:6px; }
+  .hidden { display:none; }
 </style>
 </head>
 <body>
@@ -25,24 +34,65 @@
   <h3>Usuario</h3>
   <pre id="userInfo"></pre>
 
-  <h3>Access Token</h3>
-  <pre id="accessTokenInfo"></pre>
+  <h3>Preferencias</h3>
+  <div id="preferencesInfo"></div>
 
-  <h3>Refresh Token</h3>
-  <pre id="refreshTokenInfo"></pre>
-
-  <button onclick="testMe()">Probar /users/me con access token</button>
-  <button onclick="testRefresh()">Probar refrescar token</button>
+  <button onclick="toggleEditProfile()">Editar datos del perfil</button>
+  <button class="provisional" onclick="socialInteraction()">Interacción social</button>
+  <button class="provisional" onclick="leaveGym()">Me voy del gym</button>
+  <button class="provisional" onclick="denuncia()">Denunciar</button>
   <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  <button class="secondary" onclick="felicitaciones()">felicitaciones</button>
+  <button class="secondary" onclick="ayuda()">pedir ayuda</button>
+  <button class="secondary" onclick="notificacion()">notificacion</button>
+  <button class="secondary" onclick="rutinas()">rutinas</button>
+
+
+
+
+  <div id="editProfilePanel" class="hidden">
+    <h3>Editar perfil</h3>
+    <input type="text" id="editFirstName" placeholder="Nombre">
+    <input type="text" id="editLastName" placeholder="Apellido">
+    <input type="text" id="editGender" placeholder="Género">
+    <button onclick="saveProfile()">Guardar cambios</button>
+    <button class="secondary" onclick="toggleEditProfile()">Cancelar</button>
+    <div id="editProfileResult"></div>
+  </div>
 
   <div id="meResult"></div>
-  <div id="refreshResult"></div>
 </div>
 
 <script>
 const API_URL = "http://localhost:3000/api/v1";
 
-function loadSession() {
+function renderPreferences(settings) {
+  const prefDiv = document.getElementById('preferencesInfo');
+
+  if (!settings) {
+    prefDiv.innerHTML = `<div class="error">No se pudieron cargar las preferencias.</div>`;
+    return;
+  }
+
+  const rows = [
+    { label: "Sin ayuda (disableAssistance)", value: settings.disableAssistance },
+    { label: "Sin interacción social (disableSocial)", value: settings.disableSocial },
+    { label: "Preferencia de entrenador", value: settings.trainerPreference || "—", raw: true },
+    { label: "Sin escaneo de máquinas (machineTrackingOptOut)", value: settings.machineTrackingOptOut },
+    { label: "Consentimiento analítico (analyticsConsent)", value: settings.analyticsConsent },
+  ];
+
+  prefDiv.innerHTML = rows.map(r => {
+    if (r.raw) {
+      return `<div class="pref-row"><span class="label">${r.label}</span><span class="value">${r.value}</span></div>`;
+    }
+    const cls = r.value ? "on" : "off";
+    const text = r.value ? "Sí" : "No";
+    return `<div class="pref-row"><span class="label">${r.label}</span><span class="value ${cls}">${text}</span></div>`;
+  }).join("");
+}
+
+async function loadSession() {
   const accessToken = localStorage.getItem("accessToken");
   const refreshToken = localStorage.getItem("refreshToken");
   const user = localStorage.getItem("user");
@@ -53,11 +103,12 @@ function loadSession() {
   }
 
   document.getElementById('userInfo').innerText = JSON.stringify(JSON.parse(user), null, 2);
-  document.getElementById('accessTokenInfo').innerText = accessToken;
-  document.getElementById('refreshTokenInfo').innerText = refreshToken;
+
+  // Cargar datos completos (incluye preferencias/settings) desde /users/me
+  await fetchMe();
 }
 
-async function testMe() {
+async function fetchMe() {
   const resultDiv = document.getElementById('meResult');
   resultDiv.innerHTML = "";
   const accessToken = localStorage.getItem("accessToken");
@@ -69,38 +120,90 @@ async function testMe() {
     const data = await res.json();
 
     if (res.ok && data.success) {
-      resultDiv.innerHTML = `<div class="ok">OK: access token válido. Respuesta de /users/me:</div><pre>${JSON.stringify(data.data, null, 2)}</pre>`;
+      document.getElementById('userInfo').innerText = JSON.stringify(data.data, null, 2);
+      renderPreferences(data.data.settings);
+      localStorage.setItem("user", JSON.stringify(data.data));
     } else {
-      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "token inválido"}</div>`;
+      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "no se pudo obtener el usuario"}</div>`;
     }
   } catch (err) {
     resultDiv.innerHTML = `<div class="error">No se pudo conectar al backend (${err.message})</div>`;
   }
 }
 
-async function testRefresh() {
-  const resultDiv = document.getElementById('refreshResult');
+function toggleEditProfile() {
+  const panel = document.getElementById('editProfilePanel');
+  panel.classList.toggle('hidden');
+
+  if (!panel.classList.contains('hidden')) {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    document.getElementById('editFirstName').value = user.firstName || "";
+    document.getElementById('editLastName').value = user.lastName || "";
+    document.getElementById('editGender').value = user.gender || "";
+  }
+}
+
+async function saveProfile() {
+  const resultDiv = document.getElementById('editProfileResult');
   resultDiv.innerHTML = "";
-  const refreshToken = localStorage.getItem("refreshToken");
+  const accessToken = localStorage.getItem("accessToken");
+
+  const body = {
+    firstName: document.getElementById('editFirstName').value.trim(),
+    lastName: document.getElementById('editLastName').value.trim(),
+    gender: document.getElementById('editGender').value.trim(),
+  };
 
   try {
-    const res = await fetch(`${API_URL}/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken })
+    const res = await fetch(`${API_URL}/users/me`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + accessToken
+      },
+      body: JSON.stringify(body)
     });
     const data = await res.json();
 
     if (res.ok && data.success) {
-      localStorage.setItem("accessToken", data.data.accessToken);
-      document.getElementById('accessTokenInfo').innerText = data.data.accessToken;
-      resultDiv.innerHTML = `<div class="ok">OK: se generó un nuevo access token con el refresh token.</div>`;
+      resultDiv.innerHTML = `<div class="ok">Perfil actualizado correctamente.</div>`;
+      await fetchMe();
+      toggleEditProfile();
     } else {
-      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "refresh token inválido"}</div>`;
+      resultDiv.innerHTML = `<div class="error">Error (${res.status}): ${data.message || "no se pudo actualizar el perfil"}</div>`;
     }
   } catch (err) {
     resultDiv.innerHTML = `<div class="error">No se pudo conectar al backend (${err.message})</div>`;
   }
+}
+
+// Botones provisorios/estáticos, aún sin funcionalidad conectada al backend.
+function socialInteraction() {
+  alert("Interacción social: funcionalidad próximamente.");
+}
+
+function leaveGym() {
+  alert("Me voy del gym: funcionalidad próximamente.");
+}
+
+function denuncia() {
+  alert("denunciar: funcionalidad próximamente.");
+}
+
+function felicitaciones() {
+  alert("felicitaciones: funcionalidad próximamente.");
+}
+
+function ayuda() {
+  alert("pedir ayuda: funcionalidad próximamente.");
+}
+
+function notificacion() {
+  alert("notificacion: funcionalidad próximamente.");
+}
+
+function rutinas() {
+  alert("rutinas: funcionalidad próximamente.");
 }
 
 async function logout() {
