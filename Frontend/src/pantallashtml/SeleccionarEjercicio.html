@@ -6,9 +6,11 @@
     <link rel="stylesheet" href="SeleccionarEjercicio.css">
     <title>Document</title>
 </head>
+
+
 <body>
     <div class="header">
-       <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-left-outline.png" alt="">
+       <img class="a" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-left-outline.png" alt="">
        <h1>Seleccionar ejercicio</h1>
     </div>
        <div class="input-container">
@@ -16,6 +18,35 @@
 <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_search-outline.png" alt="">
        
     </div>
+
+    <div class="Ebuton">
+         <button>Todos</button>
+        <button>Pecho</button>
+        <button>Triceps</button>
+     <button>Favoritos</button>
+    </div>
+
+    <div class="entrenamiento">
+           <div class="dia">
+             <h1 class="Edia">Press banca declinada</h1>
+             <h1 class="dias"></h1>
+    </div>
+
+
+   <script>
+    const botones = document.querySelectorAll(".Ebuton button");
+
+    botones.forEach(boton => {
+        boton.addEventListener("click", () => {
+
+            botones.forEach(b => {
+                b.classList.remove("seleccionado");
+            });
+
+            boton.classList.add("seleccionado");
+        });
+    });
+</script>
 
 </body>
 </html>
