@@ -1,5 +1,5 @@
 img{
-    width: 14%;
+    width: 10%;
 }
 
 h1{
@@ -79,9 +79,11 @@ button{
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 40px;
     width: 90%;
     height: 65px;
     background-color: white;
+    margin-left: 20px;
     border-radius: 10px;
 }
 button.seleccionado {
@@ -92,4 +94,19 @@ button.seleccionado {
 .Edia{
     display: flex;
      font-size: 13px;
+}
+
+.izquierda{
+    display: flex;
+}
+
+h2{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 15px;
+}
+
+.Eentrenamiento{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
