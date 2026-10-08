@@ -93,3 +93,8 @@ button.seleccionado {
     display: flex;
      font-size: 13px;
 }
+
+.dia{
+    display: flex;
+    flex-direction: row;
+}
