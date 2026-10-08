@@ -6,8 +6,8 @@ import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import BottomNav from '../../components/common/BottomNav';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as gamificationApi from '../../api/services/gamification.api';
-import * as progressApi from '../../api/services/progress.api';
+import * as gamificationApi from '../../features/api/services/gamification.api';
+import * as progressApi from '../../features/api/services/progress.api';
 
 function Section({ title, loading, empty, emptyLabel, children }) {
   return (

@@ -17,8 +17,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { configureApiClient, ApiError } from '../api/client';
-import * as authApi from '../api/services/auth.api';
-import * as userApi from '../api/services/user.api';
+import * as authApi from '../features/api/services/auth.api';
+import * as userApi from '../features/api/services/user.api';
 
 // Defensive client-side strip: PUT /users/me (Backend/src/controllers/
 // user.controller.js#updateMe) returns the raw Prisma row, which includes

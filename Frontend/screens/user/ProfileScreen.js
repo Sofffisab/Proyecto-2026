@@ -5,15 +5,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
 import BottomNav from '../../components/common/BottomNav';
-import SocialInteractionPopup from './popups/SocialInteractionPopup';
-import RateTrainerPopup from './popups/RateTrainerPopup';
+import SocialInteractionPopup from '../../components/user/SocialInteractionPopup';
+import RateTrainerPopup from '../../components/user/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
-import * as gamificationApi from '../../api/services/gamification.api';
-import * as qrApi from '../../api/services/qr.api';
-import * as assistanceApi from '../../api/services/assistance.api';
-import * as challengeApi from '../../api/services/challenge.api';
-import { flushQueue } from '../../offline/offlineQueue';
+import * as gamificationApi from '../../features/api/services/gamification.api';
+import * as qrApi from '../../features/api/services/qr.api';
+import * as assistanceApi from '../../features/api/services/assistance.api';
+import * as challengeApi from '../../features/api/services/challenge.api';
+import { flushQueue } from '../../features/offline/offlineQueue';
 
 /**
  * User Profile screen ("Tu perfil") - reached by tapping the "usuario"

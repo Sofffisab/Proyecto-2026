@@ -5,18 +5,18 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
 import BottomNav from '../../components/common/BottomNav';
-import SocialInteractionPopup from './popups/SocialInteractionPopup';
-import RateTrainerPopup from './popups/RateTrainerPopup';
+import SocialInteractionPopup from '../../components/user/SocialInteractionPopup';
+import RateTrainerPopup from '../../components/user/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
-import * as gamificationApi from '../../api/services/gamification.api';
-import * as qrApi from '../../api/services/qr.api';
-import * as assistanceApi from '../../api/services/assistance.api';
-import * as notificationApi from '../../api/services/notification.api';
-import * as challengeApi from '../../api/services/challenge.api';
-import * as routineApi from '../../api/services/routine.api';
-import * as historyApi from '../../api/services/history.api';
-import { flushQueue } from '../../offline/offlineQueue';
+import * as gamificationApi from '../../features/api/services/gamification.api';
+import * as qrApi from '../../features/api/services/qr.api';
+import * as assistanceApi from '../../features/api/services/assistance.api';
+import * as notificationApi from '../../features/api/services/notification.api';
+import * as challengeApi from '../../features/api/services/challenge.api';
+import * as routineApi from '../../features/api/services/routine.api';
+import * as historyApi from '../../features/api/services/history.api';
+import { flushQueue } from '../../features/offline/offlineQueue';
 
 // Mon..Sun short labels for the week row (".hexagonos"-style row of dots
 // in the new Home design). Hardcoded like the rest of this screen's icon

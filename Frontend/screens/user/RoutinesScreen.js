@@ -23,7 +23,7 @@ import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import BottomNav from '../../components/common/BottomNav';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as routineApi from '../../api/services/routine.api';
+import * as routineApi from '../../features/api/services/routine.api';
 
 /**
  * @param {function} [onBack]

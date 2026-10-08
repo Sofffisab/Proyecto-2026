@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import globals from '../styles/globals';
-import ROLES from '../constants/roles';
 
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -22,23 +21,6 @@ import RoutinesScreen from '../screens/user/RoutinesScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
-
-import TrainerHomeScreen from '../screens/trainer/HomeScreen';
-import TrainerHistoryScreen from '../screens/trainer/HistoryScreen';
-import TrainerReportsScreen from '../screens/trainer/ReportsScreen';
-import HelpScreen from '../screens/trainer/HelpScreen';
-import TrainerRoutineRequestsScreen from '../screens/trainer/RoutineRequestsScreen';
-import TrainerGenerateQRScreen from '../screens/trainer/GenerateQRScreen';
-import MachineConflictsScreen from '../screens/trainer/MachineConflictsScreen';
-
-import AdminHomeScreen from '../screens/admin/HomeScreen';
-import ViewGymScreen from '../screens/admin/ViewGymScreen';
-import StatisticsScreen from '../screens/admin/StatisticsScreen';
-import MembersScreen from '../screens/admin/MembersScreen';
-import RewardsScreen from '../screens/admin/RewardsScreen';
-import ReviewReportsScreen from '../screens/admin/ReviewReportsScreen';
-import FullHistoryScreen from '../screens/admin/FullHistoryScreen';
-import AdminGenerateQRScreen from '../screens/admin/GenerateQRScreen';
 
 /*
  * Route names for the whole navigation tree.
@@ -72,29 +54,9 @@ export const ROUTES = {
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
-  TRAINER_HOME: 'TrainerHome',
-  TRAINER_HISTORY: 'TrainerHistory',
-  TRAINER_REPORTS: 'TrainerReports',
-  TRAINER_HELP: 'TrainerHelp',
-  TRAINER_ROUTINE_REQUESTS: 'TrainerRoutineRequests',
-  TRAINER_MACHINE_CONFLICTS: 'TrainerMachineConflicts',
-  TRAINER_GENERATE_QR: 'TrainerGenerateQR',
-  ADMIN_HOME: 'AdminHome',
-  ADMIN_VIEW_GYM: 'AdminViewGym',
-  ADMIN_STATISTICS: 'AdminStatistics',
-  ADMIN_MEMBERS: 'AdminMembers',
-  ADMIN_REWARDS: 'AdminRewards',
-  ADMIN_REVIEW_REPORTS: 'AdminReviewReports',
-  ADMIN_FULL_HISTORY: 'AdminFullHistory',
-  ADMIN_GENERATE_QR: 'AdminGenerateQR',
 };
 
 const Stack = createNativeStackNavigator();
-
-// Lets code outside the React tree (the push-notification "tapped" handler
-// in src/notifications/pushNotifications.js) navigate — e.g. to jump
-// straight to the Trainer Help screen per spec section 9.
-export const navigationRef = createNavigationContainerRef();
 
 // "Log out / switch account" now really logs out (clears the persisted
 // session + blacklists the token server-side via AuthContext#logout) and
@@ -113,8 +75,6 @@ const goBack = (navigation) => () => navigation.goBack();
 // Backend/src/middlewares/profileCompletion.middleware.js).
 function getHomeRouteForUser(user) {
   if (!user) return ROUTES.WELCOME;
-  if (user.role === ROLES.ADMIN.toUpperCase()) return ROUTES.ADMIN_HOME;
-  if (user.role === ROLES.TRAINER.toUpperCase()) return ROUTES.TRAINER_HOME;
   return user.isProfileComplete ? ROUTES.USER_PROFILE : ROUTES.ONBOARDING_GOAL;
 }
 
@@ -137,7 +97,8 @@ export default function RootNavigator() {
   const initialRouteName = isAuthenticated ? getHomeRouteForUser(user) : ROUTES.WELCOME;
 
   return (
-    <Stack.Navigator
+    <NavigationContainer>
+      <Stack.Navigator
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}
     >
@@ -465,112 +426,7 @@ export default function RootNavigator() {
         {({ navigation }) => <WrappedScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
-      {/* ---------- Trainer ---------- */}
-
-      <Stack.Screen name={ROUTES.TRAINER_HOME}>
-        {({ navigation }) => (
-          <TrainerHomeScreen
-            onGenerateQR={() => navigation.navigate(ROUTES.TRAINER_GENERATE_QR)}
-            onGoToHistory={() => navigation.navigate(ROUTES.TRAINER_HISTORY)}
-            onGoToReports={() => navigation.navigate(ROUTES.TRAINER_REPORTS)}
-            onGoToHelp={() => navigation.navigate(ROUTES.TRAINER_HELP)}
-            onGoToRoutineRequests={() => navigation.navigate(ROUTES.TRAINER_ROUTINE_REQUESTS)}
-            onGoToMachineConflicts={() => navigation.navigate(ROUTES.TRAINER_MACHINE_CONFLICTS)}
-            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
-            onLogout={async () => {
-              await logout();
-              goToWelcome(navigation)();
-            }}
-            onBack={goBack(navigation)}
-          />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_HISTORY}>
-        {({ navigation }) => <TrainerHistoryScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_REPORTS}>
-        {({ navigation }) => (
-          <TrainerReportsScreen onSubmit={undefined} onBack={goBack(navigation)} />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_HELP}>
-        {({ navigation }) => (
-          <HelpScreen onSelectUser={undefined} onBack={goBack(navigation)} />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_ROUTINE_REQUESTS}>
-        {({ navigation }) => <TrainerRoutineRequestsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_MACHINE_CONFLICTS}>
-        {({ navigation }) => <MachineConflictsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.TRAINER_GENERATE_QR}>
-        {({ navigation }) => <TrainerGenerateQRScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      {/* ---------- Admin ---------- */}
-
-      <Stack.Screen name={ROUTES.ADMIN_HOME}>
-        {({ navigation }) => (
-          <AdminHomeScreen
-            onGenerateQR={() => navigation.navigate(ROUTES.ADMIN_GENERATE_QR)}
-            onGoToViewGym={() => navigation.navigate(ROUTES.ADMIN_VIEW_GYM)}
-            onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
-            onLogout={async () => {
-              await logout();
-              goToWelcome(navigation)();
-            }}
-            onBack={goBack(navigation)}
-          />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_VIEW_GYM}>
-        {({ navigation }) => (
-          <ViewGymScreen
-            onGoToStatistics={() => navigation.navigate(ROUTES.ADMIN_STATISTICS)}
-            onGoToMembers={() => navigation.navigate(ROUTES.ADMIN_MEMBERS)}
-            onGoToRewards={() => navigation.navigate(ROUTES.ADMIN_REWARDS)}
-            onGoToReviewReports={() => navigation.navigate(ROUTES.ADMIN_REVIEW_REPORTS)}
-            onGoToHistory={() => navigation.navigate(ROUTES.ADMIN_FULL_HISTORY)}
-            onBack={goBack(navigation)}
-          />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_STATISTICS}>
-        {({ navigation }) => <StatisticsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_MEMBERS}>
-        {({ navigation }) => (
-          // MembersScreen fetches/mutates its own data (GET /users, POST
-          // /auth/users, PATCH /users/:id/status) via user.api.js/auth.api.js.
-          <MembersScreen onBack={goBack(navigation)} />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_REWARDS}>
-        {({ navigation }) => <RewardsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_REVIEW_REPORTS}>
-        {({ navigation }) => <ReviewReportsScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_FULL_HISTORY}>
-        {({ navigation }) => <FullHistoryScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-
-      <Stack.Screen name={ROUTES.ADMIN_GENERATE_QR}>
-        {({ navigation }) => <AdminGenerateQRScreen onBack={goBack(navigation)} />}
-      </Stack.Screen>
-    </Stack.Navigator>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }

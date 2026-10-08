@@ -21,10 +21,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as userApi from '../../api/services/user.api';
-import * as gymApi from '../../api/services/gym.api';
-import * as complaintApi from '../../api/services/complaint.api';
-import * as gamificationApi from '../../api/services/gamification.api';
+import * as userApi from '../../features/api/services/user.api';
+import * as gymApi from '../../features/api/services/gym.api';
+import * as complaintApi from '../../features/api/services/complaint.api';
+import * as gamificationApi from '../../features/api/services/gamification.api';
 
 const CATEGORY = {
   TRAINER: 'TRAINER',

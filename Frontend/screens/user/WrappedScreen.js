@@ -20,7 +20,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as gamificationApi from '../../api/services/gamification.api';
+import * as gamificationApi from '../../features/api/services/gamification.api';
 
 const CURRENT_YEAR = new Date().getFullYear();
 

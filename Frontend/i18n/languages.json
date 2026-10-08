@@ -1,6 +1,15 @@
 {
   "default": "en",
   "available": [
-    { "code": "en", "label": "English", "file": "en" }
+    {
+      "code": "en",
+      "label": "English",
+      "file": "en"
+    },
+    {
+      "code": "es",
+      "label": "Español",
+      "file": "es"
+    }
   ]
 }

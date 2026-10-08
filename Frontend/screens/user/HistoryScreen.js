@@ -4,11 +4,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as gymApi from '../../api/services/gym.api';
-import * as historyApi from '../../api/services/history.api';
-import * as gamificationApi from '../../api/services/gamification.api';
-import * as rewardApi from '../../api/services/reward.api';
-import * as complaintApi from '../../api/services/complaint.api';
+import * as gymApi from '../../features/api/services/gym.api';
+import * as historyApi from '../../features/api/services/history.api';
+import * as gamificationApi from '../../features/api/services/gamification.api';
+import * as rewardApi from '../../features/api/services/reward.api';
+import * as complaintApi from '../../features/api/services/complaint.api';
 
 function formatDateTime(value) {
   if (!value) return null;

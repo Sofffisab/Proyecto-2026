@@ -1,5 +1,21 @@
 {
-  "plugins": [
-    "expo-status-bar"
-  ]
+  "expo": {
+    "name": "Proyecto 2026",
+    "slug": "proyecto-2026",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-camera"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "android": {
+      "permissions": [
+        "CAMERA"
+      ]
+    }
+  }
 }

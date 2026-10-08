@@ -21,7 +21,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as notificationApi from '../../api/services/notification.api';
+import * as notificationApi from '../../features/api/services/notification.api';
 
 function formatDateTime(value) {
   const date = new Date(value);
