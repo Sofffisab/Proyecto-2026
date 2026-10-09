@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="SeleccionarEjercicio.css">
+    <title>Document</title>
+</head>
+
+
+<body>
+    <div class="header">
+       <img class="a" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-left-outline.png" alt="">
+       <h1>Seleccionar ejercicio</h1>
+    </div>
+       <div class="input-container">
+        <input class="input" id="tituloInput" type="text" maxlength="40" placeholder="Buscar ejercicio">
+<img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_search-outline.png" alt="">
+       
+    </div>
+
+    <div class="Ebuton">
+         <button>Todos</button>
+        <button>Pecho</button>
+        <button>Triceps</button>
+     <button>Favoritos</button>
+    </div>
+
+    <div class="Eentrenamiento">
+          <div class="entrenamiento">
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Rectangle 75.png" alt="">  
+     <h2>Press banca declinada</h2>    
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/botones.png" alt="">  
+         
+
+    </div>
+
+    <div class="entrenamiento">
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Rectangle 75.png" alt="">  
+     <h2>Press banca declinada</h2>    
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/botones.png" alt="">  
+         
+
+    </div>
+
+    <div class="entrenamiento">
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Rectangle 75.png" alt="">  
+     <h2>Press banca declinada</h2>    
+     <img class="izquierda" src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/botones.png" alt="">  
+         
+
+    </div>
+    
+    <div class="entrenamiento">
+     
+         
+
+    </div>
+
+    <div class="entrenamiento">
+   
+         
+
+    </div>
+
+    <div class="entrenamiento">
+    
+
+    </div>
+
+
+    <div class="entrenamiento">
+   
+         
+
+    </div>
+    </div>
+   
+
+   <script>
+    const botones = document.querySelectorAll(".Ebuton button");
+
+    botones.forEach(boton => {
+        boton.addEventListener("click", () => {
+
+            botones.forEach(b => {
+                b.classList.remove("seleccionado");
+            });
+
+            boton.classList.add("seleccionado");
+        });
+    });
+</script>
+
+</body>
+</html>
