@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, Modal, TouchableOpacity } from 'react-native';
-import Svg, { Polygon } from 'react-native-svg';
+import Svg, { Polyline, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
@@ -76,39 +76,6 @@ function toDateKey(date) {
  * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
  * @param {function} [onBack]
  */
-
-// True hexagon badge (".hexagono" in Perfil.css uses clip-path: polygon()).
-// RN has no clip-path, but react-native-svg (already a project dependency)
-// lets us draw the exact same flat-top hexagon shape instead of the
-// rounded-square approximation this screen used to fall back to.
-const HEX_W = 45;
-const HEX_H = 50;
-const HEX_POINTS = [
-  [HEX_W * 0.5, 0],
-  [HEX_W, HEX_H * 0.25],
-  [HEX_W, HEX_H * 0.75],
-  [HEX_W * 0.5, HEX_H],
-  [0, HEX_H * 0.75],
-  [0, HEX_H * 0.25],
-]
-  .map(([x, y]) => `${x},${y}`)
-  .join(' ');
-
-function Hexagon({ color, onPress, children }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.hexagono} activeOpacity={0.75}>
-      <Svg
-        width={HEX_W}
-        height={HEX_H}
-        viewBox={`0 0 ${HEX_W} ${HEX_H}`}
-        style={StyleSheet.absoluteFillObject}
-      >
-        <Polygon points={HEX_POINTS} fill={color} />
-      </Svg>
-      <View style={styles.hexagonoContent}>{children}</View>
-    </TouchableOpacity>
-  );
-}
 
 export default function HomeScreen({
   onGoToHistory,
@@ -367,23 +334,23 @@ export default function HomeScreen({
     return Array.isArray(exercises) ? exercises.length : null;
   };
   const routineDuration = (routine) => routine?.content?.durationMinutes ?? null;
+  const heroMeta = [
+    routineExerciseCount(todayRoutine) != null
+      ? t('user.home.exercisesCount', { count: routineExerciseCount(todayRoutine) })
+      : null,
+    routineDuration(todayRoutine) != null
+      ? t('user.home.durationMinutes', { count: routineDuration(todayRoutine) })
+      : null,
+  ].filter(Boolean);
 
   return (
     <View style={styles.body}>
-      {/* ---------------- HEADER (".Espacio") ---------------- */}
+      {/* ---------------- HEADER: greeting + bell + avatar ---------------- */}
       <View style={styles.espacio}>
-        <View style={styles.espacioGreeting}>
-          <Text style={styles.h1}>{t('user.home.greeting', { name: user?.firstName || t('user.home.member') })}</Text>
-          <Text style={styles.espacioSubtitle}>{t('user.home.greetingSubtitle')}</Text>
-        </View>
         <View style={styles.espacioActions}>
-          <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton}>
-            <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
+          <TouchableOpacity onPress={onGoToNotifications} style={styles.headerIconButton} hitSlop={8}>
+            <Image source={require('../../assets/bell_outline.png')} style={styles.bellImg} />
+            {unreadCount > 0 && <View style={styles.bellDot} />}
           </TouchableOpacity>
           <TouchableOpacity onPress={onGoToProfile}>
             {user?.avatarUrl ? (
@@ -395,6 +362,10 @@ export default function HomeScreen({
             )}
           </TouchableOpacity>
         </View>
+        <Text style={styles.h1}>
+          {t('user.home.greeting', { name: user?.firstName || t('user.home.member') })}
+        </Text>
+        <Text style={styles.espacioSubtitle}>{t('user.home.greetingSubtitle')}</Text>
       </View>
 
       <ScrollView
@@ -408,46 +379,49 @@ export default function HomeScreen({
             <Text style={styles.heroLabel}>
               {t('user.home.todayLabel')} • {todayDayLabel}
             </Text>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {routinesLoading
-                ? '…'
-                : todayRoutine?.name || t('user.home.noRoutineTitle')}
+            <Text style={styles.heroTitle} numberOfLines={3}>
+              {routinesLoading ? '…' : todayRoutine?.name || t('user.home.noRoutineTitle')}
             </Text>
-            <Text style={styles.heroMeta}>
-              {routinesLoading
-                ? ' '
-                : [
-                    routineExerciseCount(todayRoutine) != null
-                      ? t('user.home.exercisesCount', { count: routineExerciseCount(todayRoutine) })
-                      : null,
-                    routineDuration(todayRoutine) != null
-                      ? t('user.home.durationMinutes', { count: routineDuration(todayRoutine) })
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' • ')}
-            </Text>
+            {!routinesLoading && heroMeta.length > 0 && (
+              <View style={styles.heroMetaRow}>
+                {heroMeta.map((item, i) => (
+                  <React.Fragment key={item}>
+                    {i > 0 && <View style={styles.heroMetaDivider} />}
+                    <Text style={styles.heroMeta}>{item}</Text>
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
             <View style={styles.heroButton}>
-              <Text style={styles.heroButtonLabel}>{t('user.home.startTraining')} →</Text>
+              <Text style={styles.heroButtonLabel}>{t('user.home.startTraining')}</Text>
+              <Text style={styles.heroButtonArrow}>→</Text>
             </View>
           </View>
           <View style={styles.heroImageWrap}>
-            <Text style={styles.heroImageEmoji}>💪</Text>
+            <Image source={require('../../assets/images 1.png')} style={styles.heroImage} />
+            {/* white -> transparent fade so the photo melts into the card */}
+            <Svg style={StyleSheet.absoluteFillObject} width="100%" height="100%">
+              <Defs>
+                <LinearGradient id="heroFade" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
+                  <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0" />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroFade)" />
+            </Svg>
           </View>
         </TouchableOpacity>
 
         {/* ---------------- NEXT TRAINING ---------------- */}
         <Text style={styles.sectionLabel}>{t('user.home.nextTrainingLabel')}</Text>
-        <TouchableOpacity style={styles.nextCard} onPress={onGoToRoutines}>
-          <View style={styles.nextCardIcon}>
-            <Text style={styles.nextCardIconText}>📅</Text>
+        <TouchableOpacity style={styles.card} onPress={onGoToRoutines} activeOpacity={0.8}>
+          <View style={styles.iconCircle}>
+            <Image source={require('../../assets/Imagen.png')} style={styles.iconCircleImg} />
           </View>
-          <View style={styles.nextCardTextCol}>
+          <View style={styles.cardTextCol}>
             <Text style={styles.nextCardDay}>{nextDayLabel}</Text>
-            <Text style={styles.nextCardTitle}>
-              {routinesLoading
-                ? '…'
-                : nextRoutine?.name || t('user.home.noRoutineTitle')}
+            <Text style={styles.nextCardTitle} numberOfLines={1}>
+              {routinesLoading ? '…' : nextRoutine?.name || t('user.home.noRoutineTitle')}
             </Text>
             {routineExerciseCount(nextRoutine) != null && (
               <Text style={styles.nextCardMeta}>
@@ -463,7 +437,7 @@ export default function HomeScreen({
         </Text>
 
         {/* ---------------- WEEK ROW ---------------- */}
-        <View style={styles.weekRow}>
+        <View style={[styles.weekCard]}>
           {WEEK_DAY_LETTERS.map((letter, i) => {
             const key = weekKeys[i];
             const done = key ? Boolean(weekActivity[key]) : false;
@@ -486,94 +460,62 @@ export default function HomeScreen({
         </View>
 
         {/* ---------------- PROGRESS CARD ---------------- */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressIcon}>
-            <Text style={styles.progressIconText}>📈</Text>
+        <View style={[styles.card, styles.progressCard]}>
+          <View style={styles.iconCircle}>
+            <Svg width={26} height={26} viewBox="0 0 26 26">
+              <Polyline
+                points="3,19 9,12 14,16 22,6"
+                fill="none"
+                stroke={globals.colors.primary}
+                strokeWidth={1.2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity={0.7}
+              />
+              {[[3, 19], [9, 12], [14, 16], [22, 6]].map(([cx, cy]) => (
+                <Circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.5} fill={globals.colors.primary} opacity={0.7} />
+              ))}
+            </Svg>
           </View>
-          <View style={styles.progressTextCol}>
+          <View style={styles.cardTextCol}>
             <Text style={styles.progressTitle}>
               {t('user.home.trainingsCompletedThisWeek', { done: weekDoneCount, total: WEEK_DAY_LETTERS.length })}
             </Text>
             <Text style={styles.progressSubtitle}>{t('user.home.keepGoing')}</Text>
           </View>
-          <View style={styles.progressPointsPill}>
-            <Text style={styles.progressPointsText}>
-              {pointsLoading ? '…' : points.toLocaleString()} {t('user.home.pointsShort')}
-            </Text>
-          </View>
         </View>
 
         {/* ---------------- MOTIVATIONAL QUOTE BANNER ---------------- */}
-        <TouchableOpacity style={styles.quoteBanner} onPress={onGoToAchievementsGoals}>
-          <Text style={styles.quoteIcon}>🏆</Text>
+        <TouchableOpacity style={styles.quoteBanner} onPress={onGoToAchievementsGoals} activeOpacity={0.8}>
+          <Image source={require('../../assets/proicons_trophy.png')} style={styles.quoteIcon} />
           <Text style={styles.quoteText}>{t('user.home.motivationalQuote')}</Text>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={styles.chevronDark}>›</Text>
         </TouchableOpacity>
 
-        {/* ---------------- QUICK ACCESS (components from the previous
-            design that aren't represented above: settings, wrapped,
-            achievement badges, history, reports, ask for help, logout) --- */}
-        <View style={styles.e}>
-          <Text style={styles.sectionLabel}>{t('user.home.quickAccess')}</Text>
-
-          <View style={styles.e2}>
-            <Text style={styles.t2}>{t('user.home.personalData')}</Text>
-            <View style={styles.hexagonos}>
-              <Hexagon color={globals.colors.primary} onPress={onGoToSettings}>
-                <Text style={styles.hexagonoIcon}>⚙️</Text>
-              </Hexagon>
-              <Hexagon color={globals.colors.danger} onPress={onGoToWrapped}>
-                <Text style={styles.hexagonoIcon}>🎁</Text>
-              </Hexagon>
-            </View>
+        {/* ---------------- ASK FOR HELP ----------------
+            The mockup's Home has no slot for this, but "ask a trainer for
+            help" is a core feature (POST /assistance/request), so it stays
+            as one quiet card at the bottom. History / Reports / Year
+            Wrapped / Log out moved into the "..." menu on the profile. */}
+        <TouchableOpacity
+          style={[styles.card, styles.helpCard]}
+          onPress={handleAskForHelp}
+          disabled={helpLoading}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.iconCircle, styles.iconCircleSmall]}>
+            <Text style={styles.helpIcon}>?</Text>
           </View>
-
-          <View style={styles.e2}>
-            <Text style={styles.t2}>{t('user.home.achievements')}</Text>
-            <View style={styles.hexagonos}>
-              <Hexagon color={styles.hexagonoGreen.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>🥇</Text>
-              </Hexagon>
-              <Hexagon color={styles.hexagonoTeal.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>💪</Text>
-              </Hexagon>
-              <Hexagon color={styles.hexagonoNavy.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>🔥</Text>
-              </Hexagon>
-              <Hexagon color={styles.hexagonoOrange.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>👑</Text>
-              </Hexagon>
-            </View>
-          </View>
-
-          <View style={styles.quickNavRow}>
-            <TouchableOpacity style={styles.quickNavItem} onPress={onGoToHistory}>
-              <Text style={styles.d1Icon}>🕘</Text>
-              <Text style={styles.texto}>{t('user.home.history')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={onGoToReports}>
-              <Text style={styles.d1Icon}>📊</Text>
-              <Text style={styles.texto}>{t('user.home.reports')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={handleAskForHelp} disabled={helpLoading}>
-              <Text style={styles.d1Icon}>🆘</Text>
-              <Text style={styles.texto}>
-                {helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickNavItem} onPress={() => setShowLogoutConfirm(true)}>
-              <Text style={styles.d1Icon}>🚪</Text>
-              <Text style={styles.texto}>{t('user.home.logout')}</Text>
-            </TouchableOpacity>
-          </View>
-          {helpFeedback && (
-            <Text style={helpFeedback.type === 'error' ? styles.errorText : styles.successText}>
-              {helpFeedback.message}
-            </Text>
-          )}
-        </View>
-
-        <Text style={styles.backLink} onPress={onBack}>{t('user.home.back')}</Text>
+          <Text style={styles.helpText}>
+            {helpLoading ? t('user.home.pedirAyudaLoading') : t('user.home.pedirAyuda')}
+          </Text>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+        {helpFeedback && (
+          <Text style={helpFeedback.type === 'error' ? styles.errorText : styles.successText}>
+            {helpFeedback.message}
+          </Text>
+        )}
       </ScrollView>
 
       {/* ---------------- FOOTER ----------------
@@ -596,7 +538,7 @@ export default function HomeScreen({
         onRequestClose={() => setShowCheckInSuccess(false)}
       >
         <View style={styles.overlay}>
-          <View style={styles.card}>
+          <View style={styles.modalCard}>
             <Text style={styles.cardTitle}>{t('user.home.checkInSuccessTitle')}</Text>
             <Text>{t('user.home.checkInSuccessBody')}</Text>
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowCheckInSuccess(false)}>
@@ -614,7 +556,7 @@ export default function HomeScreen({
         onRequestClose={() => setShowLogoutConfirm(false)}
       >
         <View style={styles.overlay}>
-          <View style={styles.card}>
+          <View style={styles.modalCard}>
             <Text style={styles.cardTitle}>{t('user.home.logoutConfirmTitle')}</Text>
             <Text>{t('user.home.logoutConfirmMessage')}</Text>
             <View style={styles.confirmRow}>
@@ -700,6 +642,7 @@ export default function HomeScreen({
   );
 }
 
+
 const styles = StyleSheet.create({
   // ---------------- body ----------------
   body: {
@@ -707,76 +650,66 @@ const styles = StyleSheet.create({
     backgroundColor: globals.colors.background,
   },
 
-  // ---------------- HEADER (".Espacio") ----------------
+  // ---------------- HEADER ----------------
   espacio: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
     width: '100%',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-  },
-  espacioGreeting: {
-    flexShrink: 1,
-    paddingRight: 10,
-  },
-  h1: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: globals.colors.text,
-  },
-  espacioSubtitle: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    marginTop: 4,
+    paddingTop: 16,
+    paddingHorizontal: 22,
+    paddingBottom: 6,
   },
   espacioActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 14,
+    marginBottom: 14,
   },
   headerIconButton: {
     position: 'relative',
   },
-  espacioImg: {
+  bellImg: {
     width: 26,
     height: 26,
     resizeMode: 'contain',
   },
+  bellDot: {
+    position: 'absolute',
+    top: 0,
+    right: 1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: globals.colors.primary,
+  },
   headerAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: globals.colors.avatarPlaceholder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerAvatarPhoto: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   headerAvatarText: {
     fontSize: globals.fontSize.sm,
     fontWeight: 'bold',
     color: globals.colors.text,
   },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: globals.colors.danger,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
+  h1: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: globals.colors.text,
   },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+  espacioSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: globals.colors.textSecondary,
+    marginTop: 6,
+    maxWidth: 260,
   },
 
   // ---------------- scroll wrapper ----------------
@@ -784,149 +717,200 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 14,
     paddingBottom: globals.spacing.lg,
+  },
+
+  // ---------------- shared card look ----------------
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: globals.colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 12,
+    ...globals.shadow.card,
+  },
+  cardTextCol: {
+    flex: 1,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: globals.colors.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconCircleSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  iconCircleImg: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+    tintColor: globals.colors.primary,
   },
 
   // ---------------- TODAY HERO CARD ----------------
   heroCard: {
     flexDirection: 'row',
-    backgroundColor: globals.colors.background,
+    backgroundColor: globals.colors.surface,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.lg,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.md,
+    borderColor: globals.colors.surfaceBorder,
     overflow: 'hidden',
+    minHeight: 168,
+    ...globals.shadow.card,
   },
   heroTextCol: {
     flex: 1,
-    padding: globals.spacing.md,
+    paddingVertical: 16,
+    paddingLeft: 16,
+    paddingRight: 4,
+    justifyContent: 'center',
+    zIndex: 1,
   },
   heroLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '500',
     color: globals.colors.primary,
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 10,
     textTransform: 'uppercase',
   },
   heroTitle: {
-    fontSize: globals.fontSize.xl,
-    fontWeight: 'bold',
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: '700',
     color: globals.colors.text,
-    marginBottom: 6,
+    marginBottom: 10,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
   },
   heroMeta: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    marginBottom: globals.spacing.md,
+    fontSize: 10,
+    fontWeight: '600',
+    color: globals.colors.textSecondary,
+  },
+  heroMetaDivider: {
+    width: 1,
+    height: 10,
+    marginHorizontal: 12,
+    backgroundColor: '#D0D0D0',
   },
   heroButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 10,
     backgroundColor: globals.colors.primary,
-    borderRadius: globals.radius.full,
+    borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    alignSelf: 'flex-start',
+    ...globals.shadow.button,
   },
   heroButtonLabel: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: globals.fontSize.sm,
+    fontSize: 12,
+  },
+  heroButtonArrow: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 14,
   },
   heroImageWrap: {
-    width: 110,
-    backgroundColor: globals.colors.sectionCard,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 140,
+    marginLeft: -40,   // tuck under the text column so the white fade overlaps
   },
-  heroImageEmoji: {
-    fontSize: 40,
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 
   // ---------------- NEXT TRAINING ----------------
   sectionLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: globals.colors.textMuted,
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    color: globals.colors.navInactive,
+    marginTop: 22,
+    marginBottom: 10,
+    marginLeft: 2,
     textTransform: 'uppercase',
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.lg,
-    marginBottom: globals.spacing.sm,
-  },
-  nextCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
-    marginHorizontal: globals.spacing.md,
-    padding: globals.spacing.md,
-    gap: globals.spacing.sm,
-  },
-  nextCardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: globals.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextCardIconText: {
-    fontSize: 18,
-  },
-  nextCardTextCol: {
-    flex: 1,
   },
   nextCardDay: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
+    fontSize: 10,
+    color: globals.colors.textSecondary,
     marginBottom: 2,
     textTransform: 'capitalize',
   },
   nextCardTitle: {
-    fontSize: globals.fontSize.md,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: globals.colors.text,
   },
   nextCardMeta: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    marginTop: 2,
+    fontSize: 9,
+    color: globals.colors.textSecondary,
+    marginTop: 3,
   },
   chevron: {
-    fontSize: 22,
-    color: globals.colors.textMuted,
+    fontSize: 28,
+    lineHeight: 28,
+    color: globals.colors.text,
+    paddingHorizontal: 4,
+  },
+  chevronDark: {
+    fontSize: 24,
+    lineHeight: 24,
+    color: globals.colors.text,
   },
   viewScheduleLink: {
     color: globals.colors.primary,
     fontWeight: '600',
-    fontSize: globals.fontSize.sm,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.sm,
+    fontSize: 11,
+    marginTop: 14,
+    marginLeft: 2,
   },
 
   // ---------------- WEEK ROW ----------------
-  weekRow: {
+  weekCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.lg,
+    backgroundColor: globals.colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 18,
+    ...globals.shadow.card,
   },
   weekDayCol: {
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   weekDayLetter: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
+    fontSize: 12,
+    color: globals.colors.navInactive,
     fontWeight: '600',
   },
   weekDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: globals.colors.border,
+    borderColor: globals.colors.surfaceBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -935,8 +919,11 @@ const styles = StyleSheet.create({
     borderColor: globals.colors.primary,
   },
   weekDotToday: {
-    borderColor: globals.colors.primary,
+    // partial teal ring, like the "in progress" day in the mockup
     borderWidth: 2,
+    borderColor: globals.colors.surfaceBorder,
+    borderTopColor: globals.colors.primary,
+    borderRightColor: globals.colors.primary,
   },
   weekDotCheck: {
     color: '#fff',
@@ -946,179 +933,59 @@ const styles = StyleSheet.create({
 
   // ---------------- PROGRESS CARD ----------------
   progressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.lg,
-    padding: globals.spacing.md,
-    gap: globals.spacing.sm,
-  },
-  progressIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: globals.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressIconText: {
-    fontSize: 18,
-  },
-  progressTextCol: {
-    flex: 1,
+    marginTop: 18,
   },
   progressTitle: {
-    fontSize: globals.fontSize.md,
+    fontSize: 13,
     fontWeight: '600',
     color: globals.colors.text,
   },
   progressSubtitle: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
-    marginTop: 2,
-  },
-  progressPointsPill: {
-    backgroundColor: globals.colors.background,
-    borderRadius: globals.radius.full,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  progressPointsText: {
-    fontSize: globals.fontSize.sm,
-    fontWeight: '700',
-    color: globals.colors.primary,
+    fontSize: 11,
+    color: globals.colors.textSecondary,
+    marginTop: 3,
   },
 
   // ---------------- MOTIVATIONAL QUOTE BANNER ----------------
   quoteBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E7F3F4',
-    borderRadius: globals.radius.md,
-    marginHorizontal: globals.spacing.md,
-    marginTop: globals.spacing.md,
-    padding: globals.spacing.md,
-    gap: globals.spacing.sm,
+    backgroundColor: globals.colors.tealSoft,
+    borderRadius: 8,
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 14,
   },
   quoteIcon: {
-    fontSize: 18,
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    tintColor: globals.colors.primary,
   },
   quoteText: {
     flex: 1,
-    fontSize: globals.fontSize.sm,
+    fontSize: 11,
+    fontWeight: '500',
     color: globals.colors.text,
   },
 
-  d1Icon: {
-    fontSize: 20,
-    marginBottom: 5,
+  // ---------------- ASK FOR HELP ----------------
+  helpCard: {
+    marginTop: 16,
   },
-  texto: {
-    fontSize: 10,
-    color: globals.colors.textMuted,
-    textAlign: 'center',
-  },
-
-  // ---------------- QUICK NAV ROW (below sections) ----------------
-  quickNavRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    width: '100%',
-    marginTop: 5,
-  },
-  quickNavItem: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '25%',
-  },
-
-  // ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ----------------
-  e: {
-    flexDirection: 'column',
-    gap: 10,
-    width: '100%',
-    marginTop: 30,
-    paddingHorizontal: globals.spacing.md,
-    paddingBottom: 110,
-  },
-  e2: {
-    flexDirection: 'column',
-    height: 100,
-    width: '100%',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
-    justifyContent: 'center',
-  },
-  t2: {
-    fontSize: 14,
-    margin: 10,
-    color: globals.colors.text,
-  },
-
-  // ---------------- hexágonos ----------------
-  hexagonos: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-    gap: 15,
-    alignItems: 'center',
-  },
-  hexagono: {
-    // True hexagon (clip-path: polygon() in Perfil.css), drawn with an
-    // <Svg><Polygon/></Svg> underlay by the Hexagon component above —
-    // this just reserves the footprint and stacks the icon on top.
-    width: HEX_W,
-    height: HEX_H,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexagonoContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexagonoDanger: {
-    backgroundColor: globals.colors.danger,
-  },
-  hexagonoGreen: {
-    backgroundColor: '#4CAF50',
-  },
-  hexagonoTeal: {
-    backgroundColor: '#177E89',
-  },
-  hexagonoNavy: {
-    backgroundColor: '#2C3E50',
-  },
-  hexagonoOrange: {
-    backgroundColor: '#F2994A',
-  },
-  hexagonoIcon: {
+  helpIcon: {
     fontSize: 18,
-  },
-
-  backLink: {
-    textAlign: 'center',
-    color: globals.colors.textMuted,
-    marginVertical: globals.spacing.lg,
-  },
-  errorText: {
-    color: globals.colors.danger,
-    fontSize: globals.fontSize.sm,
-    marginTop: globals.spacing.xs,
-    marginBottom: globals.spacing.sm,
-    textAlign: 'center',
-  },
-  successText: {
+    fontWeight: '700',
     color: globals.colors.primary,
-    fontSize: globals.fontSize.sm,
-    marginTop: globals.spacing.xs,
-    marginBottom: globals.spacing.sm,
-    textAlign: 'center',
+  },
+  helpText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: globals.colors.text,
   },
 
-  // ---------------- QR scanner modal ----------------
   scannerContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -1132,15 +999,13 @@ const styles = StyleSheet.create({
     color: globals.colors.text,
     marginBottom: globals.spacing.sm,
   },
-
-  // ---------------- generic confirm/success modal ----------------
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  card: {
+  modalCard: {
     width: '85%',
     backgroundColor: globals.colors.background,
     borderRadius: globals.radius.lg,
@@ -1182,32 +1047,18 @@ const styles = StyleSheet.create({
   modalButtonDanger: {
     backgroundColor: globals.colors.danger,
   },
-
-  // ---------------- FOOTER (".footer") ----------------
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    height: 75,
-    backgroundColor: globals.colors.badge,
+  errorText: {
+    color: globals.colors.danger,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+    marginBottom: globals.spacing.sm,
+    textAlign: 'center',
   },
-  footerImg: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-  },
-  circulo: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 60,
-    width: 60,
-    backgroundColor: globals.colors.primary,
-    borderRadius: 30,
-  },
-  qr: {
-    width: 35,
-    height: 35,
+  successText: {
+    color: globals.colors.primary,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+    marginBottom: globals.spacing.sm,
+    textAlign: 'center',
   },
 });

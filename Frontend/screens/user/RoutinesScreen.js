@@ -17,13 +17,23 @@
 // Backend/src/validators/progress.schemas.js#createRoutineSchema).
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
-import Header from '../../components/common/Header';
 import BottomNav from '../../components/common/BottomNav';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as routineApi from '../../features/api/services/routine.api';
+
+// Round selector on the right of an option card: empty ring when idle,
+// filled teal circle with a check when selected (same as the onboarding
+// "Elegir objetivo / nivel" steps in the mockups).
+function Radio({ selected }) {
+  return (
+    <View style={[styles.radio, selected && styles.radioSelected]}>
+      {selected && <Text style={styles.radioCheck}>✓</Text>}
+    </View>
+  );
+}
 
 /**
  * @param {function} [onBack]
@@ -123,6 +133,25 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
     }
   };
 
+  // "Tu cronograma" hero: first saved routine (or the free routine) is
+  // today's; the second saved one is the next training. Same data rule as
+  // the Home screen (there's no weekly-schedule endpoint yet).
+  const todayRoutine = routines[0] ?? freeRoutine ?? null;
+  const nextRoutine = routines[1] ?? null;
+  const exerciseCount = (r) => (Array.isArray(r?.content?.exercises) ? r.content.exercises.length : null);
+  const duration = (r) => r?.content?.durationMinutes ?? null;
+  const heroMeta = [
+    duration(todayRoutine) != null ? t('user.home.durationMinutes', { count: duration(todayRoutine) }) : null,
+    exerciseCount(todayRoutine) != null ? t('user.home.exercisesCount', { count: exerciseCount(todayRoutine) }) : null,
+  ].filter(Boolean);
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + 1);
+  const nextLabel = nextDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric' });
+
+  // The hero button selects today's routine in the selector below.
+  const pickToday = () => selectMode(routines.length > 0 ? 'preMade' : 'none');
+
   const routineOptions = [
     { key: 'preMade', label: t('user.routines.options.preMade') },
     { key: 'custom', label: t('user.routines.options.custom') },
@@ -132,13 +161,58 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
 
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('user.routines.title')} />
-      <ScrollView style={styles.content}>
+      <Text style={styles.screenTitle}>{t('user.routines.scheduleTitle')}</Text>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
         {hadError && <Text style={styles.errorText}>{t('user.routines.loadError')}</Text>}
         {loading ? (
           <ActivityIndicator color={globals.colors.primary} />
         ) : (
           <>
+            {/* ---------------- TODAY ("Tu cronograma") ---------------- */}
+            <Text style={styles.todayLabel}>{t('user.routines.todayPrefix', { date: todayLabel })}</Text>
+            <View style={styles.heroCard}>
+              <View style={styles.heroTextCol}>
+                <Text style={styles.heroKicker}>{t('user.routines.trainingLabel')}</Text>
+                <Text style={styles.heroTitle} numberOfLines={3}>
+                  {todayRoutine?.name || (freeRoutine ? t('user.routines.freeRoutineName') : t('user.home.noRoutineTitle'))}
+                </Text>
+                {heroMeta.length > 0 && (
+                  <View style={styles.heroMetaRow}>
+                    {heroMeta.map((m, i) => (
+                      <React.Fragment key={m}>
+                        {i > 0 && <View style={styles.heroMetaDivider} />}
+                        <Text style={styles.heroMeta}>{m}</Text>
+                      </React.Fragment>
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity style={styles.heroButton} onPress={pickToday} disabled={!todayRoutine}>
+                  <Text style={styles.heroButtonLabel}>{t('user.routines.viewRoutine')}</Text>
+                  <Text style={styles.heroButtonArrow}>›</Text>
+                </TouchableOpacity>
+              </View>
+              <Image source={require('../../assets/cronograma_hero.png')} style={styles.heroImage} />
+            </View>
+
+            {nextRoutine && (
+              <>
+                <Text style={styles.sectionLabel}>{t('user.home.nextTrainingLabel')}</Text>
+                <View style={styles.nextCard}>
+                  <View style={styles.nextIcon}>
+                    <Image source={require('../../assets/Imagen.png')} style={styles.nextIconImg} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.nextDay}>{nextLabel}</Text>
+                    <Text style={styles.nextTitle} numberOfLines={1}>{nextRoutine.name}</Text>
+                    {exerciseCount(nextRoutine) != null && (
+                      <Text style={styles.nextMeta}>{t('user.home.exercisesCount', { count: exerciseCount(nextRoutine) })}</Text>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
+
+            <Text style={styles.chooseTitle}>{t('user.routines.chooseTitle')}</Text>
             {routineOptions.map((opt) => (
               <TouchableOpacity
                 key={opt.key}
@@ -146,6 +220,7 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
                 onPress={() => selectMode(opt.key)}
               >
                 <Text style={styles.optionText}>{opt.label}</Text>
+                <Radio selected={selectedMode === opt.key} />
               </TouchableOpacity>
             ))}
 
@@ -162,6 +237,7 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
                       onPress={() => setSelectedRoutineId(r.id)}
                     >
                       <Text style={styles.rowPrimary}>{r.name}</Text>
+                      <Radio selected={selectedRoutineId === r.id} />
                     </TouchableOpacity>
                   ))
                 )}
@@ -172,6 +248,7 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
               <View style={styles.section}>
                 <View style={[styles.row, styles.rowSelected]}>
                   <Text style={styles.rowPrimary}>{t('user.routines.freeRoutineName')}</Text>
+                  <Radio selected />
                 </View>
               </View>
             )}
@@ -209,18 +286,20 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
 
             <Text style={styles.sectionTitle}>{t('user.routines.displayMode')}</Text>
             <TouchableOpacity
-              style={[styles.optionRow, displayMode === 'stepByStep' && styles.optionRowSelected]}
+              style={[styles.optionRow, displayMode === 'stepByStep' && styles.optionRowSelected, !selectedRoutineId && styles.optionRowDisabled]}
               onPress={() => setDisplayMode('stepByStep')}
               disabled={!selectedRoutineId}
             >
               <Text style={styles.optionText}>{t('user.routines.stepByStepGuide')}</Text>
+              <Radio selected={displayMode === 'stepByStep'} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.optionRow, displayMode === 'readOnYourOwn' && styles.optionRowSelected]}
+              style={[styles.optionRow, displayMode === 'readOnYourOwn' && styles.optionRowSelected, !selectedRoutineId && styles.optionRowDisabled]}
               onPress={() => setDisplayMode('readOnYourOwn')}
               disabled={!selectedRoutineId}
             >
               <Text style={styles.optionText}>{t('user.routines.readOnYourOwn')}</Text>
+              <Radio selected={displayMode === 'readOnYourOwn'} />
             </TouchableOpacity>
             {!selectedRoutineId && (
               <Text style={styles.emptyText}>{t('user.routines.selectRoutineFirst')}</Text>
@@ -237,7 +316,6 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
           </>
         )}
 
-        <Text style={styles.backLink} onPress={onBack}>{t('user.routines.back')}</Text>
       </ScrollView>
 
       {/* ---------------- FOOTER ----------------
@@ -256,38 +334,123 @@ export default function RoutinesScreen({ onBack, onGoToHome, onGoToProfile, onGo
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: globals.colors.background },
-  content: { flex: 1, padding: globals.spacing.md },
-  section: { marginBottom: globals.spacing.lg },
+  content: { flex: 1 },
+  contentInner: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: globals.spacing.lg,
+  },
+  section: { marginBottom: globals.spacing.md },
+
+  // ---- "Tu cronograma" top ----
+  screenTitle: { fontSize: 28, fontWeight: '700', color: globals.colors.text, paddingHorizontal: 18, paddingTop: 28, paddingBottom: 6 },
+  todayLabel: { fontSize: 14, fontWeight: '600', color: globals.colors.primary, marginTop: 14, marginBottom: 10, textTransform: 'capitalize' },
+  heroCard: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2F3',
+    borderRadius: 12,
+    overflow: 'hidden',
+    minHeight: 180,
+    ...globals.shadow.card,
+  },
+  heroTextCol: { flex: 1, padding: 16, justifyContent: 'center', zIndex: 1 },
+  heroKicker: { fontSize: 12, fontWeight: '600', color: globals.colors.primary, marginBottom: 8 },
+  heroTitle: { fontSize: 22, lineHeight: 27, fontWeight: '700', color: globals.colors.text, marginBottom: 10 },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  heroMeta: { fontSize: 10, fontWeight: '600', color: globals.colors.textSecondary },
+  heroMetaDivider: { width: 1, height: 10, marginHorizontal: 12, backgroundColor: '#CFCFCF' },
+  heroButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: globals.colors.primary,
+    borderRadius: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    ...globals.shadow.button,
+  },
+  heroButtonLabel: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  heroButtonArrow: { color: '#fff', fontSize: 18, lineHeight: 18 },
+  heroImage: { width: 130, height: '100%', resizeMode: 'cover', marginLeft: -10 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: globals.colors.navInactive, marginTop: 22, marginBottom: 10, textTransform: 'uppercase' },
+  nextCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: globals.colors.surface,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    borderRadius: 10,
+    padding: 12,
+    ...globals.shadow.card,
+  },
+  nextIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: globals.colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
+  nextIconImg: { width: 22, height: 22, resizeMode: 'contain', tintColor: globals.colors.primary },
+  nextDay: { fontSize: 10, color: globals.colors.textSecondary, textTransform: 'capitalize' },
+  nextTitle: { fontSize: 16, fontWeight: '700', color: globals.colors.text },
+  nextMeta: { fontSize: 9, color: globals.colors.textSecondary, marginTop: 2 },
+  chooseTitle: { fontSize: 16, fontWeight: '700', color: globals.colors.text, marginTop: 28, marginBottom: 12 },
   sectionTitle: {
-    fontSize: globals.fontSize.md,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: globals.colors.text,
     marginTop: globals.spacing.md,
-    marginBottom: globals.spacing.sm,
+    marginBottom: 10,
   },
+
+  // option cards: white, soft shadow, radio on the right
   optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: globals.colors.surface,
     borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
-    padding: globals.spacing.md,
-    marginBottom: globals.spacing.sm,
+    borderColor: globals.colors.surfaceBorder,
+    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    ...globals.shadow.card,
   },
   optionRowSelected: {
     borderColor: globals.colors.primary,
-    backgroundColor: globals.colors.sectionCard,
   },
-  optionText: { fontSize: globals.fontSize.md, color: globals.colors.text },
-  row: {
+  optionRowDisabled: {
+    opacity: 0.5,
+  },
+  optionText: { flex: 1, fontSize: 15, fontWeight: '500', color: globals.colors.text },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
-    padding: globals.spacing.md,
-    marginBottom: globals.spacing.sm,
+    borderColor: '#CFCFCF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  radioSelected: {
+    backgroundColor: globals.colors.primary,
+    borderColor: globals.colors.primary,
+  },
+  radioCheck: { color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 14 },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: globals.colors.surface,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    ...globals.shadow.card,
   },
   rowSelected: { borderColor: globals.colors.primary },
-  rowPrimary: { fontSize: globals.fontSize.md, color: globals.colors.text, fontWeight: '600' },
-  rowSecondary: { fontSize: globals.fontSize.sm, color: globals.colors.textMuted, marginTop: globals.spacing.xs },
-  emptyText: { fontSize: globals.fontSize.sm, color: globals.colors.textMuted },
+  rowPrimary: { flex: 1, fontSize: 14, color: globals.colors.text, fontWeight: '600' },
+  rowSecondary: { fontSize: 11, color: globals.colors.textSecondary, marginTop: globals.spacing.xs },
+  emptyText: { fontSize: 12, color: globals.colors.textSecondary, marginTop: 4 },
   errorText: {
     color: globals.colors.danger,
     fontSize: globals.fontSize.sm,
@@ -295,39 +458,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   infoText: {
-    fontSize: globals.fontSize.sm,
+    fontSize: 12,
     color: globals.colors.primary,
     marginTop: globals.spacing.xs,
   },
   suggestionActions: { flexDirection: 'row', marginTop: globals.spacing.sm },
   smallButton: {
     backgroundColor: globals.colors.primary,
-    borderRadius: globals.radius.md,
+    borderRadius: 8,
     paddingVertical: globals.spacing.sm,
     paddingHorizontal: globals.spacing.md,
     marginRight: globals.spacing.sm,
   },
-  smallButtonText: { color: globals.colors.background, fontSize: globals.fontSize.sm, fontWeight: '600' },
+  smallButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   smallButtonOutline: {
     borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
+    borderColor: globals.colors.surfaceBorder,
+    borderRadius: 8,
     paddingVertical: globals.spacing.sm,
     paddingHorizontal: globals.spacing.md,
   },
-  smallButtonOutlineText: { color: globals.colors.text, fontSize: globals.fontSize.sm },
+  smallButtonOutlineText: { color: globals.colors.text, fontSize: 12 },
+
+  // primary action, same look as "Siguiente" in the onboarding mockups
   requestButton: {
-    borderWidth: 1,
-    borderColor: globals.colors.primary,
-    borderRadius: globals.radius.md,
-    padding: globals.spacing.md,
+    backgroundColor: globals.colors.primary,
+    borderRadius: 10,
+    paddingVertical: 16,
     marginTop: globals.spacing.lg,
     alignItems: 'center',
+    ...globals.shadow.button,
   },
-  requestButtonText: { color: globals.colors.primary, fontSize: globals.fontSize.md, fontWeight: '600' },
-  backLink: {
-    textAlign: 'center',
-    color: globals.colors.textMuted,
-    marginVertical: globals.spacing.lg,
-  },
+  requestButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
