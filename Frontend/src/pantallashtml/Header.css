@@ -1,0 +1,35 @@
+.footer{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 75px;
+    background-color: #EDECEC;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 0;
+    z-index: 100;
+}
+
+.footer img{
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.circulo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    width: 60px;
+    background-color: #177E89;
+    border-radius: 50%;
+}
+
+.qr{
+    width: 35px !important;
+    height: 35px !important;
+    margin: 0;
+}

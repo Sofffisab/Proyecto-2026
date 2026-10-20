@@ -1,0 +1,76 @@
+body{
+    background-color: #F5F5F5;
+}
+.Etexto{
+    display: flex;
+    flex-direction: row;
+    margin-left: 2%;
+    align-items: center;
+    width: 70%;
+    height: 420px;
+}
+h1{
+    font-family: Arial, Helvetica, sans-serif;
+    
+}
+.entrena{
+    color: #373D45;
+}
+
+.su{
+    color: #177E89 ;
+}
+
+.linea{
+    width: 40%;
+}
+
+.a{
+    font-size: smaller;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #878787;
+}
+
+.mujer{
+    width: 180px;
+    height: 60%;
+    margin-left: -10px; /* Aumentá o disminuí el valor */
+}
+
+.Texto2{
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.botones{
+    display: flex;
+    width: 60%;
+    height: 60px;
+    flex-direction: column;
+    gap: 10%;
+}
+
+.buton1{
+    display: flex;
+    background-color: #177E89;
+    border: none;
+    border-radius: 5%;
+    color: white;
+    justify-content: center;
+    align-items: center;
+    height: 50px;
+    
+}
+
+.buton2{
+    display: flex;
+    background-color: #FFFFFF;
+    border: none;
+    border-radius: 5%;
+    justify-content: center;
+    align-items: center;
+    height: 50px;
+
+}
+
