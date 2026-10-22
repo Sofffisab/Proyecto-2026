@@ -21,7 +21,7 @@
 // `rating: null/undefined` regardless of what actually happened — that's a
 // pre-existing backend data gap, not something the frontend can compute.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /history/interactions — trainers who assisted the user + completed
 // social challenge partners, each with a name and date. Powers "social

@@ -4,8 +4,13 @@
     "slug": "proyecto-2026",
     "version": "1.0.0",
     "orientation": "portrait",
-    "plugins": [
-      "expo-camera"
+  "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que la app use la cámara para escanear códigos QR."
+        }
+      ]
     ],
     "web": {
       "bundler": "metro",

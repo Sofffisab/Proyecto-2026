@@ -16,7 +16,7 @@
 // Machine path calls a real endpoint — Entry/Exit is explained as
 // "nothing to regenerate" rather than faking a network call.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /qr/gym-access — ADMIN only. Lists every active machine (id, name,
 // current qrToken, etc.) so the Admin can pick one to regenerate/deactivate.

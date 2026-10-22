@@ -13,7 +13,7 @@
 // "USER" type QR scan (see verification.service.js#processScan), so no
 // separate "complete" call is made from this popup.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /challenges/active — this user's currently ASSIGNED/ACCEPTED social
 // challenge(s), if any. Used to know whether to show the pop-up at all,

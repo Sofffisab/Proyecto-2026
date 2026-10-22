@@ -9,7 +9,7 @@
 //
 // See offline/offlineQueue.js for the local queue that calls this.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 export function syncOfflineActions(actions) {
   return apiClient.post('/sync', { actions });

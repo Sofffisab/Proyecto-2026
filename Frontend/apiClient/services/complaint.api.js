@@ -9,7 +9,7 @@
 // Only the read used by the History screen (spec section 4, "si hicieron
 // alguna denuncia") is wired here for now.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /complaints/me — complaints filed by the authenticated user (as
 // reporter), most recent first.

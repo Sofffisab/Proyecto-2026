@@ -7,7 +7,7 @@
 // No routes/controller/service changes were needed for this module — every
 // endpoint used here already existed and was already wired up.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /routines/today — home-screen options for "today": the user's saved
 // routines, the always-available free routine, and a fresh AI-suggested

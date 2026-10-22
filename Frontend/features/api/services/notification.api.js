@@ -12,7 +12,7 @@
 // and social challenge invites (jobs/challenge.job.js) — so this single
 // generic list screen surfaces all of them.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 export function getNotifications() {
   return apiClient.get('/notifications');

@@ -6,7 +6,7 @@
 // is wired here for now; check-in/check-out themselves happen through
 // the QR scan flow (see qr.api.js), not a direct button.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /gym/sessions — this user's gym sessions (check-in/check-out
 // timestamps, duration, whether it was auto-closed), most recent first.

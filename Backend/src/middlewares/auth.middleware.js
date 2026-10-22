@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma, redis } from "../config/index.js";
+import { logger } from "../utils/logger.js";
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -11,8 +12,15 @@ export const authenticate = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     // Check token blacklist in Redis (logout invalidation)
+    // Fail open if Redis is unreachable: a Redis outage must not turn every
+    // authenticated request into a 401 (the JWT signature is still verified).
     if (redis) {
-      const isBlacklisted = await redis.get(`blacklist:${token}`);
+      let isBlacklisted = null;
+      try {
+        isBlacklisted = await redis.get(`blacklist:${token}`);
+      } catch (redisErr) {
+        logger.warn(`[auth] Redis blacklist check failed: ${redisErr.message}`);
+      }
       if (isBlacklisted) {
         return res.status(401).json({ success: false, message: "Token has been revoked" });
       }
@@ -25,9 +33,13 @@ export const authenticate = async (req, res, next) => {
 
     let user = null;
     if (redis) {
-      const cachedUser = await redis.get(cacheKey);
-      if (cachedUser) {
-        user = JSON.parse(cachedUser);
+      try {
+        const cachedUser = await redis.get(cacheKey);
+        if (cachedUser) {
+          user = typeof cachedUser === "string" ? JSON.parse(cachedUser) : cachedUser;
+        }
+      } catch (redisErr) {
+        logger.warn(`[auth] Redis user cache read failed: ${redisErr.message}`);
       }
     }
 
@@ -46,7 +58,11 @@ export const authenticate = async (req, res, next) => {
       });
 
       if (user && redis) {
-        await redis.setex(cacheKey, 60, JSON.stringify(user));
+        try {
+          await redis.setex(cacheKey, 60, JSON.stringify(user));
+        } catch (redisErr) {
+          logger.warn(`[auth] Redis user cache write failed: ${redisErr.message}`);
+        }
       }
     }
 

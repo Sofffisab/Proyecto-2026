@@ -6,7 +6,7 @@
 // (spec section 17): stock status, shipments in progress, and the
 // out-of-stock waitlist.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /rewards/admin — full catalog including stock and
 // isMarketingItem, admin only (reward.service.js#getAllRewardsAdmin).

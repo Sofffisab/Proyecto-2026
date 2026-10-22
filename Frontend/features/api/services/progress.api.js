@@ -8,7 +8,7 @@
 // No routes/controller/service changes were needed for this module — every
 // endpoint used here already existed and was already wired up.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /goals — the user's active goals (Goal model: type, targetValue,
 // currentValue, difficulty). Powers the "goal progress" part of the

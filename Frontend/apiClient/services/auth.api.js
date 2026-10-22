@@ -11,7 +11,7 @@
 // logout, which needs the current access token so the Backend can
 // blacklist it (see Backend/src/services/auth.service.js#logout).
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // POST /auth/login
 export function login({ email, password }) {

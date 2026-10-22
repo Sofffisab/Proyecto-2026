@@ -297,7 +297,12 @@
       "requestFromTrainer": "Request a routine from a trainer",
       "requestSent": "Request sent. A trainer will build your routine soon.",
       "requestError": "Could not send the request. Please try again.",
-      "back": "Back"
+      "back": "Back",
+      "scheduleTitle": "Your schedule",
+      "todayPrefix": "Today, {{date}}",
+      "trainingLabel": "Training:",
+      "viewRoutine": "View routine",
+      "chooseTitle": "Choose your routine"
     },
     "achievementsGoals": {
       "title": "Achievements & Goals",

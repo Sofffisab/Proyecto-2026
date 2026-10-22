@@ -5,7 +5,7 @@
 // Only the member-facing actions live here; assign/complete/availability
 // are trainer-facing and belong to the Trainer Help module instead.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // POST /assistance/request — spec section 3, "Pedir Ayuda" button.
 // Backend/src/services/assistance.service.js#requestAssistance creates a

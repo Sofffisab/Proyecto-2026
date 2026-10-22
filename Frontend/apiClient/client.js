@@ -18,7 +18,7 @@
 // Token storage/refresh is wired in from AuthContext via configureApiClient,
 // to avoid a circular import between client.js and AuthContext.js.
 
-import { API_BASE_URL } from './config';
+import { API_BASE_URL } from '../apiClient/config';
 
 let getAccessToken = () => null;
 let getRefreshToken = () => null;

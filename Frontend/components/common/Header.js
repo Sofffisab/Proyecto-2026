@@ -1,29 +1,43 @@
 // src/components/common/Header.js
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 
 /**
- * Reusable top header bar.
+ * Reusable top header bar (Figma style: white bar, bold centered title,
+ * back chevron on the left like "Tu cronograma" / "Editar perfil").
  *
  * @param {string} pageTitle  - Main heading displayed in the header.
  * @param {string} [subtitle] - Optional secondary line below the title.
+ * @param {function} [onBack] - If provided, renders the "<" chevron on the
+ *   left. Screens that don't pass it just get an empty slot so the title
+ *   stays perfectly centered.
  * @param {function} [onPressNotifications] - If provided, renders a bell
- *   button in the top-right corner (screens that don't pass this keep the
- *   exact same header as before).
+ *   button in the top-right corner.
  * @param {number} [unreadCount] - Badge count shown next to the bell.
  */
-const Header = ({ pageTitle, subtitle, onPressNotifications, unreadCount }) => (
+const Header = ({ pageTitle, subtitle, onBack, onPressNotifications, unreadCount }) => (
   <View style={styles.header}>
-    <View style={styles.headerRow}>
-      <View style={styles.headerTextBlock}>
-        <Text style={styles.headerTitle}>{pageTitle}</Text>
-        {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
-      </View>
+    <View style={styles.side}>
+      {onBack && (
+        <TouchableOpacity onPress={onBack} style={styles.iconButton} hitSlop={10}>
+          <Image
+            source={require('../../assets/basil_caret-left-outline.png')}
+            style={styles.backIcon}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
 
+    <View style={styles.headerTextBlock}>
+      <Text style={styles.headerTitle} numberOfLines={1}>{pageTitle}</Text>
+      {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+    </View>
+
+    <View style={[styles.side, styles.sideRight]}>
       {onPressNotifications && (
-        <TouchableOpacity onPress={onPressNotifications} style={styles.bellButton}>
+        <TouchableOpacity onPress={onPressNotifications} style={styles.iconButton}>
           <Text style={styles.bellIcon}>🔔</Text>
           {unreadCount > 0 && (
             <View style={styles.badge}>
@@ -39,31 +53,41 @@ const Header = ({ pageTitle, subtitle, onPressNotifications, unreadCount }) => (
 const styles = StyleSheet.create({
   header: {
     width: '100%',
-    paddingVertical: globals.spacing.md,
-    paddingHorizontal: globals.spacing.lg,
-    backgroundColor: globals.colors.primary,
-    justifyContent: 'center',
-  },
-  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: globals.spacing.lg,
+    paddingBottom: globals.spacing.md,
+    paddingHorizontal: globals.spacing.md,
+    backgroundColor: globals.colors.surface,
+  },
+  side: {
+    width: 40,
+    alignItems: 'flex-start',
+  },
+  sideRight: {
+    alignItems: 'flex-end',
+  },
+  iconButton: {
+    padding: globals.spacing.xs,
+  },
+  backIcon: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
   },
   headerTextBlock: {
-    flexShrink: 1,
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: globals.fontSize.xl,
-    fontWeight: 'bold',
-    color: globals.colors.secondary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: globals.colors.text,
   },
   headerSubtitle: {
     fontSize: globals.fontSize.sm,
-    color: globals.colors.textLight,
+    color: globals.colors.textSecondary,
     marginTop: globals.spacing.xs,
-  },
-  bellButton: {
-    padding: globals.spacing.xs,
   },
   bellIcon: {
     fontSize: globals.fontSize.lg,

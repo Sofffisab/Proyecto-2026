@@ -3,7 +3,7 @@
 // Maps to Backend/src/routes/index.js "ANALYTICS ROUTES" and
 // Backend/src/controllers/analytics.controller.js.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /analytics/gym — ADMIN only. Powers the Statistics screen (spec
 // section 16): machine usage percentages ("Generales del gym"), trainer

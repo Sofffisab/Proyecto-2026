@@ -79,9 +79,9 @@ export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoTo
 
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('user.achievementsGoals.title')} />
+      <Header pageTitle={t('user.achievementsGoals.title')} onBack={onBack} />
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
         {hadError && <Text style={styles.errorText}>{t('user.achievementsGoals.loadError')}</Text>}
 
         <Section title={t('user.achievementsGoals.pointsTitle')} loading={loading} empty={false}>
@@ -139,7 +139,6 @@ export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoTo
           ))}
         </Section>
 
-        <Text style={styles.backLink} onPress={onBack}>{t('user.achievementsGoals.back')}</Text>
       </ScrollView>
 
       {/* ---------------- FOOTER ----------------
@@ -165,48 +164,59 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: globals.spacing.md,
   },
+  contentInner: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: globals.spacing.lg,
+  },
+  // each block (Points / Goals / Achievements) is one white card
   section: {
-    marginBottom: globals.spacing.lg,
+    backgroundColor: globals.colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    padding: 14,
+    marginBottom: 14,
+    ...globals.shadow.card,
   },
   sectionTitle: {
-    fontSize: globals.fontSize.md,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: globals.colors.text,
-    marginBottom: globals.spacing.sm,
+    marginBottom: 12,
   },
   pointsText: {
     fontSize: globals.fontSize.xl,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: globals.colors.primary,
   },
+  // inner rows (a goal / an unlocked achievement) are flat, soft-grey tiles
   row: {
-    borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
-    padding: globals.spacing.md,
-    marginBottom: globals.spacing.sm,
+    backgroundColor: globals.colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
   },
   rowPrimary: {
-    fontSize: globals.fontSize.md,
+    fontSize: 14,
     color: globals.colors.text,
     fontWeight: '600',
   },
   rowSecondary: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
+    fontSize: 11,
+    color: globals.colors.textSecondary,
     marginTop: globals.spacing.xs,
   },
   rowDetail: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
+    fontSize: 11,
+    color: globals.colors.textSecondary,
     marginTop: globals.spacing.xs,
   },
   progressBarTrack: {
     height: 8,
     borderRadius: globals.radius.full,
-    backgroundColor: globals.colors.sectionCard,
+    backgroundColor: globals.colors.tealSoft,
     marginTop: globals.spacing.sm,
     overflow: 'hidden',
   },
@@ -216,18 +226,13 @@ const styles = StyleSheet.create({
     borderRadius: globals.radius.full,
   },
   emptyText: {
-    fontSize: globals.fontSize.sm,
-    color: globals.colors.textMuted,
+    fontSize: 12,
+    color: globals.colors.textSecondary,
   },
   errorText: {
     color: globals.colors.danger,
     fontSize: globals.fontSize.sm,
     marginBottom: globals.spacing.md,
     textAlign: 'center',
-  },
-  backLink: {
-    textAlign: 'center',
-    color: globals.colors.textMuted,
-    marginVertical: globals.spacing.lg,
   },
 });

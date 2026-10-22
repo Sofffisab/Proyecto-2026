@@ -66,7 +66,9 @@ import { flushQueue } from '../../features/offline/offlineQueue';
  *
  * @param {function} [onGoToRoutines]
  * @param {function} [onGoToAchievementsGoals]
- * @param {function} [onGoToSettings] - opens Editar Perfil (the "..." button)
+ * @param {function} [onGoToSettings] - opens Editar Perfil (first entry of the "..." menu)
+ * @param {function} [onGoToHistory] - "..." menu entry
+ * @param {function} [onGoToReports] - "..." menu entry
  * @param {function} [onGoToWrapped]
  * @param {function} [onGoToHome] - "house" footer icon; separate dashboard, not this screen
  * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
@@ -109,6 +111,8 @@ export default function ProfileScreen({
   onGoToRoutines,
   onGoToAchievementsGoals,
   onGoToSettings,
+  onGoToHistory,
+  onGoToReports,
   onGoToWrapped,
   onGoToHome,
   onLogout,
@@ -119,6 +123,16 @@ export default function ProfileScreen({
   // "Cerrar sesión" — asks for confirmation before actually logging out,
   // same pattern used elsewhere in the app for destructive actions.
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // "..." menu (top-right): Edit profile, History, Reports, Year Wrapped,
+  // Log out. History / Reports / Wrapped / Log out used to live on the Home
+  // screen and the red card at the bottom of this one; the new design has
+  // no slot for them, so they live here.
+  const [showMenu, setShowMenu] = useState(false);
+  const goFromMenu = (handler) => () => {
+    setShowMenu(false);
+    handler && handler();
+  };
+
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
     onLogout && onLogout();
@@ -253,13 +267,12 @@ export default function ProfileScreen({
 
   return (
     <View style={styles.body}>
-      {/* ---------------- HEADER (".Espacio") ---------------- */}
+      {/* ---------------- HEADER: centered title + "..." menu ---------------- */}
       <View style={styles.espacio}>
+        <View style={styles.headerSide} />
         <Text style={styles.h1}>{t('user.home.title')}</Text>
-        <View style={styles.headerIcons}>
-          {/* "..." -> Editar perfil (SettingsScreen). Al guardar ahí,
-              la navegación vuelve a esta misma pantalla ("Tu perfil"). */}
-          <TouchableOpacity onPress={onGoToSettings} style={styles.headerIconButton}>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.headerIconButton} hitSlop={10}>
             <Image source={require('../../assets/Group 29 (4).png')} style={styles.espacioImg} />
           </TouchableOpacity>
         </View>
@@ -270,27 +283,25 @@ export default function ProfileScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---------------- PROFILE HEADER (".centro") ---------------- */}
+        {/* ---------------- PROFILE HEADER: photo left, data right ---------------- */}
         <View style={styles.centro}>
-          <View style={styles.eCirculoImagen}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.circuloImagenPhoto} />
-            ) : (
-              <View style={styles.circuloImagen}>
-                <Text style={styles.circuloPuntos}>{initials || '🙂'}</Text>
-              </View>
-            )}
-          </View>
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.circuloImagenPhoto} />
+          ) : (
+            <View style={styles.circuloImagen}>
+              <Text style={styles.circuloPuntos}>{initials || '🙂'}</Text>
+            </View>
+          )}
           <View style={styles.resto}>
-            <Text style={styles.h1RestoTitle}>{fullName.toUpperCase()}</Text>
-            <Text style={styles.h1Mail}>{user?.email || ''}</Text>
-            <TouchableOpacity style={styles.scanQrButtonInline} onPress={onGoToSettings}>
-              <Text style={styles.scanQrButtonInlineLabel}>{t('user.home.member')}</Text>
+            <Text style={styles.h1RestoTitle} numberOfLines={2}>{fullName}</Text>
+            <Text style={styles.h1Mail} numberOfLines={1}>{user?.email || ''}</Text>
+            <TouchableOpacity style={styles.levelBadge} onPress={onGoToSettings}>
+              <Text style={styles.levelBadgeLabel}>{t('user.home.member')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ---------------- STATS (".final" / ".D1") ---------------- */}
+        {/* ---------------- STATS ---------------- */}
         <View style={styles.final}>
           <View style={styles.d1}>
             <Text style={styles.d1Number}>{pointsLoading ? '…' : '28'}</Text>
@@ -312,19 +323,17 @@ export default function ProfileScreen({
           </View>
         </View>
 
-        {/* ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ---------------- */}
+        {/* ---------------- CARDS ---------------- */}
         <View style={styles.e}>
-          {/* Current plan — full-width card, like .E1 */}
-          <TouchableOpacity style={styles.e1} onPress={onGoToRoutines}>
+          {/* Current plan */}
+          <TouchableOpacity style={[styles.cardBox, styles.planCard]} onPress={onGoToRoutines} activeOpacity={0.85}>
             <Text style={styles.t1}>{t('user.home.currentPlan')}</Text>
           </TouchableOpacity>
 
-          {/* Personal data — two info items (profession, current goal),
-              like the "Datos personales" card in the mockup. Tapping
-              either one opens Editar Perfil, since that's where both are
-              actually edited. */}
-          <View style={styles.e2}>
-            <Text style={styles.t2}>{t('user.home.personalData')}</Text>
+          {/* Personal data — profession | current goal. Tapping either one
+              opens Editar Perfil, since that's where both are edited. */}
+          <View style={styles.cardBox}>
+            <Text style={styles.t1}>{t('user.home.personalData')}</Text>
             <View style={styles.datosRow}>
               <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
                 <View style={[styles.datoIconWrap, styles.datoIconWrapProfesion]}>
@@ -339,6 +348,7 @@ export default function ProfileScreen({
                   </Text>
                 </View>
               </TouchableOpacity>
+              <View style={styles.datoDivider} />
               <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
                 <View style={[styles.datoIconWrap, styles.datoIconWrapObjetivo]}>
                   <Text style={styles.datoIcon}>🎯</Text>
@@ -355,9 +365,9 @@ export default function ProfileScreen({
             </View>
           </View>
 
-          {/* Achievements — hexagon badge row, like .E3 */}
-          <View style={styles.e2}>
-            <Text style={styles.t2}>{t('user.home.achievements')}</Text>
+          {/* Achievements — hexagon badge row */}
+          <View style={styles.cardBox}>
+            <Text style={styles.t1}>{t('user.home.achievements')}</Text>
             <View style={styles.hexagonos}>
               <Hexagon color={styles.hexagonoGreen.backgroundColor} onPress={onGoToAchievementsGoals}>
                 <Text style={styles.hexagonoIcon}>🥇</Text>
@@ -373,13 +383,43 @@ export default function ProfileScreen({
               </Hexagon>
             </View>
           </View>
-
-          {/* Log out — like ".E3" (full-width danger card) */}
-          <TouchableOpacity style={styles.e3} onPress={() => setShowLogoutConfirm(true)}>
-            <Text style={styles.t3}>{t('user.home.logout')}</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* "..." menu pop-over. */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setShowMenu(false)}>
+          <View style={styles.menuCard}>
+            <TouchableOpacity style={styles.menuItem} onPress={goFromMenu(onGoToSettings)}>
+              <Text style={styles.menuItemText}>{t('user.home.settings')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={goFromMenu(onGoToHistory)}>
+              <Text style={styles.menuItemText}>{t('user.home.history')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={goFromMenu(onGoToReports)}>
+              <Text style={styles.menuItemText}>{t('user.home.reports')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={goFromMenu(onGoToWrapped)}>
+              <Text style={styles.menuItemText}>{t('user.home.wrapped')}</Text>
+            </TouchableOpacity>
+            <View style={styles.menuSeparator} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                setShowLogoutConfirm(true);
+              }}
+            >
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>{t('user.home.logout')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Log out confirmation pop-up. */}
       <Modal
@@ -505,6 +545,7 @@ export default function ProfileScreen({
   );
 }
 
+
 const styles = StyleSheet.create({
   // ---------------- body ----------------
   body: {
@@ -512,31 +553,34 @@ const styles = StyleSheet.create({
     backgroundColor: globals.colors.background,
   },
 
-  // ---------------- HEADER (".Espacio") ----------------
+  // ---------------- HEADER ----------------
   espacio: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    paddingVertical: 15,
+    paddingTop: 20,
+    paddingBottom: 12,
     paddingHorizontal: 20,
   },
+  headerSide: {
+    width: 40,
+  },
+  headerSideRight: {
+    alignItems: 'flex-end',
+  },
   h1: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
     color: globals.colors.text,
   },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
   headerIconButton: {
-    position: 'relative',
+    padding: 4,
   },
   espacioImg: {
-    width: 30,
-    height: 30,
+    width: 24,
+    height: 6,
     resizeMode: 'contain',
   },
 
@@ -548,80 +592,71 @@ const styles = StyleSheet.create({
     paddingBottom: globals.spacing.lg,
   },
 
-  // ---------------- POINTS (".centro") ----------------
+  // ---------------- PROFILE HEADER ----------------
   centro: {
-    flexDirection: 'column',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginTop: 10,
-  },
-  eCirculoImagen: {
-    // wraps the circle, mirrors ".ECirculoImagen"
+    marginTop: 14,
+    paddingHorizontal: 20,
+    gap: 18,
   },
   circuloImagen: {
-    width: 90,
-    height: 90,
+    width: 120,
+    height: 120,
     backgroundColor: globals.colors.avatarPlaceholder,
-    borderRadius: 45,
+    borderRadius: 60,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   circuloImagenPhoto: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     flexShrink: 0,
   },
   circuloPuntos: {
-    fontSize: globals.fontSize.xl,
+    fontSize: 32,
     fontWeight: 'bold',
     color: globals.colors.text,
   },
   resto: {
+    flex: 1,
     flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: 12,
+    alignItems: 'flex-start',
   },
   h1RestoTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 6,
     color: globals.colors.text,
-    textAlign: 'center',
   },
   h1Mail: {
-    color: globals.colors.textMuted,
-    fontSize: 13,
-    marginBottom: 0,
-    textAlign: 'center',
+    color: globals.colors.textSecondary,
+    fontSize: 11,
   },
-  scanQrButtonInline: {
-    backgroundColor: globals.colors.primary,
-    borderRadius: globals.radius.full,
-    height: 28,
-    paddingHorizontal: 16,
+  levelBadge: {
+    backgroundColor: globals.colors.tealSoft,
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     marginTop: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
   },
-  scanQrButtonInlineLabel: {
-    color: globals.colors.secondary,
+  levelBadgeLabel: {
+    color: globals.colors.text,
     fontWeight: '600',
-    fontSize: globals.fontSize.sm,
+    fontSize: 10,
   },
 
-  // ---------------- QUICK NAV (".final" / ".D1") ----------------
+  // ---------------- STATS ----------------
   final: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
     width: '100%',
-    marginTop: 35,
-    paddingHorizontal: 10,
-    gap: 5,
+    marginTop: 34,
+    paddingHorizontal: 12,
   },
   d1: {
     flexDirection: 'column',
@@ -629,170 +664,101 @@ const styles = StyleSheet.create({
     width: '25%',
   },
   d1Number: {
-    fontSize: globals.fontSize.lg,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '700',
     color: globals.colors.text,
     marginBottom: 4,
   },
-  d1Icon: {
-    fontSize: 20,
-    marginBottom: 5,
-  },
   texto: {
     fontSize: 10,
-    color: globals.colors.textMuted,
+    color: globals.colors.textSecondary,
     textAlign: 'center',
   },
 
-  // ---------------- SECTIONS (".E" / ".E1" ".E2" ".E3") ----------------
+  // ---------------- CARDS ----------------
   e: {
     flexDirection: 'column',
-    gap: 10,
+    gap: 14,
     width: '100%',
-    marginTop: 30,
-    paddingHorizontal: globals.spacing.md,
-    paddingBottom: 110,
+    marginTop: 26,
+    paddingHorizontal: 18,
   },
-  e1: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    height: 150,
-    width: '100%',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
+  cardBox: {
+    backgroundColor: globals.colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    ...globals.shadow.card,
   },
-  e2: {
-    flexDirection: 'column',
-    height: 100,
-    width: '100%',
-    backgroundColor: globals.colors.sectionCard,
-    borderRadius: globals.radius.md,
-    justifyContent: 'center',
-  },
-  e3: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 100,
-    width: '100%',
-    backgroundColor: globals.colors.danger,
-    borderRadius: globals.radius.md,
+  planCard: {
+    minHeight: 130,
   },
   t1: {
     fontSize: 14,
-    margin: 10,
+    fontWeight: '700',
+    marginBottom: 14,
     color: globals.colors.text,
-  },
-  t2: {
-    fontSize: 14,
-    margin: 10,
-    color: globals.colors.text,
-  },
-  t3: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: globals.colors.secondary,
   },
 
-  // ---------------- "Datos personales" info items ----------------
+  // ---------------- "Datos personales" ----------------
   datosRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 10,
-    paddingBottom: 12,
-    gap: 12,
   },
-  datoItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  datoIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: globals.radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  datoIconWrapProfesion: {
-    backgroundColor: '#DCEEF2',
-  },
-  datoIconWrapObjetivo: {
-    backgroundColor: '#FBE7D4',
-  },
-  datoIcon: {
-    fontSize: 16,
-  },
-  datoTextWrap: {
-    flexShrink: 1,
-  },
-  datoLabel: {
-    fontSize: 11,
-    color: globals.colors.textMuted,
-  },
-  datoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: globals.colors.text,
+  datoDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    marginHorizontal: 10,
+    backgroundColor: globals.colors.surfaceBorder,
   },
 
   // ---------------- hexágonos ----------------
   hexagonos: {
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'center',
-    gap: 15,
+    justifyContent: 'space-around',
     alignItems: 'center',
-  },
-  hexagono: {
-    // True hexagon (clip-path: polygon() in Perfil.css), drawn with an
-    // <Svg><Polygon/></Svg> underlay by the Hexagon component above —
-    // this just reserves the footprint and stacks the icon on top.
-    width: HEX_W,
-    height: HEX_H,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexagonoContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexagonoDanger: {
-    backgroundColor: globals.colors.danger,
-  },
-  hexagonoGreen: {
-    backgroundColor: '#4CAF50',
-  },
-  hexagonoTeal: {
-    backgroundColor: '#177E89',
-  },
-  hexagonoMaroon: {
-    backgroundColor: '#6B3F4D',
-  },
-  hexagonoOrange: {
-    backgroundColor: '#F2994A',
-  },
-  hexagonoIcon: {
-    fontSize: 18,
+    paddingVertical: 4,
   },
 
-  errorText: {
+  // ---------------- "..." menu ----------------
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'flex-end',
+    paddingTop: 56,
+    paddingRight: 16,
+  },
+  menuCard: {
+    minWidth: 220,
+    backgroundColor: globals.colors.surface,
+    borderRadius: 12,
+    paddingVertical: 6,
+    ...globals.shadow.card,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: globals.colors.text,
+  },
+  menuItemDanger: {
     color: globals.colors.danger,
-    fontSize: globals.fontSize.sm,
-    marginTop: globals.spacing.xs,
-    marginBottom: globals.spacing.sm,
-    textAlign: 'center',
+    fontWeight: '600',
   },
-  successText: {
-    color: globals.colors.primary,
-    fontSize: globals.fontSize.sm,
-    marginTop: globals.spacing.xs,
-    marginBottom: globals.spacing.sm,
-    textAlign: 'center',
+  menuSeparator: {
+    height: 1,
+    marginVertical: 4,
+    backgroundColor: globals.colors.surfaceBorder,
   },
 
-  // ---------------- QR scanner modal ----------------
   scannerContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -806,8 +772,6 @@ const styles = StyleSheet.create({
     color: globals.colors.text,
     marginBottom: globals.spacing.sm,
   },
-
-  // ---------------- generic confirm/success modal ----------------
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -855,5 +819,81 @@ const styles = StyleSheet.create({
   },
   modalButtonDanger: {
     backgroundColor: globals.colors.danger,
+  },
+  errorText: {
+    color: globals.colors.danger,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+    marginBottom: globals.spacing.sm,
+    textAlign: 'center',
+  },
+  successText: {
+    color: globals.colors.primary,
+    fontSize: globals.fontSize.sm,
+    marginTop: globals.spacing.xs,
+    marginBottom: globals.spacing.sm,
+    textAlign: 'center',
+  },
+  hexagono: {
+    // True hexagon (clip-path: polygon() in Perfil.css), drawn with an
+    // <Svg><Polygon/></Svg> underlay by the Hexagon component above —
+    // this just reserves the footprint and stacks the icon on top.
+    width: HEX_W,
+    height: HEX_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hexagonoContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hexagonoGreen: {
+    backgroundColor: '#4CAF50',
+  },
+  hexagonoTeal: {
+    backgroundColor: '#177E89',
+  },
+  hexagonoMaroon: {
+    backgroundColor: '#6B3F4D',
+  },
+  hexagonoOrange: {
+    backgroundColor: '#F2994A',
+  },
+  hexagonoIcon: {
+    fontSize: 18,
+  },
+  datoIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: globals.radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  datoIconWrapProfesion: {
+    backgroundColor: '#DCEEF2',
+  },
+  datoIconWrapObjetivo: {
+    backgroundColor: '#FBE7D4',
+  },
+  datoIcon: {
+    fontSize: 16,
+  },
+  datoTextWrap: {
+    flexShrink: 1,
+  },
+  datoLabel: {
+    fontSize: 11,
+    color: globals.colors.textMuted,
+  },
+  datoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: globals.colors.text,
+  },
+  datoItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

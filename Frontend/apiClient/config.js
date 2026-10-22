@@ -1,4 +1,4 @@
-// src/api/config.js
+// src/apiClient/config.js
 //
 // Base URL of the backend API. The Backend mounts its router both at
 // "/api/v1" and at root (see Backend/src/server.js), so "/api/v1" is used

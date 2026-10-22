@@ -6,7 +6,7 @@
 // machine at (roughly) the same time — see
 // Backend/src/services/machineConflict.service.js#flagMachineConflict.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /qr/machine-conflicts — TRAINER/ADMIN only. Conflicts still awaiting
 // in-person verification (resolvedAt === null), oldest first, each already

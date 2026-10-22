@@ -5,7 +5,7 @@
 // All calls here operate on the *current* session user (never take an id),
 // matching how the Backend scopes them to req.user.id.
 
-import { apiClient } from '../client';
+import { apiClient } from '../../apiClient/client';
 
 // GET /users/me (also aliased at GET /user/profile server-side).
 export function getMe() {

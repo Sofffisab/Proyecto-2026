@@ -20,6 +20,10 @@ import globals from '../../styles/globals';
  *   - the handler(s) for the other tabs. Any handler that's omitted is
  *     simply rendered disabled instead of crashing.
  *
+ * Visual design (Figma): white bar, outlined grey icons, the active tab
+ * in teal with a thin teal underline, and a larger teal QR button in the
+ * middle.
+ *
  * Example (from ProfileScreen, since "profile" IS this screen):
  *   <BottomNav
  *     active="profile"
@@ -57,7 +61,7 @@ export default function BottomNav({
         onPress={onGoToAchievements}
       />
       <NavIcon
-        source={require('../../assets/Group 49.png')}
+        source={require('../../assets/nav_profile.png')}
         isActive={active === 'profile'}
         onPress={onGoToProfile}
       />
@@ -66,15 +70,23 @@ export default function BottomNav({
 }
 
 // A single footer icon. The tab that matches the current screen (`active`)
-// is shown highlighted and isn't pressable — same behavior the original
-// per-screen footers had for "the icon of the screen you're already on".
+// is shown teal with an underline and isn't pressable — same behavior the
+// original per-screen footers had for "the icon of the screen you're
+// already on".
 function NavIcon({ source, isActive, onPress }) {
-  if (isActive) {
-    return <Image source={source} style={[styles.footerImg, styles.footerImgActive]} />;
-  }
+  const icon = (
+    <View style={styles.iconWrap}>
+      <Image
+        source={source}
+        style={[styles.footerImg, isActive && styles.footerImgActive]}
+      />
+      <View style={[styles.underline, isActive && styles.underlineActive]} />
+    </View>
+  );
+  if (isActive) return icon;
   return (
     <TouchableOpacity onPress={onPress} disabled={!onPress}>
-      <Image source={source} style={styles.footerImg} />
+      {icon}
     </TouchableOpacity>
   );
 }
@@ -85,8 +97,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     width: '100%',
-    height: 75,
-    backgroundColor: globals.colors.badge,
+    height: 84,
+    paddingHorizontal: 6,
+    backgroundColor: globals.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: globals.colors.surfaceBorder,
+  },
+  iconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   footerImg: {
     width: 28,
@@ -96,17 +116,29 @@ const styles = StyleSheet.create({
   footerImgActive: {
     tintColor: globals.colors.primary,
   },
+  underline: {
+    marginTop: 6,
+    height: 2,
+    width: 32,
+    borderRadius: 1,
+    backgroundColor: 'transparent',
+  },
+  underlineActive: {
+    backgroundColor: globals.colors.primary,
+  },
   circulo: {
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    height: 60,
-    width: 60,
+    height: 68,
+    width: 68,
+    marginBottom: 6,
     backgroundColor: globals.colors.primary,
-    borderRadius: 30,
+    borderRadius: 34,
+    ...globals.shadow.button,
   },
   qr: {
-    width: 35,
-    height: 35,
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
   },
 });

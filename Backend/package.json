@@ -5,8 +5,9 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "postinstall": "prisma generate",
     "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
     "test": "vitest --run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",

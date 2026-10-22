@@ -13,6 +13,30 @@ const globals = {
     avatarPlaceholder: '#D4D0D0',
     badge: '#F2F1F2',
     sectionCard: '#F5F5F5',
+    // --- new design tokens (from the Figma mockups) ---
+    surface: '#FFFFFF',        // white cards on the white page
+    surfaceBorder: '#EDEDED',  // hairline around cards
+    tealSoft: '#DCE8EA',       // icon circles, quote banner, today ring
+    textSecondary: '#9A9A9A',  // captions / subtitles
+    navInactive: '#6F6F6F',    // outlined footer icons
+  },
+  // Soft card elevation used across the redesigned screens.
+  // (RN-web turns shadow* into box-shadow; `elevation` covers Android.)
+  shadow: {
+    card: {
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 2,
+    },
+    button: {
+      shadowColor: '#177E89',
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
   },
   spacing: {
     xs: 4,
