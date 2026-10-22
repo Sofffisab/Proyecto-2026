@@ -6,7 +6,7 @@
 // logro o premio") lives here for now; Admin catalog management belongs
 // to the Admin Rewards module instead.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /rewards/redemptions/me — this user's reward redemptions (auto-granted
 // on hitting a point threshold, see Backend/src/services/reward.service.js

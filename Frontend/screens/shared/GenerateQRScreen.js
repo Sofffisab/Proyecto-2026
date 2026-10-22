@@ -31,7 +31,7 @@ import Header from '../../components/common/Header';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as qrManagementApi from '../../api/services/qrManagement.api';
+import * as qrManagementApi from '../../apiClient/services/qrManagement.api';
 
 const QR_TYPES = { MACHINE: 'MACHINE', ENTRY_EXIT: 'ENTRY_EXIT' };
 

@@ -7,7 +7,7 @@
 // pseudonymization/consent layer in Backend/src/utils/privacy.js so it
 // never leaks a withdrawn-consent user's identity even to an Admin.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /analytics/admin/history?identified=true|false
 // (insights.service.js#getFullHistoryAdmin). Each row is always

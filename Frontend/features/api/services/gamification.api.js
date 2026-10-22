@@ -6,7 +6,7 @@
 // points/badges are unlocked purely from activity server-side (see
 // Backend/src/services/gamification.service.js).
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /gamification/points
 // -> { totalPoints, transactions } (see gamification.service.js#getPoints).

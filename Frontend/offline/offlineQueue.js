@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as syncApi from '../api/services/sync.api';
+import * as syncApi from '../apiClient/services/sync.api';
 
 const QUEUE_KEY = 'offlineActionQueue';
 

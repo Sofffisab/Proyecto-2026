@@ -9,7 +9,7 @@
 // actions that drive the progressive-penalty logic in
 // Backend/src/services/complaint.service.js#approveComplaint.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /complaints — every complaint in the system, admin only
 // (complaint.service.js#getComplaints). No user names embedded on the

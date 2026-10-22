@@ -9,7 +9,7 @@
 // visibility: "PRIVATE" (default, only the authoring trainer + admins can
 // read it) or "PUBLIC" (visible to any trainer helping this member).
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 export function getNotes(userId) {
   return apiClient.get(`/users/${userId}/notes`);

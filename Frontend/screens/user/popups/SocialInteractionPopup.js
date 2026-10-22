@@ -25,8 +25,8 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import QRCode from 'react-native-qrcode-svg';
 import globals from '../../../styles/globals';
 import { useTranslation } from '../../../i18n/I18nContext';
-import * as challengeApi from '../../../api/services/challenge.api';
-import * as qrApi from '../../../api/services/qr.api';
+import * as challengeApi from '../../../apiClient/services/challenge.api';
+import * as qrApi from '../../../apiClient/services/qr.api';
 import QRScanner from '../../../components/common/QRScanner';
 
 const PHASE = {

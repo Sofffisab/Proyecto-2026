@@ -16,7 +16,7 @@
 // All entry/machine/exit disambiguation logic already lives server-side —
 // the client only ever forwards the raw scanned payload string.
 
-import { apiClient } from '../../../api/client';
+import { apiClient } from '../../../apiClient/client';
 
 // GET /qr/me — the authenticated user's own signed, timestamped QR payload
 // (shown to a partner during a Social Interaction pop-up, spec section 3).

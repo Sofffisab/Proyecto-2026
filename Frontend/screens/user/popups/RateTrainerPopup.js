@@ -16,7 +16,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import globals from '../../../styles/globals';
 import { useTranslation } from '../../../i18n/I18nContext';
-import * as gymApi from '../../../api/services/gym.api';
+import * as gymApi from '../../../apiClient/services/gym.api';
 
 const STARS = [1, 2, 3, 4, 5];
 
