@@ -279,7 +279,10 @@
         "preMade": "Pre-made",
         "custom": "Custom",
         "recommended": "Recommended by the App",
-        "none": "Don't follow a routine"
+        "none": "Don't follow a routine",
+        "myRoutines": "My routines",
+        "generalRoutines": "General routines",
+        "noRoutine": "Don't follow a routine"
       },
       "freeRoutineName": "Free Routine",
       "savedTitle": "Your saved routines",
@@ -302,7 +305,78 @@
       "todayPrefix": "Today, {{date}}",
       "trainingLabel": "Training:",
       "viewRoutine": "View routine",
-      "chooseTitle": "Choose your routine"
+      "chooseTitle": "Choose your routine",
+      "nextTrainingLabel": "Next training",
+      "todayDate": "{{weekday}}, {{month}} {{day}}",
+      "dayTitle": "{{weekday}}, {{month}} {{day}}",
+      "dayMonth": "{{month}} {{day}}",
+      "weekRangeSameMonth": "{{start}} - {{end}} {{month}}",
+      "weekRangeCrossMonth": "{{start}} {{startMonth}} - {{end}} {{endMonth}}",
+      "stepByStep": "Step by step",
+      "freeMode": "Free mode",
+      "emptyRoutine": "Empty",
+      "defaultDayTitle": "Training",
+      "aiRoutineTitle": "Personalized routine",
+      "scheduleFootnote": "Days may change depending on your progress and availability.",
+      "selectAll": "Select all",
+      "selectNone": "Select none",
+      "generateWithAi": "Generate with personalized AI",
+      "dayTitleLabel": "Day title",
+      "exercisesTitle": "Exercises",
+      "setsAndReps": "{{sets}} sets  ·  {{reps}} reps",
+      "doWithAi": "Do today's routine with personalized AI",
+      "pickDefault": "Pick a default routine for this day",
+      "addExercises": "Add exercises",
+      "selectExerciseTitle": "Select exercise",
+      "searchPlaceholder": "Search exercise",
+      "noExercisesFound": "No exercises found.",
+      "createCustomExercise": "+ Create my own exercise",
+      "filters": {
+        "all": "All",
+        "chest": "Chest",
+        "triceps": "Triceps",
+        "favorites": "Favorites"
+      },
+      "exercises": {
+        "declinePress": {
+          "name": "Decline bench press"
+        },
+        "declineFlyes": {
+          "name": "Decline bench flyes"
+        },
+        "parallelDips": {
+          "name": "Parallel bar dips"
+        },
+        "closeGripPress": {
+          "name": "Close-grip press"
+        },
+        "cablePushdown": {
+          "name": "Cable triceps extension"
+        },
+        "skullCrushers": {
+          "name": "EZ-bar skull crushers"
+        }
+      },
+      "popups": {
+        "empty": {
+          "title": "No routine for this day",
+          "message": "What do you want to do?",
+          "doIt": "Build it myself",
+          "generateWithAi": "Generate with personalized AI"
+        },
+        "sets": {
+          "setsLabel": "Sets",
+          "repsLabel": "Reps (e.g. 10-12)"
+        },
+        "custom": {
+          "title": "Create my own exercise",
+          "addPhoto": "Add photo",
+          "nameLabel": "Name",
+          "descriptionLabel": "Description",
+          "nameRequired": "Give the exercise a name.",
+          "imageError": "Could not load the photo. Please try again."
+        }
+      }
     },
     "achievementsGoals": {
       "title": "Achievements & Goals",

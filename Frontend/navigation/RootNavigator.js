@@ -18,6 +18,9 @@ import ProfileScreen from '../screens/user/ProfileScreen';
 import UserHomeScreen from '../screens/user/HomeScreen';
 import HistoryScreen from '../screens/user/HistoryScreen';
 import RoutinesScreen from '../screens/user/RoutinesScreen';
+import ScheduleScreen from '../screens/user/ScheduleScreen';
+import RoutineDayScreen from '../screens/user/RoutineDayScreen';
+import SelectExerciseScreen from '../screens/user/SelectExerciseScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
@@ -51,6 +54,10 @@ export const ROUTES = {
   USER_HOME: 'UserHome',
   USER_HISTORY: 'UserHistory',
   USER_ROUTINES: 'UserRoutines',
+  // "Tu cronograma" weekly schedule -> a day's routine -> exercise selector.
+  USER_SCHEDULE: 'UserSchedule',
+  USER_ROUTINE_DAY: 'UserRoutineDay',
+  USER_SELECT_EXERCISE: 'UserSelectExercise',
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
@@ -401,7 +408,35 @@ export default function RootNavigator() {
             onGoToHome={() => navigation.navigate(ROUTES.USER_HOME)}
             onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
             onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
+            onGoToSchedule={() => navigation.navigate(ROUTES.USER_SCHEDULE)}
+            onGoToRoutineDay={(dateKey) => navigation.navigate(ROUTES.USER_ROUTINE_DAY, { dateKey })}
           />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_SCHEDULE}>
+        {({ navigation }) => (
+          <ScheduleScreen
+            onBack={goBack(navigation)}
+            onGoToRoutineDay={(dateKey) => navigation.navigate(ROUTES.USER_ROUTINE_DAY, { dateKey })}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_ROUTINE_DAY}>
+        {({ navigation, route }) => (
+          <RoutineDayScreen
+            dateKey={route.params.dateKey}
+            onBack={goBack(navigation)}
+            onSave={goBack(navigation)}
+            onAddExercises={() => navigation.navigate(ROUTES.USER_SELECT_EXERCISE)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_SELECT_EXERCISE}>
+        {({ navigation }) => (
+          <SelectExerciseScreen onBack={goBack(navigation)} onDone={goBack(navigation)} />
         )}
       </Stack.Screen>
 
