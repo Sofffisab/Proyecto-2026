@@ -1,53 +1,21 @@
 {
   "expo": {
-    "name": "Frontend",
-    "slug": "Frontend",
+    "name": "Proyecto 2026",
+    "slug": "proyecto-2026",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/favicon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./src/assets/favicon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
+    "plugins": [
+      "expo-camera"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSCameraUsageDescription": "GymBros needs camera access to scan entry/exit, machine and interaction QR codes."
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./src/assets/favicon.png",
-        "backgroundColor": "#ffffff"
-      },
       "permissions": [
-        "CAMERA",
-        "POST_NOTIFICATIONS"
-      ],
-      "googleServicesFile": "./google-services.json"
-    },
-    "web": {
-      "favicon": "./src/assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "GymBros needs camera access to scan entry/exit, machine and interaction QR codes."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./src/assets/favicon.png"
-        }
+        "CAMERA"
       ]
-    ]
+    }
   }
 }
