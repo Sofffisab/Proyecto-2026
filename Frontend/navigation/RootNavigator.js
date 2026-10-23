@@ -21,6 +21,10 @@ import RoutinesScreen from '../screens/user/RoutinesScreen';
 import ScheduleScreen from '../screens/user/ScheduleScreen';
 import RoutineDayScreen from '../screens/user/RoutineDayScreen';
 import SelectExerciseScreen from '../screens/user/SelectExerciseScreen';
+import FreeRoutineScreen from '../screens/user/FreeRoutineScreen';
+import StepByStepScreen from '../screens/user/StepByStepScreen';
+import GeneralRoutinesScreen from '../screens/user/GeneralRoutinesScreen';
+import CameraScreen from '../screens/user/CameraScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
@@ -58,6 +62,11 @@ export const ROUTES = {
   USER_SCHEDULE: 'UserSchedule',
   USER_ROUTINE_DAY: 'UserRoutineDay',
   USER_SELECT_EXERCISE: 'UserSelectExercise',
+  // Routines screen extras: default routines, the two start modes and the camera.
+  USER_GENERAL_ROUTINES: 'UserGeneralRoutines',
+  USER_FREE_ROUTINE: 'UserFreeRoutine',
+  USER_STEP_BY_STEP: 'UserStepByStep',
+  USER_CAMERA: 'UserCamera',
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
@@ -409,9 +418,42 @@ export default function RootNavigator() {
             onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
             onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
             onGoToSchedule={() => navigation.navigate(ROUTES.USER_SCHEDULE)}
+            onGoToGeneralRoutines={() => navigation.navigate(ROUTES.USER_GENERAL_ROUTINES)}
             onGoToRoutineDay={(dateKey) => navigation.navigate(ROUTES.USER_ROUTINE_DAY, { dateKey })}
+            onGoToStepByStep={(params) => navigation.navigate(ROUTES.USER_STEP_BY_STEP, params)}
+            onGoToFreeMode={(params) => navigation.navigate(ROUTES.USER_FREE_ROUTINE, params)}
           />
         )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_GENERAL_ROUTINES}>
+        {({ navigation }) => (
+          <GeneralRoutinesScreen onBack={goBack(navigation)} onDone={goBack(navigation)} />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_FREE_ROUTINE}>
+        {({ navigation, route }) => (
+          <FreeRoutineScreen
+            {...route.params}
+            onBack={goBack(navigation)}
+            onOpenCamera={() => navigation.navigate(ROUTES.USER_CAMERA)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_STEP_BY_STEP}>
+        {({ navigation, route }) => (
+          <StepByStepScreen
+            {...route.params}
+            onBack={goBack(navigation)}
+            onOpenCamera={() => navigation.navigate(ROUTES.USER_CAMERA)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_CAMERA}>
+        {({ navigation }) => <CameraScreen onBack={goBack(navigation)} />}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_SCHEDULE}>

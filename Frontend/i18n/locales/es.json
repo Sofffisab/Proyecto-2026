@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Cancelar",
-    "save": "Guardar"
+    "save": "Guardar",
+    "close": "Cerrar",
+    "grantCameraAccess": "Permitir acceso a la cámara"
   },
   "user": {
     "home": {
@@ -50,22 +52,28 @@
       },
       "exercises": {
         "declinePress": {
-          "name": "Press banca declinada"
+          "name": "Press banca declinada",
+          "description": "Acostado en banco declinado, empujá la barra hacia arriba desde la parte baja del pecho."
         },
         "declineFlyes": {
-          "name": "Aperturas en banco declinado"
+          "name": "Aperturas en banco declinado",
+          "description": "En banco declinado, abrí los brazos y juntá las mancuernas sobre el pecho."
         },
         "parallelDips": {
-          "name": "Fondo en paralelas"
+          "name": "Fondo en paralelas",
+          "description": "Apoyate en las barras y bajá el cuerpo hasta que los codos lleguen a 90°, luego empujá hacia arriba."
         },
         "closeGripPress": {
-          "name": "Press cerrado"
+          "name": "Press cerrado",
+          "description": "Empujá la barra con las manos juntas, manteniendo los codos pegados al cuerpo."
         },
         "cablePushdown": {
-          "name": "Extensión de tríceps en polea"
+          "name": "Extensión de tríceps en polea",
+          "description": "Empujá el agarre de la polea hacia abajo extendiendo los codos, sin mover los brazos."
         },
         "skullCrushers": {
-          "name": "Rompecráneos con barra Z"
+          "name": "Rompecráneos con barra Z",
+          "description": "Bajá la barra Z hacia la frente flexionando los codos y volvé a extender."
         }
       },
       "popups": {
@@ -86,6 +94,24 @@
           "descriptionLabel": "Descripción",
           "nameRequired": "Ponele un nombre al ejercicio.",
           "imageError": "No se pudo cargar la foto. Intentá de nuevo."
+        }
+      },
+      "freeTrainingTitle": "Entrenamiento libre",
+      "instructions": "Instrucciones",
+      "generalRoutinesTitle": "Rutinas generales",
+      "cameraPermissionRequired": "Se necesita acceso a la cámara para usarla.",
+      "general": {
+        "chestDay": {
+          "title": "Día de pecho"
+        },
+        "tricepsDay": {
+          "title": "Día de tríceps"
+        },
+        "chestTriceps": {
+          "title": "Pecho + Tríceps"
+        },
+        "upperExpress": {
+          "title": "Tren superior exprés"
         }
       }
     }

@@ -52,3 +52,9 @@ export { capitalize };
 export function estimateMinutes(exercises) {
   return exercises.reduce((total, ex) => total + (Number(ex.sets) || 0) * MINUTES_PER_SET, 0);
 }
+
+/** Title shown for a routine: own title, default-routine i18n key, or a fallback. */
+export function resolveRoutineTitle(routine, t) {
+  if (routine?.titleKey) return t(routine.titleKey);
+  return routine?.title || t('user.routines.defaultDayTitle');
+}

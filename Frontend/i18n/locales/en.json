@@ -339,22 +339,28 @@
       },
       "exercises": {
         "declinePress": {
-          "name": "Decline bench press"
+          "name": "Decline bench press",
+          "description": "Lie on a decline bench and press the bar up from your lower chest."
         },
         "declineFlyes": {
-          "name": "Decline bench flyes"
+          "name": "Decline bench flyes",
+          "description": "On a decline bench, open your arms wide and bring the weights together over your chest."
         },
         "parallelDips": {
-          "name": "Parallel bar dips"
+          "name": "Parallel bar dips",
+          "description": "Support yourself on the bars and lower your body until your elbows reach 90°, then push up."
         },
         "closeGripPress": {
-          "name": "Close-grip press"
+          "name": "Close-grip press",
+          "description": "Press the bar with your hands close together, keeping your elbows tucked in."
         },
         "cablePushdown": {
-          "name": "Cable triceps extension"
+          "name": "Cable triceps extension",
+          "description": "Push the cable handle down by extending your elbows, keeping your upper arms still."
         },
         "skullCrushers": {
-          "name": "EZ-bar skull crushers"
+          "name": "EZ-bar skull crushers",
+          "description": "Lower the EZ-bar towards your forehead by bending your elbows, then extend back up."
         }
       },
       "popups": {
@@ -375,6 +381,24 @@
           "descriptionLabel": "Description",
           "nameRequired": "Give the exercise a name.",
           "imageError": "Could not load the photo. Please try again."
+        }
+      },
+      "freeTrainingTitle": "Free training",
+      "instructions": "Instructions",
+      "generalRoutinesTitle": "General routines",
+      "cameraPermissionRequired": "Camera access is needed to use the camera.",
+      "general": {
+        "chestDay": {
+          "title": "Chest day"
+        },
+        "tricepsDay": {
+          "title": "Triceps day"
+        },
+        "chestTriceps": {
+          "title": "Chest + Triceps"
+        },
+        "upperExpress": {
+          "title": "Upper body express"
         }
       }
     },

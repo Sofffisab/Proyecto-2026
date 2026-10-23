@@ -13,5 +13,5 @@ export default function App() {
         </RoutinesProvider>
       </AuthProvider>
     </I18nProvider>
-  ); 
+  );
 }
