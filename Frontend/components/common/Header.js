@@ -16,10 +16,15 @@ import globals from '../../styles/globals';
  * @param {function} [onPressNotifications] - If provided, renders a bell
  *   button in the top-right corner.
  * @param {number} [unreadCount] - Badge count shown next to the bell.
+ * @param {string} [rightLabel] - If provided, renders a teal text action in
+ *   the top-right corner (e.g. "Guardar").
+ * @param {*} [rightIcon] - If provided (image source), renders an icon button
+ *   in the top-right corner.
+ * @param {function} [onPressRight] - Handler for rightLabel / rightIcon.
  */
-const Header = ({ pageTitle, subtitle, onBack, onPressNotifications, unreadCount }) => (
+const Header = ({ pageTitle, subtitle, onBack, onPressNotifications, unreadCount, rightLabel, rightIcon, onPressRight }) => (
   <View style={styles.header}>
-    <View style={styles.side}>
+    <View style={[styles.side, rightLabel && styles.sideWide]}>
       {onBack && (
         <TouchableOpacity onPress={onBack} style={styles.iconButton} hitSlop={10}>
           <Image
@@ -35,7 +40,17 @@ const Header = ({ pageTitle, subtitle, onBack, onPressNotifications, unreadCount
       {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
     </View>
 
-    <View style={[styles.side, styles.sideRight]}>
+    <View style={[styles.side, styles.sideRight, rightLabel && styles.sideWide]}>
+      {rightLabel && (
+        <TouchableOpacity onPress={onPressRight} hitSlop={10}>
+          <Text style={styles.rightLabel}>{rightLabel}</Text>
+        </TouchableOpacity>
+      )}
+      {rightIcon && (
+        <TouchableOpacity onPress={onPressRight} style={styles.iconButton} hitSlop={10}>
+          <Image source={rightIcon} style={styles.backIcon} />
+        </TouchableOpacity>
+      )}
       {onPressNotifications && (
         <TouchableOpacity onPress={onPressNotifications} style={styles.iconButton}>
           <Text style={styles.bellIcon}>🔔</Text>
@@ -66,6 +81,14 @@ const styles = StyleSheet.create({
   },
   sideRight: {
     alignItems: 'flex-end',
+  },
+  sideWide: {
+    width: 72,
+  },
+  rightLabel: {
+    fontSize: globals.fontSize.md,
+    fontWeight: '600',
+    color: globals.colors.primary,
   },
   iconButton: {
     padding: globals.spacing.xs,

@@ -1,1 +1,93 @@
-{}
+{
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "user": {
+    "home": {
+      "durationMinutes": "{{count}} min",
+      "exercisesCount": "{{count}} ejercicios"
+    },
+    "routines": {
+      "scheduleTitle": "Tu cronograma",
+      "todayPrefix": "Hoy, {{date}}",
+      "trainingLabel": "Entrenamiento:",
+      "options": {
+        "myRoutines": "mis rutinas",
+        "generalRoutines": "rutinas generales",
+        "noRoutine": "no seguir rutina"
+      },
+      "nextTrainingLabel": "Próximo entrenamiento",
+      "todayDate": "{{weekday}} {{day}} de {{month}}",
+      "dayTitle": "{{weekday}}, {{day}} {{month}}",
+      "dayMonth": "{{day}} de {{month}}",
+      "weekRangeSameMonth": "{{start}} - {{end}} {{month}}",
+      "weekRangeCrossMonth": "{{start}} {{startMonth}} - {{end}} {{endMonth}}",
+      "stepByStep": "Paso a paso",
+      "freeMode": "Seguir libre",
+      "emptyRoutine": "Vacía",
+      "defaultDayTitle": "Entrenamiento",
+      "aiRoutineTitle": "Rutina personalizada",
+      "scheduleFootnote": "Los días pueden cambiar según tu progreso y disponibilidad.",
+      "selectAll": "Seleccionar todos",
+      "selectNone": "Ninguno",
+      "generateWithAi": "Hacer con IA personalizada",
+      "dayTitleLabel": "Título del día",
+      "exercisesTitle": "Ejercicios",
+      "setsAndReps": "{{sets}} series  ·  {{reps}} rep",
+      "doWithAi": "Hacer la rutina del día con IA personalizada",
+      "pickDefault": "Elegir para este día una default",
+      "addExercises": "Agregar ejercicios",
+      "selectExerciseTitle": "Seleccionar ejercicio",
+      "searchPlaceholder": "Buscar ejercicio",
+      "noExercisesFound": "No se encontraron ejercicios.",
+      "createCustomExercise": "+ Crear ejercicio propio",
+      "filters": {
+        "all": "Todos",
+        "chest": "Pecho",
+        "triceps": "Tríceps",
+        "favorites": "Favoritos"
+      },
+      "exercises": {
+        "declinePress": {
+          "name": "Press banca declinada"
+        },
+        "declineFlyes": {
+          "name": "Aperturas en banco declinado"
+        },
+        "parallelDips": {
+          "name": "Fondo en paralelas"
+        },
+        "closeGripPress": {
+          "name": "Press cerrado"
+        },
+        "cablePushdown": {
+          "name": "Extensión de tríceps en polea"
+        },
+        "skullCrushers": {
+          "name": "Rompecráneos con barra Z"
+        }
+      },
+      "popups": {
+        "empty": {
+          "title": "Entrenamiento vacío",
+          "message": "¿Qué querés hacer?",
+          "doIt": "Hacer el día",
+          "generateWithAi": "Generarlo con IA personalizada"
+        },
+        "sets": {
+          "setsLabel": "Series",
+          "repsLabel": "Repeticiones (ej. 10-12)"
+        },
+        "custom": {
+          "title": "Crear ejercicio propio",
+          "addPhoto": "Agregar foto",
+          "nameLabel": "Nombre",
+          "descriptionLabel": "Descripción",
+          "nameRequired": "Ponele un nombre al ejercicio.",
+          "imageError": "No se pudo cargar la foto. Intentá de nuevo."
+        }
+      }
+    }
+  }
+}
