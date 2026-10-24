@@ -1,17 +1,21 @@
 // src/screens/user/RoutineDayScreen.js
 //
-// A single day of the schedule (screen 3). Empty until exercises are added
-// through "Seleccionar ejercicio" (screen 4). Edits live in the draft held by
-// RoutinesContext and only reach the schedule when "Guardar" is pressed.
+// A single day of the schedule (screen 3). On open it loads what the database
+// has for that day (title + exercises). Exercises are added through
+// "Seleccionar ejercicio" (screen 4), "Hacer con IA personalizada" generates the
+// day from the person's history and "Elegir una default" copies a general
+// routine. Edits live in the draft held by RoutinesContext and are written to
+// the database when "Guardar" is pressed.
 // Exercises can be reordered by dragging the 3-lines handle; the pencil edits
 // an exercise's sets and reps.
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import ReorderableList from '../../components/common/ReorderableList';
 import ExerciseSetsPopup from './popups/ExerciseSetsPopup';
+import PickGeneralRoutinePopup from './popups/PickGeneralRoutinePopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines } from '../../context/RoutinesContext';
 import { capitalize, fromDateKey, getDateParts } from '../../utils/schedule';
@@ -28,10 +32,16 @@ const ROW_GAP = 12;
  */
 export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercises }) {
   const { t, language } = useTranslation();
-  const { draft, openDraft, updateDraft, discardDraft, saveDraft, getExercise } = useRoutines();
+  const {
+    draft, openDraft, updateDraft, discardDraft, saveDraft, getExercise,
+    generateWithAi, applyGeneralRoutineToDraft, generalRoutines, generalStatus, loadGeneralRoutines,
+  } = useRoutines();
 
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [editingId, setEditingId] = useState(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickingId, setPickingId] = useState(null);
+  const [busy, setBusy] = useState(false); // saving or generating
 
   // Starts the draft when the screen opens and drops it when it closes
   // (the selector screen is pushed on top, so this one stays mounted).
@@ -46,15 +56,53 @@ export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercis
   const exercises = draft?.exercises ?? [];
   const editingExercise = exercises.find((ex) => ex.id === editingId) ?? null;
 
-  const exerciseName = (id) => {
-    const exercise = getExercise(id);
-    if (!exercise) return '';
-    return exercise.isCustom ? exercise.name : t(`user.routines.exercises.${id}.name`);
+  const loading = !draft || draft.loading;
+  const exerciseName = (id) => getExercise(id)?.name ?? '';
+
+  const handleSave = async () => {
+    if (loading || busy) return;
+    setBusy(true);
+    try {
+      await saveDraft();
+      if (onSave) onSave();
+    } catch {
+      Alert.alert(t('user.routines.saveError'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSave = () => {
-    saveDraft();
-    if (onSave) onSave();
+  // The backend reads the person's history, analyses it and saves the day.
+  const handleDoWithAi = async () => {
+    if (loading || busy) return;
+    setBusy(true);
+    try {
+      await generateWithAi([dateKey]);
+      await openDraft(dateKey);
+    } catch {
+      Alert.alert(t('user.routines.aiError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenPicker = () => {
+    if (loading || busy) return;
+    setPickerVisible(true);
+    if (generalRoutines.length === 0) loadGeneralRoutines();
+  };
+
+  // Fetches the chosen routine's exercises from the database into the draft.
+  const handlePickGeneral = async (routineId) => {
+    setPickingId(routineId);
+    try {
+      await applyGeneralRoutineToDraft(routineId);
+      setPickerVisible(false);
+    } catch {
+      Alert.alert(t('user.routines.loadError'));
+    } finally {
+      setPickingId(null);
+    }
   };
 
   const handleSaveSets = ({ sets, reps }) => {
@@ -64,7 +112,7 @@ export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercis
 
   const renderExercise = ({ item, index, dragHandleProps }) => {
     const exercise = getExercise(item.id);
-    const image = exercise?.isCustom ? (exercise.imageUri ? { uri: exercise.imageUri } : null) : exercise?.image;
+    const image = exercise?.imageSource;
     return (
       <View style={styles.exerciseRow}>
         <Text style={styles.exerciseIndex}>{index + 1}</Text>
@@ -93,6 +141,13 @@ export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercis
         rightLabel={t('common.save')}
         onPressRight={handleSave}
       />
+
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={globals.colors.primary} />
+          {draft?.error ? <Text style={styles.errorText}>{t('user.routines.loadError')}</Text> : null}
+        </View>
+      ) : (
 
       <ScrollView
         style={styles.content}
@@ -130,20 +185,34 @@ export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercis
           onDragStateChange={(isDragging) => setScrollEnabled(!isDragging)}
         />
 
-        {/* Static for now. */}
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
-          <Text style={styles.secondaryButtonText}>{t('user.routines.doWithAi')}</Text>
+        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8} onPress={handleDoWithAi} disabled={busy}>
+          {busy ? (
+            <ActivityIndicator color={globals.colors.primary} />
+          ) : (
+            <Text style={styles.secondaryButtonText}>{t('user.routines.doWithAi')}</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8} onPress={handleOpenPicker} disabled={busy}>
           <Text style={styles.secondaryButtonText}>{t('user.routines.pickDefault')}</Text>
         </TouchableOpacity>
       </ScrollView>
+      )}
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addButton} onPress={onAddExercises}>
+        <TouchableOpacity style={[styles.addButton, (loading || busy) && styles.addButtonDisabled]} onPress={onAddExercises} disabled={loading || busy}>
           <Text style={styles.addButtonText}>{t('user.routines.addExercises')}</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal transparent animationType="fade" visible={pickerVisible} onRequestClose={() => setPickerVisible(false)}>
+        <PickGeneralRoutinePopup
+          routines={generalRoutines}
+          loading={generalStatus.loading}
+          busyId={pickingId}
+          onSelect={handlePickGeneral}
+          onClose={() => setPickerVisible(false)}
+        />
+      </Modal>
 
       <Modal transparent animationType="fade" visible={editingExercise != null} onRequestClose={() => setEditingId(null)}>
         {editingExercise && (
@@ -163,6 +232,8 @@ export default function RoutineDayScreen({ dateKey, onBack, onSave, onAddExercis
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: globals.colors.backgroundAlt },
   content: { flex: 1 },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: { marginTop: 12, color: globals.colors.textSecondary, fontSize: 13 },
   contentInner: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: globals.spacing.lg },
 
   fieldLabel: { fontSize: 12, color: globals.colors.textSecondary, marginBottom: 8 },
@@ -228,5 +299,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...globals.shadow.button,
   },
+  addButtonDisabled: { opacity: 0.5 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

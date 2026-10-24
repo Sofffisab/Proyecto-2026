@@ -6,13 +6,13 @@
 // there is no routine, so only the camera button is shown.
 
 import React from 'react';
-import { View, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import RoutineOverview from '../../components/user/RoutineOverview';
 import RoutineExerciseRow from '../../components/user/RoutineExerciseRow';
 import { useTranslation } from '../../i18n/I18nContext';
-import { useRoutines } from '../../context/RoutinesContext';
+import { useLoadRoutine } from '../../context/RoutinesContext';
 import { capitalize, fromDateKey, getDateParts, resolveRoutineTitle } from '../../utils/schedule';
 
 /**
@@ -24,9 +24,7 @@ import { capitalize, fromDateKey, getDateParts, resolveRoutineTitle } from '../.
  */
 export default function FreeRoutineScreen({ source, dateKey, generalRoutineId, onBack, onOpenCamera }) {
   const { t, language } = useTranslation();
-  const { getRoutine } = useRoutines();
-
-  const routine = getRoutine({ source, dateKey, generalRoutineId });
+  const { routine, loading, error, reload } = useLoadRoutine({ source, dateKey, generalRoutineId });
   const exercises = routine?.exercises ?? [];
   const parts = getDateParts(fromDateKey(dateKey), language);
 
@@ -35,7 +33,13 @@ export default function FreeRoutineScreen({ source, dateKey, generalRoutineId, o
       <Header pageTitle={t('user.routines.dayTitle', { ...parts, weekday: capitalize(parts.weekday) })} onBack={onBack} />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-        {routine && (
+        {loading && <ActivityIndicator color={globals.colors.primary} style={styles.loader} />}
+        {!loading && error && (
+          <TouchableOpacity onPress={reload}>
+            <Text style={styles.message}>{t('user.routines.loadError')} · {t('user.routines.retry')}</Text>
+          </TouchableOpacity>
+        )}
+        {!loading && !error && routine && (
           <>
             <RoutineOverview title={resolveRoutineTitle(routine, t)} exerciseCount={exercises.length} />
             {exercises.map((item, index) => (
@@ -60,6 +64,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: globals.colors.background },
   content: { flex: 1 },
   contentInner: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: globals.spacing.lg },
+  loader: { marginVertical: 32 },
+  message: { textAlign: 'center', color: globals.colors.textSecondary, fontSize: 13, marginVertical: 32 },
   rowWrapper: { marginBottom: 12 },
   footer: { alignItems: 'center', paddingTop: 10, paddingBottom: 28 },
   cameraButton: {

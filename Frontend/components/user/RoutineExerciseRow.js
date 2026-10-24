@@ -23,9 +23,9 @@ export default function RoutineExerciseRow({ item, index, expanded = false, onOp
   const { getExercise } = useRoutines();
 
   const exercise = getExercise(item.id);
-  const name = exercise?.isCustom ? exercise.name : t(`user.routines.exercises.${item.id}.name`);
-  const description = exercise?.isCustom ? exercise.description : t(`user.routines.exercises.${item.id}.description`);
-  const image = exercise?.isCustom ? (exercise.imageUri ? { uri: exercise.imageUri } : null) : exercise?.image;
+  const name = exercise?.name ?? '';
+  const description = exercise?.description ?? '';
+  const image = exercise?.imageSource;
   const meta = t('user.routines.setsAndReps', { sets: item.sets, reps: item.reps });
 
   if (expanded) {

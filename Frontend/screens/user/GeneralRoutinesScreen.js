@@ -1,16 +1,15 @@
 // src/screens/user/GeneralRoutinesScreen.js
 //
-// Lists the default ("general") routines; tapping one assigns it to today and
+// Lists the default ("general") routines stored in the database; tapping one assigns it to today and
 // makes "rutinas generales" the followed option on the Routines screen.
 
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines } from '../../context/RoutinesContext';
-import { GENERAL_ROUTINES } from '../../constants/generalRoutines';
-import { estimateMinutes, toDateKey } from '../../utils/schedule';
+import { toDateKey } from '../../utils/schedule';
 
 /**
  * @param {function} [onBack]
@@ -18,7 +17,13 @@ import { estimateMinutes, toDateKey } from '../../utils/schedule';
  */
 export default function GeneralRoutinesScreen({ onBack, onDone }) {
   const { t } = useTranslation();
-  const { getGeneralChoice, chooseGeneralRoutine } = useRoutines();
+  const { getGeneralChoice, chooseGeneralRoutine, generalRoutines, generalStatus, loadGeneralRoutines } = useRoutines();
+
+  // Always show what the database has right now.
+  useEffect(() => {
+    loadGeneralRoutines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const todayKey = toDateKey(new Date());
   const currentId = getGeneralChoice(todayKey);
@@ -33,17 +38,28 @@ export default function GeneralRoutinesScreen({ onBack, onDone }) {
       <Header pageTitle={t('user.routines.generalRoutinesTitle')} onBack={onBack} />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-        {GENERAL_ROUTINES.map((routine) => (
+        {generalStatus.loading && generalRoutines.length === 0 && (
+          <ActivityIndicator color={globals.colors.primary} style={styles.loader} />
+        )}
+        {generalStatus.error && generalRoutines.length === 0 && (
+          <TouchableOpacity onPress={loadGeneralRoutines}>
+            <Text style={styles.message}>{t('user.routines.loadError')} · {t('user.routines.retry')}</Text>
+          </TouchableOpacity>
+        )}
+        {!generalStatus.loading && !generalStatus.error && generalRoutines.length === 0 && (
+          <Text style={styles.message}>{t('user.routines.pickDefaultEmpty')}</Text>
+        )}
+        {generalRoutines.map((routine) => (
           <TouchableOpacity
             key={routine.id}
-            style={[styles.row, routine.id === currentId && styles.rowSelected]}
+            style={[styles.row, (routine.id === currentId || routine.slug === currentId) && styles.rowSelected]}
             onPress={() => handlePick(routine.id)}
             activeOpacity={0.8}
           >
             <View style={styles.info}>
-              <Text style={styles.title} numberOfLines={1}>{t(routine.titleKey)}</Text>
+              <Text style={styles.title} numberOfLines={1}>{routine.title}</Text>
               <Text style={styles.meta}>
-                {`${t('user.home.durationMinutes', { count: estimateMinutes(routine.exercises) })}  ·  ${t('user.home.exercisesCount', { count: routine.exercises.length })}`}
+                {`${t('user.home.durationMinutes', { count: routine.estimatedMinutes })}  ·  ${t('user.home.exercisesCount', { count: routine.exerciseCount })}`}
               </Text>
             </View>
             <Image source={require('../../assets/derecha.png')} style={styles.chevron} />
@@ -74,5 +90,7 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   title: { fontSize: 13, fontWeight: '700', color: globals.colors.text },
   meta: { fontSize: 10, color: globals.colors.textSecondary, marginTop: 3 },
+  loader: { marginVertical: 24 },
+  message: { textAlign: 'center', color: globals.colors.textSecondary, fontSize: 13, marginVertical: 24 },
   chevron: { width: 18, height: 18, resizeMode: 'contain' },
 });

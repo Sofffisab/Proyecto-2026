@@ -2,7 +2,9 @@
 //
 // Routines Screen (User) - "Tu cronograma" hero + option list.
 //
-// Frontend only. The hero follows the selected option:
+// Everything shown comes from the database (the day's routine / the general
+// routine with its exercises are fetched when the screen opens). The hero
+// follows the selected option:
 //   - My routines:       today's entry of the weekly schedule (arrow -> schedule).
 //   - General routines:  a default routine for today; if none was picked it is
 //                        assigned at random, favouring ones not done yet
@@ -13,14 +15,14 @@
 // whether to build it by hand, generate it with AI or cancel.
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Alert, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import BottomNav from '../../components/common/BottomNav';
 import EmptyRoutinePopup from './popups/EmptyRoutinePopup';
 import { useTranslation } from '../../i18n/I18nContext';
-import { useRoutines } from '../../context/RoutinesContext';
-import { GENERAL_ROUTINES, ROUTINE_OPTIONS, ROUTINE_SOURCES } from '../../constants/generalRoutines';
-import { estimateMinutes, getDateParts, resolveRoutineTitle, toDateKey } from '../../utils/schedule';
+import { useRoutines, useLoadRoutine } from '../../context/RoutinesContext';
+import { ROUTINE_OPTIONS, ROUTINE_SOURCES } from '../../constants/generalRoutines';
+import { getDateParts, resolveRoutineTitle, toDateKey } from '../../utils/schedule';
 
 const START_MODES = {
   STEP_BY_STEP: 'stepByStep',
@@ -60,7 +62,7 @@ export default function RoutinesScreen({
   onGoToFreeMode,
 }) {
   const { t, language } = useTranslation();
-  const { getDay, generateWithAi, routineOption, setRoutineOption, getGeneralChoice, assignRandomGeneralRoutine } = useRoutines();
+  const { generateWithAi, routineOption, setRoutineOption, getGeneralChoice, assignRandomGeneralRoutine, generalRoutines } = useRoutines();
 
   // Start mode waiting on the "empty routine" pop-up (null = pop-up closed).
   const [pendingMode, setPendingMode] = useState(null);
@@ -69,25 +71,23 @@ export default function RoutinesScreen({
   const todayKey = toDateKey(today);
   const generalRoutineId = getGeneralChoice(todayKey);
 
-  // Following default routines with none picked for today: assign one.
+  // Following default routines with none picked for today: assign one
+  // (once the general routines have been loaded from the database).
   useEffect(() => {
-    if (routineOption === ROUTINE_OPTIONS.GENERAL_ROUTINES && !generalRoutineId) {
+    if (routineOption === ROUTINE_OPTIONS.GENERAL_ROUTINES && !generalRoutineId && generalRoutines.length > 0) {
       assignRandomGeneralRoutine(todayKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routineOption, generalRoutineId, todayKey]);
+  }, [routineOption, generalRoutineId, todayKey, generalRoutines.length]);
 
   let source = ROUTINE_SOURCES.NONE;
-  let routine = null;
-  if (routineOption === ROUTINE_OPTIONS.MY_ROUTINES) {
-    source = ROUTINE_SOURCES.SCHEDULE;
-    routine = getDay(todayKey);
-  } else if (routineOption === ROUTINE_OPTIONS.GENERAL_ROUTINES) {
-    source = ROUTINE_SOURCES.GENERAL;
-    routine = GENERAL_ROUTINES.find((r) => r.id === generalRoutineId) ?? null;
-  }
-  const exercises = routine?.exercises ?? [];
+  if (routineOption === ROUTINE_OPTIONS.MY_ROUTINES) source = ROUTINE_SOURCES.SCHEDULE;
+  else if (routineOption === ROUTINE_OPTIONS.GENERAL_ROUTINES) source = ROUTINE_SOURCES.GENERAL;
+
   const routineParams = { source, dateKey: todayKey, generalRoutineId };
+  // Fetches today's routine (with exercises) from the database.
+  const { routine, loading: routineLoading } = useLoadRoutine(routineParams);
+  const exerciseCount = routine?.exerciseCount ?? 0;
 
   const todayLabel = t('user.routines.todayDate', getDateParts(today, language));
   const heroTitle =
@@ -95,11 +95,13 @@ export default function RoutinesScreen({
       ? t('user.routines.freeTrainingTitle')
       : routine
         ? resolveRoutineTitle(routine, t)
-        : t('user.routines.emptyRoutine');
-  const heroMeta = exercises.length > 0
+        : routineLoading
+          ? '…'
+          : t('user.routines.emptyRoutine');
+  const heroMeta = exerciseCount > 0
     ? [
-        t('user.home.durationMinutes', { count: estimateMinutes(exercises) }),
-        t('user.home.exercisesCount', { count: exercises.length }),
+        t('user.home.durationMinutes', { count: routine.estimatedMinutes }),
+        t('user.home.exercisesCount', { count: exerciseCount }),
       ]
     : [];
 
@@ -118,7 +120,8 @@ export default function RoutinesScreen({
   // routines") ask what to do. "Don't follow" has nothing to ask: free mode
   // is just the camera.
   const handleStart = (mode) => {
-    if (source === ROUTINE_SOURCES.NONE || exercises.length > 0) {
+    if (routineLoading && source !== ROUTINE_SOURCES.NONE) return;
+    if (source === ROUTINE_SOURCES.NONE || exerciseCount > 0) {
       goToMode(mode, routineParams);
     } else {
       setPendingMode(mode);
@@ -130,9 +133,15 @@ export default function RoutinesScreen({
     if (onGoToRoutineDay) onGoToRoutineDay(todayKey);
   };
 
-  const handleGenerateWithAi = () => {
+  // The backend analyses the person's history and saves today's routine.
+  const handleGenerateWithAi = async () => {
     const mode = pendingMode;
-    generateWithAi([todayKey], t('user.routines.aiRoutineTitle'));
+    try {
+      await generateWithAi([todayKey]);
+    } catch {
+      Alert.alert(t('user.routines.aiError'));
+      return;
+    }
     setPendingMode(null);
     goToMode(mode, { source: ROUTINE_SOURCES.SCHEDULE, dateKey: todayKey });
   };

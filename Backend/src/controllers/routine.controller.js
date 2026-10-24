@@ -134,7 +134,7 @@ export async function rejectPatternSuggestion(req, res, next) {
 
 export async function getToday(req, res, next) {
   try {
-    const data = await routineService.getTodayOptions(req.user.id);
+    const data = await routineService.getTodayOptions(req.user.id, req.query?.date);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

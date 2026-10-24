@@ -4,6 +4,7 @@ import { POINTS } from "../constants/points.js";
 import { AppError } from "../utils/errors.js";
 import { getUserBehaviorProfile } from "./behaviorAnalysis.service.js";
 import { createNotification } from "./communication.service.js";
+import { getScheduleDay, isValidDateKey } from "./schedule.service.js";
 
 // A detected pattern needs at least this many occurrences before we're
 // confident enough to actively propose it as a ready-made routine.
@@ -222,15 +223,36 @@ export async function rejectPatternSuggestion(userId) {
   return { rejected: true };
 }
 
-/** Home-screen options: saved routines, the always-available free routine, and a fresh AI suggestion if available. */
-export async function getTodayOptions(userId) {
-  const [routines, suggestion] = await Promise.all([
+/**
+ * Home-screen options: today's day of the weekly schedule (when `dateKey`,
+ * the member's local "YYYY-MM-DD", is given and a routine was saved for it),
+ * saved routines, the always-available free routine, and a fresh AI suggestion.
+ */
+export async function getTodayOptions(userId, dateKey) {
+  const [routines, suggestion, scheduled] = await Promise.all([
     getRoutines(userId),
     getPatternSuggestion(userId),
+    dateKey && isValidDateKey(dateKey) ? getScheduleDay(userId, dateKey) : null,
   ]);
 
+  // Shaped like a Routine row so the Home hero card needs no changes.
+  const todayEntry = scheduled
+    ? [
+        {
+          id: `schedule-${scheduled.date}`,
+          name: scheduled.title,
+          isCustom: scheduled.source === "MANUAL",
+          source: scheduled.source,
+          content: {
+            exercises: scheduled.exercises.map(({ exerciseId, sets, reps }) => ({ exerciseId, sets, reps })),
+            durationMinutes: scheduled.estimatedMinutes,
+          },
+        },
+      ]
+    : [];
+
   return {
-    routines,
+    routines: [...todayEntry, ...routines],
     freeRoutine: { id: "FREE_ROUTINE", name: "Rutina Libre", isFreeRoutine: true },
     suggestion: suggestion.available ? suggestion : null,
   };

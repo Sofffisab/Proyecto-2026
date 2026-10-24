@@ -12,6 +12,8 @@ import * as userController         from "../controllers/user.controller.js";
 import * as gymController          from "../controllers/gym.controller.js";
 import * as progressController     from "../controllers/progress.controller.js";
 import * as routineController      from "../controllers/routine.controller.js";
+import * as exerciseController     from "../controllers/exercise.controller.js";
+import * as scheduleController     from "../controllers/schedule.controller.js";
 import * as rewardController       from "../controllers/reward.controller.js";
 import * as gamificationController from "../controllers/gamification.controller.js";
 import * as challengeController    from "../controllers/challenge.controller.js";
@@ -150,6 +152,18 @@ router.get("/routines/today",               routineController.getToday);
 router.get("/routines/suggestions/patterns",  routineController.getPatternSuggestion);
 router.post("/routines/suggestions/accept",   validateSchema(progressSchemas.acceptRoutineSuggestionSchema), routineController.acceptPatternSuggestion);
 router.post("/routines/suggestions/reject",   routineController.rejectPatternSuggestion);
+// Exercise catalog, general routines, weekly schedule and the personalized
+// generator. Declared BEFORE "/routines/:id" so "general", "schedule",
+// "exercises" and "ai" aren't swallowed as an :id.
+router.get("/routines/exercises",            exerciseController.list);
+router.post("/routines/exercises",           validateSchema(progressSchemas.createExerciseSchema), exerciseController.create);
+router.get("/routines/general",              scheduleController.getGeneralRoutines);
+router.get("/routines/general/:id",          scheduleController.getGeneralRoutineById);
+router.get("/routines/schedule",             scheduleController.getScheduleRange);
+router.get("/routines/schedule/:date",       scheduleController.getScheduleDay);
+router.put("/routines/schedule/:date",       validateSchema(progressSchemas.saveScheduleDaySchema), scheduleController.saveScheduleDay);
+router.delete("/routines/schedule/:date",    scheduleController.deleteScheduleDay);
+router.post("/routines/ai/generate",         validateSchema(progressSchemas.generateAiRoutinesSchema), scheduleController.generateAiRoutines);
 router.get("/routines/:id",                 routineController.getById);
 router.put("/routines/:id",                 validateSchema(progressSchemas.updateRoutineSchema), routineController.update);
 router.delete("/routines/:id",              routineController.remove);

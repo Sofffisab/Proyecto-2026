@@ -4,6 +4,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { EXERCISES, GENERAL_ROUTINES, MACHINES } from "./seedData/catalog.js";
 
 const prisma = new PrismaClient();
 
@@ -114,11 +115,71 @@ async function main() {
     }
   }
 
+  // Gym machines (the pattern-learning engine matches their names against
+  // Exercise.machineKeywords, so they should exist before members train).
+  for (const [name, zone, qrToken] of MACHINES) {
+    await prisma.machine.upsert({
+      where: { qrToken },
+      update: { name, zone },
+      create: { name, zone, qrToken, active: true },
+    });
+  }
+
+  // Exercise catalog (built-in, visible to every member).
+  const exerciseIdBySlug = {};
+  for (const ex of EXERCISES) {
+    const data = {
+      name: ex.name,
+      nameEn: ex.nameEn,
+      description: ex.description,
+      descriptionEn: ex.descriptionEn,
+      muscles: ex.muscles,
+      machineKeywords: ex.machineKeywords,
+      level: ex.level,
+      category: ex.category,
+      defaultSets: ex.sets,
+      defaultReps: ex.reps,
+      isCustom: false,
+      active: true,
+    };
+    const row = await prisma.exercise.upsert({
+      where: { slug: ex.slug },
+      update: data,
+      create: { slug: ex.slug, ...data },
+    });
+    exerciseIdBySlug[ex.slug] = row.id;
+  }
+
+  // General routines ("rutinas generales"): items are rewritten on each run.
+  for (const [position, [slug, title, titleEn, level, slugs]] of GENERAL_ROUTINES.entries()) {
+    const routine = await prisma.generalRoutine.upsert({
+      where: { slug },
+      update: { title, titleEn, level, position, active: true },
+      create: { slug, title, titleEn, level, position },
+    });
+    await prisma.generalRoutineExercise.deleteMany({ where: { routineId: routine.id } });
+    await prisma.generalRoutineExercise.createMany({
+      data: slugs.map((exSlug, index) => {
+        const ex = EXERCISES.find((e) => e.slug === exSlug);
+        return {
+          routineId: routine.id,
+          exerciseId: exerciseIdBySlug[exSlug],
+          position: index,
+          sets: ex.sets,
+          reps: ex.reps,
+        };
+      }),
+    });
+  }
+
   console.log("Seed completed:", {
     admin: admin.email,
     trainer: trainerUser.email,
     user: normalUser.email,
     machine: machine.name,
+    exercises: EXERCISES.length,
+    generalRoutines: GENERAL_ROUTINES.length,
+    machines: MACHINES.length,
   });
 }
 

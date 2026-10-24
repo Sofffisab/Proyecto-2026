@@ -1,18 +1,19 @@
 // src/screens/user/StepByStepScreen.js
 //
-// "Paso a paso": the current exercise is shown big; marking it as done makes
+// "Paso a paso": the routine's exercises are fetched from the database when the
+// screen opens; the current exercise is shown big; marking it as done makes
 // the next one big and the finished one small again. Nothing is editable.
 // Finishing the last exercise of a default routine records it as done, so the
 // random pick of default routines can favour the ones not done yet.
 
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import RoutineOverview from '../../components/user/RoutineOverview';
 import RoutineExerciseRow from '../../components/user/RoutineExerciseRow';
 import { useTranslation } from '../../i18n/I18nContext';
-import { useRoutines } from '../../context/RoutinesContext';
+import { useRoutines, useLoadRoutine } from '../../context/RoutinesContext';
 import { ROUTINE_SOURCES } from '../../constants/generalRoutines';
 import { capitalize, fromDateKey, getDateParts, resolveRoutineTitle } from '../../utils/schedule';
 
@@ -25,12 +26,12 @@ import { capitalize, fromDateKey, getDateParts, resolveRoutineTitle } from '../.
  */
 export default function StepByStepScreen({ source, dateKey, generalRoutineId, onBack, onOpenCamera }) {
   const { t, language } = useTranslation();
-  const { getRoutine, completeGeneralRoutine } = useRoutines();
+  const { completeGeneralRoutine } = useRoutines();
 
   // Index of the exercise shown big; equals exercises.length once all are done.
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const routine = getRoutine({ source, dateKey, generalRoutineId });
+  const { routine, loading, error, reload } = useLoadRoutine({ source, dateKey, generalRoutineId });
   const exercises = routine?.exercises ?? [];
   const parts = getDateParts(fromDateKey(dateKey), language);
 
@@ -47,7 +48,13 @@ export default function StepByStepScreen({ source, dateKey, generalRoutineId, on
       <Header pageTitle={t('user.routines.dayTitle', { ...parts, weekday: capitalize(parts.weekday) })} onBack={onBack} />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-        {routine && (
+        {loading && <ActivityIndicator color={globals.colors.primary} style={styles.loader} />}
+        {!loading && error && (
+          <TouchableOpacity onPress={reload}>
+            <Text style={styles.message}>{t('user.routines.loadError')} · {t('user.routines.retry')}</Text>
+          </TouchableOpacity>
+        )}
+        {!loading && !error && routine && (
           <>
             <RoutineOverview title={resolveRoutineTitle(routine, t)} exerciseCount={exercises.length} />
             {exercises.map((item, index) => (
@@ -71,5 +78,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: globals.colors.background },
   content: { flex: 1 },
   contentInner: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: globals.spacing.lg },
+  loader: { marginVertical: 32 },
+  message: { textAlign: 'center', color: globals.colors.textSecondary, fontSize: 13, marginVertical: 32 },
   rowWrapper: { marginBottom: 12 },
 });

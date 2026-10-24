@@ -1,25 +1,20 @@
 // src/screens/user/SelectExerciseScreen.js
 //
-// "Seleccionar ejercicio" (screen 4). Lists the app's default exercises plus
-// the person's own ones; "+" toggles an exercise and "Agregar ejercicios"
-// adds every toggled one to the day being edited (the draft in
-// RoutinesContext). A card at the end of the list creates a new own exercise.
+// "Seleccionar ejercicio" (screen 4). Lists the exercises stored in the
+// database (the gym's catalog plus the person's own ones); "+" toggles an
+// exercise and "Agregar ejercicios" adds every toggled one to the day being
+// edited (the draft in RoutinesContext). A card at the end of the list creates
+// a new own exercise, which is saved to the database.
 
-import React, { useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import CustomExercisePopup from './popups/CustomExercisePopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines } from '../../context/RoutinesContext';
-import { DEFAULT_EXERCISES, MUSCLE_GROUPS } from '../../constants/exercises';
 
-const FILTERS = {
-  ALL: 'all',
-  CHEST: MUSCLE_GROUPS.CHEST,
-  TRICEPS: MUSCLE_GROUPS.TRICEPS,
-  FAVORITES: 'favorites',
-};
+const ALL_FILTER = 'all';
 
 /**
  * @param {function} [onBack]
@@ -27,30 +22,32 @@ const FILTERS = {
  */
 export default function SelectExerciseScreen({ onBack, onDone }) {
   const { t } = useTranslation();
-  const { draft, customExercises, addCustomExercise, addToDraft } = useRoutines();
+  const { draft, exercises, muscleGroups, catalogStatus, loadCatalog, addCustomExercise, addToDraft } = useRoutines();
 
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState(FILTERS.ALL);
+  const [filter, setFilter] = useState(ALL_FILTER);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showCustomPopup, setShowCustomPopup] = useState(false);
 
-  const filterOptions = [
-    { key: FILTERS.ALL, label: t('user.routines.filters.all') },
-    { key: FILTERS.CHEST, label: t('user.routines.filters.chest') },
-    { key: FILTERS.TRICEPS, label: t('user.routines.filters.triceps') },
-    { key: FILTERS.FAVORITES, label: t('user.routines.filters.favorites') },
-  ];
+  // Refresh the catalog from the database every time the selector opens.
+  useEffect(() => {
+    loadCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const nameOf = (exercise) => (exercise.isCustom ? exercise.name : t(`user.routines.exercises.${exercise.id}.name`));
+  // "All" plus one chip per muscle group the database reports.
+  const filterOptions = [
+    { key: ALL_FILTER, label: t('user.routines.filters.all') },
+    ...muscleGroups.map((key) => ({ key, label: t(`user.routines.muscles.${key}`) })),
+  ];
 
   // Exercises already in the day are not offered again.
   const takenIds = (draft?.exercises ?? []).map((ex) => ex.id);
   const normalizedQuery = query.trim().toLowerCase();
-  const visibleExercises = [...DEFAULT_EXERCISES, ...customExercises].filter((exercise) => {
+  const visibleExercises = exercises.filter((exercise) => {
     if (takenIds.includes(exercise.id)) return false;
-    if (normalizedQuery && !nameOf(exercise).toLowerCase().includes(normalizedQuery)) return false;
-    if (filter === FILTERS.ALL) return true;
-    if (filter === FILTERS.FAVORITES) return Boolean(exercise.isFavorite);
+    if (normalizedQuery && !exercise.name.toLowerCase().includes(normalizedQuery)) return false;
+    if (filter === ALL_FILTER) return true;
     return exercise.muscles.includes(filter);
   });
 
@@ -63,10 +60,20 @@ export default function SelectExerciseScreen({ onBack, onDone }) {
     if (onDone) onDone();
   };
 
-  const handleCreateCustom = ({ name, description, imageUri }) => {
-    const created = addCustomExercise({ name, description, imageUri });
-    setSelectedIds((prev) => [...prev, created.id]);
-    setShowCustomPopup(false);
+  // Saved to the database; it is created under the muscle filter in use.
+  const handleCreateCustom = async ({ name, description, imageUri }) => {
+    try {
+      const created = await addCustomExercise({
+        name,
+        description,
+        imageUri,
+        muscles: filter === ALL_FILTER ? [] : [filter],
+      });
+      setSelectedIds((prev) => [...prev, created.id]);
+      setShowCustomPopup(false);
+    } catch {
+      Alert.alert(t('user.routines.saveError'));
+    }
   };
 
   return (
@@ -84,27 +91,39 @@ export default function SelectExerciseScreen({ onBack, onDone }) {
         />
       </View>
 
-      <View style={styles.filtersRow}>
-        {filterOptions.map((opt) => (
-          <TouchableOpacity
-            key={opt.key}
-            style={[styles.chip, filter === opt.key && styles.chipSelected]}
-            onPress={() => setFilter(opt.key)}
-          >
-            <Text style={[styles.chipText, filter === opt.key && styles.chipTextSelected]}>{opt.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.filtersWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+          {filterOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.chip, filter === opt.key && styles.chipSelected]}
+              onPress={() => setFilter(opt.key)}
+            >
+              <Text style={[styles.chipText, filter === opt.key && styles.chipTextSelected]}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-        {visibleExercises.length === 0 && <Text style={styles.emptyText}>{t('user.routines.noExercisesFound')}</Text>}
+        {catalogStatus.loading && exercises.length === 0 && (
+          <ActivityIndicator color={globals.colors.primary} style={styles.loader} />
+        )}
+        {catalogStatus.error && exercises.length === 0 && (
+          <TouchableOpacity onPress={loadCatalog}>
+            <Text style={styles.emptyText}>{t('user.routines.loadError')} · {t('user.routines.retry')}</Text>
+          </TouchableOpacity>
+        )}
+        {!catalogStatus.loading && !catalogStatus.error && visibleExercises.length === 0 && (
+          <Text style={styles.emptyText}>{t('user.routines.noExercisesFound')}</Text>
+        )}
         {visibleExercises.map((exercise) => {
           const selected = selectedIds.includes(exercise.id);
-          const image = exercise.isCustom ? (exercise.imageUri ? { uri: exercise.imageUri } : null) : exercise.image;
+          const image = exercise.imageSource;
           return (
             <View key={exercise.id} style={styles.exerciseRow}>
               {image ? <Image source={image} style={styles.exerciseImage} /> : <View style={[styles.exerciseImage, styles.exerciseImageEmpty]} />}
-              <Text style={styles.exerciseName} numberOfLines={2}>{nameOf(exercise)}</Text>
+              <Text style={styles.exerciseName} numberOfLines={2}>{exercise.name}</Text>
               <TouchableOpacity onPress={() => toggleSelected(exercise.id)} hitSlop={8}>
                 <Image
                   source={selected ? require('../../assets/botones.png') : require('../../assets/boton_agregar_gris.png')}
@@ -155,15 +174,16 @@ const styles = StyleSheet.create({
   searchIcon: { width: 20, height: 20, resizeMode: 'contain', marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14, color: globals.colors.text },
 
+  loader: { marginVertical: 24 },
+  filtersWrap: { height: 64 },
   filtersRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
     paddingHorizontal: 18,
-    paddingVertical: 14,
   },
   chip: {
-    flex: 1,
+    minWidth: 78,
+    paddingHorizontal: 14,
     height: 36,
     borderRadius: 11,
     borderWidth: 2,

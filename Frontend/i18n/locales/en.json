@@ -274,7 +274,7 @@
     },
     "routines": {
       "title": "Routine selector",
-      "loadError": "Couldn't load your routines. Pull to try again.",
+      "loadError": "We couldn't load the data",
       "options": {
         "preMade": "Pre-made",
         "custom": "Custom",
@@ -400,7 +400,23 @@
         "upperExpress": {
           "title": "Upper body express"
         }
-      }
+      },
+      "muscles": {
+        "chest": "Chest",
+        "triceps": "Triceps",
+        "back": "Back",
+        "biceps": "Biceps",
+        "shoulders": "Shoulders",
+        "legs": "Legs",
+        "glutes": "Glutes",
+        "core": "Core",
+        "cardio": "Cardio"
+      },
+      "saveError": "We couldn't save your changes. Check your connection and try again.",
+      "aiError": "We couldn't generate the routine. Please try again in a moment.",
+      "retry": "Retry",
+      "pickDefaultTitle": "Pick a routine",
+      "pickDefaultEmpty": "No general routines have been loaded yet."
     },
     "achievementsGoals": {
       "title": "Achievements & Goals",

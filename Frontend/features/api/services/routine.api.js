@@ -13,8 +13,9 @@ import { apiClient } from '../../../apiClient/client';
 // routines, the always-available free routine, and a fresh AI-suggested
 // routine if one is available. Powers the Routines screen's option list
 // (pre-made / custom / recommended / none) plus the free-routine fallback.
-export function getTodayOptions() {
-  return apiClient.get('/routines/today');
+export function getTodayOptions(dateKey = toLocalDateKey()) {
+  // The date lets the backend put today's day of the schedule first.
+  return apiClient.get(`/routines/today?date=${dateKey}`);
 }
 
 // GET /routines — all of the user's saved routines (custom + previously
@@ -110,4 +111,71 @@ export function rejectRoutineRequest(requestId) {
 // via createRoutine/updateRoutine; this only flips the request's status.
 export function completeRoutineRequest(requestId) {
   return apiClient.patch(`/routines/requests/${requestId}/complete`);
+}
+
+// ---------------------------------------------------------------------------
+// Exercise catalog, general routines, weekly schedule and personalized AI
+// (Backend: services/exercise.service.js, schedule.service.js,
+// routineGenerator.service.js). Everything the Routines screens show comes
+// from the database through these calls.
+// ---------------------------------------------------------------------------
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** Local-time "YYYY-MM-DD" (never UTC, so a day can't shift with the timezone). */
+export function toLocalDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+// GET /routines/exercises?muscle=&q= — built-in catalog + the user's own
+// exercises. data: { muscleGroups: string[], exercises: Exercise[] }
+export function getExercises({ muscle, q } = {}) {
+  const params = new URLSearchParams();
+  if (muscle) params.set('muscle', muscle);
+  if (q) params.set('q', q);
+  const qs = params.toString();
+  return apiClient.get(`/routines/exercises${qs ? `?${qs}` : ''}`);
+}
+
+// POST /routines/exercises — "Crear ejercicio propio". Saved to the DB.
+export function createExercise({ name, description, muscles, sets, reps, imageUrl } = {}) {
+  return apiClient.post('/routines/exercises', { name, description, muscles, sets, reps, imageUrl });
+}
+
+// GET /routines/general — "Rutinas generales" list (title, counts, minutes).
+export function getGeneralRoutines() {
+  return apiClient.get('/routines/general');
+}
+
+// GET /routines/general/:id — one general routine WITH its exercises.
+export function getGeneralRoutine(id) {
+  return apiClient.get(`/routines/general/${id}`);
+}
+
+// GET /routines/schedule?from=&to= — saved days of the schedule (inclusive).
+export function getSchedule(from, to) {
+  return apiClient.get(`/routines/schedule?from=${from}&to=${to}`);
+}
+
+// GET /routines/schedule/:date — one day (data is null when it has none).
+export function getScheduleDay(date) {
+  return apiClient.get(`/routines/schedule/${date}`);
+}
+
+// PUT /routines/schedule/:date — save a (hand-built) day.
+// exercises: [{ exerciseId, sets, reps }] in order.
+export function saveScheduleDay(date, { title, exercises, source, generalRoutineId } = {}) {
+  return apiClient.put(`/routines/schedule/${date}`, { title, exercises, source, generalRoutineId });
+}
+
+// DELETE /routines/schedule/:date
+export function deleteScheduleDay(date) {
+  return apiClient.delete(`/routines/schedule/${date}`);
+}
+
+// POST /routines/ai/generate — the backend reads the user's history
+// (sessions + machine usage), analyses it and saves a routine for every date.
+// data: { days: Day[], analysis: {...}, saved: boolean }
+export function generateAiRoutines({ dates, language, save = true } = {}) {
+  return apiClient.post('/routines/ai/generate', { dates, language, save });
 }

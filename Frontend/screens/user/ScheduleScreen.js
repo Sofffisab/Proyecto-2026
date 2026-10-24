@@ -4,17 +4,20 @@
 // (Monday -> Sunday); days with no routine show as "Empty". Tapping a row
 // opens that day's routine screen.
 //
+// The week is loaded from the database (every day's title and exercises).
+//
 // Extra: the calendar icon in the header toggles a selection mode where any
 // number of days (all / none / some) can be filled with the personalized AI
-// routine (static generator for now, see utils/personalizedRoutine.js).
+// routine: the backend analyses the person's history (sessions and machine
+// usage) and saves a routine for each selected day.
 
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import Header from '../../components/common/Header';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines } from '../../context/RoutinesContext';
-import { capitalize, estimateMinutes, getDateParts, getWeekDays, getWeekStart, toDateKey } from '../../utils/schedule';
+import { capitalize, getDateParts, getWeekDays, getWeekStart, toDateKey } from '../../utils/schedule';
 
 /**
  * @param {function} [onBack]
@@ -22,14 +25,35 @@ import { capitalize, estimateMinutes, getDateParts, getWeekDays, getWeekStart, t
  */
 export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
   const { t, language } = useTranslation();
-  const { getDay, generateWithAi } = useRoutines();
+  const { getDay, generateWithAi, loadWeek } = useRoutines();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState([]);
+  const [weekLoading, setWeekLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const weekDays = getWeekDays(getWeekStart(new Date(), weekOffset));
   const weekKeys = weekDays.map(toDateKey);
+
+  // Load the visible week from the database whenever it changes.
+  const weekStartKey = weekKeys[0];
+  useEffect(() => {
+    let cancelled = false;
+    setWeekLoading(true);
+    loadWeek(weekKeys)
+      .catch(() => {
+        if (!cancelled) Alert.alert(t('user.routines.loadError'));
+      })
+      .finally(() => {
+        if (!cancelled) setWeekLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStartKey]);
+
   const first = getDateParts(weekDays[0], language);
   const last = getDateParts(weekDays[6], language);
   const weekLabel =
@@ -46,9 +70,17 @@ export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
     setSelectedKeys((prev) => (prev.includes(dateKey) ? prev.filter((k) => k !== dateKey) : [...prev, dateKey]));
   };
 
-  const handleGenerateWithAi = () => {
-    generateWithAi(selectedKeys, t('user.routines.aiRoutineTitle'));
-    toggleSelectionMode();
+  const handleGenerateWithAi = async () => {
+    if (generating) return;
+    setGenerating(true);
+    try {
+      await generateWithAi([...selectedKeys].sort());
+      toggleSelectionMode();
+    } catch {
+      Alert.alert(t('user.routines.aiError'));
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -71,6 +103,7 @@ export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
+        {weekLoading && <ActivityIndicator color={globals.colors.primary} style={styles.loader} />}
         {weekDays.map((date, i) => {
           const dateKey = weekKeys[i];
           const entry = getDay(dateKey);
@@ -102,7 +135,7 @@ export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
                 </Text>
                 <Text style={styles.dayMeta}>
                   {exercises.length > 0
-                    ? `${t('user.home.durationMinutes', { count: estimateMinutes(exercises) })}  ·  ${t('user.home.exercisesCount', { count: exercises.length })}`
+                    ? `${t('user.home.durationMinutes', { count: entry.estimatedMinutes })}  ·  ${t('user.home.exercisesCount', { count: exercises.length })}`
                     : '-'}
                 </Text>
               </View>
@@ -125,11 +158,15 @@ export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
             </TouchableOpacity>
           </View>
           <TouchableOpacity
-            style={[styles.aiButton, selectedKeys.length === 0 && styles.aiButtonDisabled]}
+            style={[styles.aiButton, (selectedKeys.length === 0 || generating) && styles.aiButtonDisabled]}
             onPress={handleGenerateWithAi}
-            disabled={selectedKeys.length === 0}
+            disabled={selectedKeys.length === 0 || generating}
           >
-            <Text style={styles.aiButtonText}>{t('user.routines.generateWithAi')}</Text>
+            {generating ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.aiButtonText}>{t('user.routines.generateWithAi')}</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -138,6 +175,7 @@ export default function ScheduleScreen({ onBack, onGoToRoutineDay }) {
 }
 
 const styles = StyleSheet.create({
+  loader: { marginBottom: 8 },
   container: { flex: 1, backgroundColor: globals.colors.background },
   content: { flex: 1 },
   contentInner: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: globals.spacing.lg },

@@ -113,7 +113,24 @@
         "upperExpress": {
           "title": "Tren superior exprés"
         }
-      }
+      },
+      "muscles": {
+        "chest": "Pecho",
+        "triceps": "Tríceps",
+        "back": "Espalda",
+        "biceps": "Bíceps",
+        "shoulders": "Hombros",
+        "legs": "Piernas",
+        "glutes": "Glúteos",
+        "core": "Abdomen",
+        "cardio": "Cardio"
+      },
+      "saveError": "No pudimos guardar los cambios. Revisá tu conexión e intentá de nuevo.",
+      "aiError": "No pudimos generar la rutina. Intentá de nuevo en un momento.",
+      "loadError": "No pudimos cargar los datos",
+      "retry": "Reintentar",
+      "pickDefaultTitle": "Elegí una rutina",
+      "pickDefaultEmpty": "Todavía no hay rutinas generales cargadas."
     }
   }
 }

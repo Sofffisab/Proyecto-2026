@@ -47,6 +47,48 @@ export const acceptRoutineSuggestionSchema = z.object({
   content: z.record(z.unknown()).optional(),
 });
 
+// Exercise catalog / weekly schedule / personalized generator
+
+const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD");
+
+export const MUSCLE_KEYS = [
+  "chest", "triceps", "back", "biceps", "shoulders", "legs", "glutes", "core", "cardio",
+];
+
+// Photo comes either as a base64 data URI (picked from the gallery) or a URL.
+const imageUrlSchema = z
+  .string()
+  .max(1_500_000)
+  .refine((value) => /^(data:image\/|https?:\/\/)/.test(value), "must be an image data URI or URL");
+
+export const createExerciseSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  description: z.string().trim().max(500).optional(),
+  muscles: z.array(z.enum(MUSCLE_KEYS)).max(5).optional(),
+  sets: z.number().int().min(1).max(20).optional(),
+  reps: z.string().trim().min(1).max(20).optional(),
+  imageUrl: imageUrlSchema.nullable().optional(),
+});
+
+const scheduleItemSchema = z.object({
+  exerciseId: z.string().min(1).max(100),
+  sets: z.number().int().min(1).max(20),
+  reps: z.union([z.string().trim().min(1).max(20), z.number().int().min(1).max(999)]),
+});
+
+export const saveScheduleDaySchema = z.object({
+  title: z.string().max(200).optional(),
+  exercises: z.array(scheduleItemSchema).max(40),
+  source: z.enum(["MANUAL", "AI", "GENERAL"]).optional(),
+  generalRoutineId: z.string().max(100).nullable().optional(),
+});
+
+export const generateAiRoutinesSchema = z.object({
+  dates: z.array(dateKeySchema).min(1).max(14),
+  language: z.enum(["es", "en"]).optional(),
+  save: z.boolean().optional(),
+});
+
 // Rewards
 
 // stock and isMarketingItem are admin-only fields: managed here, but never
