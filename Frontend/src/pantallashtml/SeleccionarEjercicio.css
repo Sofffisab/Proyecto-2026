@@ -65,12 +65,6 @@ button{
      font-size: 13px;
 }
 
-<<<<<<< HEAD
-.dia{
-    display: flex;
-    flex-direction: row;
-}
-=======
 .izquierda{
     display: flex;
 }
@@ -96,5 +90,10 @@ h2{
     color: #177E89;
     border: 2px solid #177E89;
 }
+.entrenamiento{
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 30px;
+}
 
->>>>>>> 06c343694236c9776d0c34d607d98109cab8f803
