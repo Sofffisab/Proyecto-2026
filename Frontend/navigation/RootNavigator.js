@@ -28,6 +28,7 @@ import CameraScreen from '../screens/user/CameraScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
+import GenerateQRScreen from '../screens/shared/GenerateQRScreen';
 
 /*
  * Route names for the whole navigation tree.
@@ -44,6 +45,8 @@ export const ROUTES = {
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
   NOTIFICATIONS: 'Notifications',
+  // ADMIN / TRAINER landing screen (no member onboarding for staff).
+  STAFF_HOME: 'StaffHome',
   ONBOARDING_GOAL: 'UserOnboardingGoal',
   ONBOARDING_LEVEL: 'UserOnboardingLevel',
   ONBOARDING_DAYS: 'UserOnboardingDays',
@@ -91,6 +94,10 @@ const goBack = (navigation) => () => navigation.goBack();
 // Backend/src/middlewares/profileCompletion.middleware.js).
 function getHomeRouteForUser(user) {
   if (!user) return ROUTES.WELCOME;
+  // Staff accounts have no goals/level/etc. to fill in: the onboarding and
+  // profile-completion rules are for members (role USER) only — the Backend
+  // already exempts staff in profileCompletion.middleware.js.
+  if (user.role === 'ADMIN' || user.role === 'TRAINER') return ROUTES.STAFF_HOME;
   return user.isProfileComplete ? ROUTES.USER_PROFILE : ROUTES.ONBOARDING_GOAL;
 }
 
@@ -191,6 +198,20 @@ export default function RootNavigator() {
 
       <Stack.Screen name={ROUTES.NOTIFICATIONS}>
         {({ navigation }) => <NotificationsScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      {/* ---------- Staff (Admin / Trainer) ---------- */}
+
+      <Stack.Screen name={ROUTES.STAFF_HOME}>
+        {({ navigation }) => (
+          <GenerateQRScreen
+            role={user?.role}
+            onLogout={async () => {
+              await logout();
+              goToWelcome(navigation)();
+            }}
+          />
+        )}
       </Stack.Screen>
 
       {/* ---------- User ---------- */}

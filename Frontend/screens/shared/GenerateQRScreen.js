@@ -38,8 +38,10 @@ const QR_TYPES = { MACHINE: 'MACHINE', ENTRY_EXIT: 'ENTRY_EXIT' };
 /**
  * @param {'ADMIN'|'TRAINER'} role
  * @param {function} [onBack]
+ * @param {function} [onLogout] - when given, shows a "Log out" action in the header
+ *   (this is the staff landing screen, so it is how staff leave the session).
  */
-export default function GenerateQRScreen({ role, onBack }) {
+export default function GenerateQRScreen({ role, onBack, onLogout }) {
   const { t } = useTranslation();
   const isAdmin = role === 'ADMIN';
 
@@ -85,6 +87,9 @@ export default function GenerateQRScreen({ role, onBack }) {
   // #processScan expects for a MACHINE scan: { type, machineId, qrToken }.
   const [resultQR, setResultQR] = useState(null);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message }
+
+  // Must match what processScan expects for a gym entry/exit scan.
+  const buildEntryExitPayload = () => JSON.stringify({ type: QR_TYPES.ENTRY_EXIT });
 
   const buildMachinePayload = (machineId, qrToken) =>
     JSON.stringify({ type: QR_TYPES.MACHINE, machineId, qrToken });
@@ -142,7 +147,13 @@ export default function GenerateQRScreen({ role, onBack }) {
 
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('qrGeneration.title')} subtitle={t('qrGeneration.subtitle')} />
+      <Header
+        pageTitle={t('qrGeneration.title')}
+        subtitle={t('qrGeneration.subtitle')}
+        onBack={onBack}
+        rightLabel={onLogout ? t('user.settings.logoutButton') : undefined}
+        onPressRight={onLogout}
+      />
 
       <ScrollView style={styles.content}>
         {/* Type selector: máquina / entrada / salida, per the spec wording.
@@ -175,10 +186,23 @@ export default function GenerateQRScreen({ role, onBack }) {
         )}
 
         {qrType === QR_TYPES.ENTRY_EXIT && (
-          <Card
-            title={t('qrGeneration.entryExitTitle')}
-            content={t('qrGeneration.entryExitExplanation')}
-          />
+          <>
+            <Card
+              title={t('qrGeneration.entryExitTitle')}
+              content={t('qrGeneration.entryExitExplanation')}
+            />
+            {/* The gym's door QR. It carries no token (see header comment):
+                processScan checks the member IN when they have no open
+                session and OUT when they do, so this one code is both the
+                entry and the exit QR. Print it or show it on a screen. */}
+            <View style={styles.qrResult}>
+              <Text style={styles.sectionLabel}>{t('qrGeneration.entryExitQrLabel')}</Text>
+              <View style={styles.qrCodeWrapper}>
+                <QRCode value={buildEntryExitPayload()} size={220} />
+              </View>
+              <Text style={styles.hintText}>{t('qrGeneration.entryExitQrHint')}</Text>
+            </View>
+          </>
         )}
 
         {qrType === QR_TYPES.MACHINE && (
