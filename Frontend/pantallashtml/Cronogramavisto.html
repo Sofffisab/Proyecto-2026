@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="Cronogramavisto.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/basil_caret-left-outline.png" alt="">
+    <br>
+    <br>
+    <h1>¿Como queres entrenar?</h1>
+    <h3>Elegí la forma en la que preferis seguir tu entrenamiento hoy </h3>
+
+
+    <div class="botones">
+        <button class="but">
+             <img src="file:///C:/Users/49550709/Documents/GitHub/Proyecto-2026/Frontend/src/assets/Group 87.png" alt="">
+             <div class="texto">
+                <h1>Guia paso a paso</h1>
+                <h3>Con indicaciones y tiempo de descanso.</h3>
+             </div>
+             
+        </button>
+        <button class="but"></button>
+    </div>
+
+    <script>
+        const botones = document.querySelectorAll("button");
+
+botones.forEach(boton => {
+    boton.addEventListener("click", () => {
+        botones.forEach(b => b.classList.remove("seleccionado"));
+        boton.classList.add("seleccionado");
+    });
+});
+    </script>
+</body>
+</html>
