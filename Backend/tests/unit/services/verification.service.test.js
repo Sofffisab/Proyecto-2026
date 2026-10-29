@@ -223,7 +223,7 @@ describe("VerificationService", () => {
 
       const result = await verificationService.processScan("scanner-user", payload);
 
-      expect(result).toEqual({ success: true, message: "Challenge completed via QR scan" });
+      expect(result).toEqual({ success: true, message: "Challenge completed via QR scan", points: 30 });
       expect(spy).toHaveBeenCalledWith("challenge-1", "scanner-user", "target-user");
     });
 

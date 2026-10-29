@@ -61,7 +61,8 @@ describe("runJobs", () => {
     expect(processComplaints).toHaveBeenCalledTimes(1);
     expect(processMachineConflicts).toHaveBeenCalledTimes(1);
     expect(expireStaleEntities).toHaveBeenCalledTimes(1);
-    expect(assignRandomChallenges).toHaveBeenCalledTimes(1);
+    // Replaced by the live 2-minute matching in services/social.service.js.
+    expect(assignRandomChallenges).not.toHaveBeenCalled();
     expect(generateAnnualWrapped).not.toHaveBeenCalled();
   });
 
@@ -75,7 +76,7 @@ describe("runJobs", () => {
     expect(processMachineConflicts).toHaveBeenCalledTimes(2); // RETRY_ATTEMPTS = 2
     // A failure here must not block the jobs that run after it.
     expect(expireStaleEntities).toHaveBeenCalledTimes(1);
-    expect(assignRandomChallenges).toHaveBeenCalledTimes(1);
+    expect(assignRandomChallenges).not.toHaveBeenCalled(); // superseded by live matching
   });
 
   it("retries up to RETRY_ATTEMPTS before giving up", async () => {

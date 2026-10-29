@@ -5,14 +5,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
 import BottomNav from '../../components/common/BottomNav';
-import SocialInteractionPopup from '../../components/user/SocialInteractionPopup';
 import RateTrainerPopup from '../../components/user/RateTrainerPopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSocial } from '../../social/SocialContext';
 import * as gamificationApi from '../../features/api/services/gamification.api';
 import * as qrApi from '../../features/api/services/qr.api';
 import * as assistanceApi from '../../features/api/services/assistance.api';
-import * as challengeApi from '../../features/api/services/challenge.api';
 import { flushQueue } from '../../features/offline/offlineQueue';
 
 /**
@@ -138,12 +137,10 @@ export default function ProfileScreen({
     onLogout && onLogout();
   };
 
-  // The Social Interaction pop-up appears at a random moment decided by
-  // the Backend (jobs/challenge.job.js assigns a SocialChallenge); there's
-  // no real trigger button for it. It's surfaced here by polling the
-  // active-challenge endpoint on focus, same idea as unread notifications.
-  const [activeChallenge, setActiveChallenge] = useState(null);
-  const [showSocialInteraction, setShowSocialInteraction] = useState(false);
+  // The Social Interaction pop-ups live in social/SocialContext.js (global,
+  // driven by Ably). The only thing screens do is tell it when the person
+  // enters or leaves the gym, because that is what switches them on/off.
+  const { refresh: refreshSocial } = useSocial();
 
   // Rate Trainer(s) pop-up state — opened from the CHECK_OUT branch of
   // handleScanned below, not from a button.
@@ -173,24 +170,12 @@ export default function ProfileScreen({
     }
   }, []);
 
-  const loadActiveChallenge = useCallback(async () => {
-    try {
-      const { data } = await challengeApi.getActiveChallenges();
-      const assigned = (data ?? []).find((c) => c.status === 'ASSIGNED');
-      setActiveChallenge(assigned ?? null);
-      setShowSocialInteraction(Boolean(assigned));
-    } catch {
-      // Silent — no pop-up if we can't tell.
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       loadPoints();
-      loadActiveChallenge();
       // Best-effort silent retry of anything queued while offline.
       flushQueue();
-    }, [loadPoints, loadActiveChallenge])
+    }, [loadPoints])
   );
 
   // QR scan flow — real camera via expo-camera (see QRScanner component).
@@ -209,6 +194,8 @@ export default function ProfileScreen({
       setScanFeedback(null);
       const { data } = await qrApi.scanQR(payload);
       loadPoints();
+      // Entry/exit QR = starts/stops the social interactions (in-gym window).
+      if (data?.action === 'CHECK_IN' || data?.action === 'CHECK_OUT') refreshSocial();
 
       if (data?.action === 'CHECK_IN') {
         setShowScanQR(false);
@@ -476,22 +463,6 @@ export default function ProfileScreen({
           </View>
         </View>
       </Modal>
-
-      {showSocialInteraction && activeChallenge && (
-        <Modal
-          visible={showSocialInteraction}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowSocialInteraction(false)}
-        >
-          <SocialInteractionPopup
-            challenge={activeChallenge}
-            currentUserId={user?.id}
-            onDone={() => setShowSocialInteraction(false)}
-            onClose={() => setShowSocialInteraction(false)}
-          />
-        </Modal>
-      )}
 
       {showRateTrainer && (
         <Modal

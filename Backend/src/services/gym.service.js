@@ -186,6 +186,14 @@ export async function checkOut(userId) {
     logger.error("[gym] Failed to auto-close machine usage on check-out:", err.message);
   }
 
+  // Leaving the gym also cancels a social interaction in progress.
+  try {
+    const { cancelOpenChallengesFor } = await import("./social.service.js");
+    await cancelOpenChallengesFor(userId);
+  } catch (err) {
+    logger.error("[gym] Failed to cancel social interaction on check-out:", err.message);
+  }
+
   // Award check-out points (non-blocking)
   addPoints(userId, POINTS.CHECK_OUT, "Gym check-out").catch((err) =>
     logger.error("[gym] Failed to award check-out points:", err.message)

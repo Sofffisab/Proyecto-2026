@@ -26,12 +26,14 @@ import * as analyticsController    from "../controllers/analytics.controller.js"
 import * as syncController         from "../controllers/sync.controller.js";
 import * as noteController         from "../controllers/note.controller.js";
 import * as historyController      from "../controllers/history.controller.js";
+import * as socialController       from "../controllers/social.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
 import * as userSchemas     from "../validators/user.schemas.js";
 import * as progressSchemas from "../validators/progress.schemas.js";
 import * as challengeSchemas from "../validators/challenge.schemas.js";
+import * as socialSchemas    from "../validators/social.schemas.js";
 
 const router = express.Router();
 
@@ -81,7 +83,7 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 const PROTECTED_PREFIXES = [
   "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
-  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history",
+  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history", "/social",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
 // Blocks members from the rest of the API until required profile data is
@@ -212,6 +214,15 @@ router.patch("/challenges/:id/complete",    validateSchema(challengeSchemas.comp
 router.patch("/challenges/:id/cancel",      challengeController.cancel);
 router.get("/challenges/:id",               challengeController.getById);
 // No per-challenge leaderboard route — no rankings anywhere in the product.
+
+// SOCIAL INTERACTIONS ROUTES (real-time "¿Querés hacer un amigo?" pop-ups)
+// Members only. Kept to a handful of requests on purpose — everything that
+// happens during an interaction is pushed to the phones through Ably.
+router.get("/social/state",              authorize(["USER"]), socialController.getState);
+router.get("/social/ably-token",         authorize(["USER"]), socialController.getAblyToken);
+router.post("/social/tick",              authorize(["USER"]), socialController.tick);
+router.post("/social/:id/respond",       authorize(["USER"]), validateSchema(socialSchemas.respondSocialSchema), socialController.respond);
+router.post("/social/:id/cancel",        authorize(["USER"]), socialController.cancel);
 
 // ASSISTANCE ROUTES
 router.post("/assistance/request",          assistanceController.request);

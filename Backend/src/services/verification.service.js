@@ -2,7 +2,7 @@ import { prisma } from "../config/index.js";
 import crypto from "crypto";
 import { completeChallengeByQR, rejectChallenge } from "./challenge.service.js";
 import { userHasActiveChallenge } from "./history.service.js";
-import { MACHINE_USAGE_DURATION_TIERS } from "../constants/points.js";
+import { MACHINE_USAGE_DURATION_TIERS, POINTS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
 import { flagMachineConflict } from "./machineConflict.service.js";
@@ -213,7 +213,11 @@ export async function processScan(scannerId, rawPayload) {
     }
 
     await completeChallengeByQR(challenge.id, scannerId, targetId);
-    return { success: true, message: "Challenge completed via QR scan" };
+    return {
+      success: true,
+      message: "Challenge completed via QR scan",
+      points: POINTS.SOCIAL_CHALLENGE_COMPLETED,
+    };
   }
 
   if (type === "MACHINE") {
