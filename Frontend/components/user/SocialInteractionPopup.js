@@ -1,248 +1,322 @@
-// src/screens/user/popups/SocialInteractionPopup.js
+// src/components/user/SocialInteractionPopup.js
 //
-// Social Interaction Pop-up - spec section 3.
-// "Pregunta: ¿Quieres? ... Botón Sí: Verifica si el otro acepta. Si el
-// otro dice no, se cierra. Si el otro dice sí, indica en pantalla quién
-// debe escanear a quién y aparece en uno la función cámara y en otro le
-// trae su qr."
+// The "¿Querés hacer un amigo?" pop-ups. Purely presentational: it renders
+// the `view` that social/SocialContext.js keeps (see social/socialReducer.js
+// for the phases) and reports what the person pressed.
 //
-// Backend wiring:
-//   - PATCH /challenges/:id/join   -> accept   (challenge.api.js)
-//   - PATCH /challenges/:id/cancel -> reject   (challenge.api.js)
-//   - GET /qr/me                   -> own QR to display (qr.api.js)
-//   - QRScanner + POST /qr/scan    -> the scanning half of the pairing;
-//     the Backend auto-completes the challenge once it recognizes a
-//     "USER" type QR from an ACCEPTED challenge partner (see
-//     verification.service.js#processScan) — no separate "complete" call.
+//   ASK / ASK_ACCEPTED  "¿Querés hacer un amigo?"  [Sí] [No]  "súper divertido!"
+//                       after Sí the button turns green and says
+//                       "te notificaremos cuando te encontremos un amigo"
+//   SCAN / CAMERA       "tu amigo te espera! escaneá su QR…"   [ir a cámara]
+//   QR                  "tu amigo te espera! dejá que escanee tu QR…"  <QR>
+//   DONE / CANCELLED / EXPIRED / ERROR   short result message
 //
-// Role assignment ("quién debe escanear a quién"): the challenge's
-// initiator (challenge.userId, auto-assigned by the Backend job) scans;
-// the challenged partner shows their QR. This is a stable, deterministic
-// split — it doesn't matter who happens to open the pop-up first.
+// The QR is the person's own signed QR (GET /qr/me), fetched once when this
+// pop-up opens. The camera is the app's normal QRScanner.
 
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
-import * as challengeApi from '../../features/api/services/challenge.api';
 import * as qrApi from '../../features/api/services/qr.api';
 import QRScanner from '../common/QRScanner';
+import { PHASE, isVisible, PAIRING_PHASES } from '../../social/socialReducer';
 
-const PHASE = {
-  ASK: 'ASK',
-  WAITING: 'WAITING',
-  PAIRING_SCAN: 'PAIRING_SCAN',
-  PAIRING_SHOW: 'PAIRING_SHOW',
-  DONE: 'DONE',
+const GREEN = '#1F9D3A';
+
+const formatTime = (ms) => {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return `${m}:${s}`;
 };
 
-/**
- * @param {object} challenge - The active SocialChallenge for this user,
- *   e.g. from challengeApi.getActiveChallenges(): { id, userId, partnerUserId, status }.
- * @param {string} currentUserId - The signed-in user's id, used to decide
- *   the scan-vs-show role.
- * @param {function} [onDone] - Called once pairing/rejection finishes.
- * @param {function} [onClose] - Close button (global pop-up rule).
- */
-export default function SocialInteractionPopup({ challenge, currentUserId, onDone, onClose }) {
-  const { t } = useTranslation();
+/** Seconds left until `deadline`, re-rendered once a second while `enabled`. */
+function useTimeLeft(deadline, enabled) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!enabled) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [enabled, deadline]);
+  return Math.max(0, (deadline ?? 0) - now);
+}
 
-  const [phase, setPhase] = useState(PHASE.ASK);
-  const [error, setError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [qrPayload, setQrPayload] = useState(null);
-
-  const isInitiator = challenge?.userId === currentUserId;
-
-  const handleNo = async () => {
-    if (!challenge?.id) {
-      onClose && onClose();
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await challengeApi.cancelChallenge(challenge.id);
-    } catch (err) {
-      setError(err.message || t('user.popups.socialInteraction.error'));
-    } finally {
-      setSubmitting(false);
-      onClose && onClose();
-    }
-  };
-
-  const handleYes = async () => {
-    if (!challenge?.id) {
-      setError(t('user.popups.socialInteraction.expired'));
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await challengeApi.acceptChallenge(challenge.id);
-
-      if (isInitiator) {
-        setPhase(PHASE.PAIRING_SCAN);
-      } else {
-        const res = await qrApi.getMyQR();
-        setQrPayload(JSON.stringify(res.data));
-        setPhase(PHASE.PAIRING_SHOW);
-      }
-    } catch (err) {
-      setError(err.message || t('user.popups.socialInteraction.error'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleScanned = async (data) => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const { scanQR } = qrApi;
-      await scanQR(data);
-      setPhase(PHASE.DONE);
-      if (onDone) onDone();
-    } catch (err) {
-      setError(err.message || t('user.popups.socialInteraction.error'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (phase === PHASE.PAIRING_SCAN) {
-    return (
-      <View style={styles.overlay}>
-        <View style={styles.scannerCard}>
-          <Text style={styles.title}>{t('user.popups.socialInteraction.youScan')}</Text>
-          {error && <Text style={styles.errorText}>{error}</Text>}
-          <QRScanner onScanned={handleScanned} onClose={onClose} />
-        </View>
+function Header({ lines, onClose, closeLabel }) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerTexts}>
+        {lines.map((line, idx) => (
+          <Text key={idx} style={styles.headerText}>
+            {line}
+          </Text>
+        ))}
       </View>
+      <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel={closeLabel} style={styles.closeX}>
+        <Text style={styles.closeXText}>✕</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function PopupButton({ label, onPress, green, disabled }) {
+  return (
+    <TouchableOpacity
+      style={[styles.button, green && styles.buttonGreen]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+    >
+      <Text style={styles.buttonText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * @param {object|null} view  current pop-up state ({ id, phase, deadline, points, scanError })
+ * @param {function} onAccept     "Sí"
+ * @param {function} onDecline    "No" or the X (cancels whatever is in progress)
+ * @param {function} onOpenCamera "ir a cámara"
+ * @param {function} onScanned    (rawQrString) => void
+ */
+export default function SocialInteractionPopup({ view, onAccept, onDecline, onOpenCamera, onScanned }) {
+  const { t } = useTranslation();
+  const key = (name, params) => t(`user.popups.socialInteraction.${name}`, params);
+
+  const phase = view?.phase;
+  const pairing = PAIRING_PHASES.includes(phase);
+  const timeLeft = useTimeLeft(view?.deadline, pairing);
+
+  // Own QR, requested only when this person is the one who shows it.
+  const [qrPayload, setQrPayload] = useState(null);
+  useEffect(() => {
+    if (phase !== PHASE.QR) return undefined;
+    let cancelled = false;
+    qrApi
+      .getMyQR()
+      .then((res) => {
+        if (!cancelled) setQrPayload(JSON.stringify(res.data));
+      })
+      .catch(() => {
+        if (!cancelled) setQrPayload(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, view?.id]);
+
+  if (!isVisible(view)) return null;
+
+  const close = onDecline;
+  let content = null;
+
+  if (phase === PHASE.ASK || phase === PHASE.ASK_ACCEPTED) {
+    const accepted = phase === PHASE.ASK_ACCEPTED;
+    content = (
+      <>
+        <Header lines={[key('question')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          <View style={styles.buttonRow}>
+            <PopupButton label={key('yes')} onPress={onAccept} green={accepted} disabled={accepted} />
+            <PopupButton label={key('no')} onPress={onDecline} disabled={accepted} />
+          </View>
+          <Text style={styles.note}>{accepted ? key('willNotify') : key('fun')}</Text>
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.SCAN) {
+    content = (
+      <>
+        <Header lines={[key('friendWaits'), key('scanHeader')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          {view.scanError ? <Text style={styles.errorText}>{key('wrongQr')}</Text> : null}
+          <PopupButton label={key('goToCamera')} onPress={onOpenCamera} />
+          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.CAMERA) {
+    content = (
+      <>
+        <Header lines={[key('friendWaits'), key('scanHeader')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          <View style={styles.cameraBox}>
+            <QRScanner onScanned={onScanned} />
+          </View>
+          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.QR) {
+    content = (
+      <>
+        <Header lines={[key('friendWaits'), key('showHeader')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          <View style={styles.qrBox}>
+            {qrPayload ? (
+              <QRCode value={qrPayload} size={190} />
+            ) : (
+              <ActivityIndicator color={globals.colors.primary} />
+            )}
+          </View>
+          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.DONE) {
+    content = (
+      <>
+        <Header lines={[key('doneTitle')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          {view.points > 0 ? <Text style={styles.bigNote}>{key('donePoints', { points: view.points })}</Text> : null}
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.CANCELLED) {
+    content = (
+      <>
+        <Header lines={[key('cancelledTitle')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          {view.points > 0 ? (
+            <Text style={styles.note}>{key('cancelledPoints', { points: view.points })}</Text>
+          ) : null}
+        </View>
+      </>
+    );
+  } else if (phase === PHASE.EXPIRED) {
+    content = (
+      <>
+        <Header lines={[key('expiredTitle')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body}>
+          <Text style={styles.note}>{key('expiredBody')}</Text>
+        </View>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <Header lines={[key('error')]} onClose={close} closeLabel={key('close')} />
+        <View style={styles.body} />
+      </>
     );
   }
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.card}>
-        {phase === PHASE.ASK && (
-          <>
-            <Text style={styles.title}>{t('user.popups.socialInteraction.question')}</Text>
-
-            {error && <Text style={styles.errorText}>{error}</Text>}
-
-            {submitting ? (
-              <ActivityIndicator color={globals.colors.primary} />
-            ) : (
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.noButton} onPress={handleNo}>
-                  <Text style={styles.noButtonText}>{t('user.popups.socialInteraction.no')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.yesButton} onPress={handleYes}>
-                  <Text style={styles.yesButtonText}>{t('user.popups.socialInteraction.yes')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
-
-        {phase === PHASE.PAIRING_SHOW && (
-          <>
-            <Text style={styles.title}>{t('user.popups.socialInteraction.showYourQR')}</Text>
-            {error && <Text style={styles.errorText}>{error}</Text>}
-            {qrPayload && (
-              <View style={styles.qrBox}>
-                <QRCode value={qrPayload} size={200} />
-              </View>
-            )}
-          </>
-        )}
-
-        {phase === PHASE.DONE && (
-          <Text style={styles.title}>{t('user.popups.socialInteraction.accepted')}</Text>
-        )}
-
-        <TouchableOpacity onPress={onClose}>
-          <Text style={styles.closeLink}>{t('user.popups.socialInteraction.close')}</Text>
-        </TouchableOpacity>
+    <Modal visible transparent animationType="fade" onRequestClose={close}>
+      <View style={styles.overlay}>
+        <View style={styles.card}>{content}</View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  card: {
-    width: '85%',
-    backgroundColor: globals.colors.background,
-    borderRadius: globals.radius.lg,
-    padding: globals.spacing.lg,
-    alignItems: 'center',
-  },
-  scannerCard: {
-    width: '90%',
-    backgroundColor: globals.colors.background,
-    borderRadius: globals.radius.lg,
     padding: globals.spacing.md,
   },
-  title: {
-    fontSize: globals.fontSize.lg,
-    fontWeight: 'bold',
-    color: globals.colors.text,
-    marginBottom: globals.spacing.md,
+  card: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: globals.colors.background,
+    borderRadius: globals.radius.sm,
+    overflow: 'hidden',
+  },
+  header: {
+    backgroundColor: globals.colors.primary,
+    paddingVertical: globals.spacing.md,
+    paddingHorizontal: globals.spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTexts: {
+    alignItems: 'center',
+  },
+  headerText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'center',
+  },
+  closeX: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+  },
+  closeXText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  body: {
+    paddingVertical: globals.spacing.lg,
+    paddingHorizontal: globals.spacing.lg,
+    alignItems: 'center',
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     width: '100%',
+    justifyContent: 'space-between',
   },
-  noButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: globals.colors.border,
-    borderRadius: globals.radius.md,
-    paddingVertical: globals.spacing.md,
-    alignItems: 'center',
-    marginRight: globals.spacing.sm,
-  },
-  noButtonText: {
-    color: globals.colors.text,
-    fontWeight: '600',
-  },
-  yesButton: {
+  button: {
     flex: 1,
     backgroundColor: globals.colors.primary,
-    borderRadius: globals.radius.md,
-    paddingVertical: globals.spacing.md,
+    paddingVertical: 12,
+    borderRadius: globals.radius.sm,
     alignItems: 'center',
-    marginLeft: globals.spacing.sm,
+    marginHorizontal: 6,
+    minWidth: 110,
   },
-  yesButtonText: {
-    color: globals.colors.secondary,
-    fontWeight: '600',
+  buttonGreen: {
+    backgroundColor: GREEN,
   },
-  qrBox: {
-    marginVertical: globals.spacing.md,
-    padding: globals.spacing.md,
-    backgroundColor: globals.colors.secondary,
-    borderRadius: globals.radius.md,
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  note: {
+    marginTop: globals.spacing.md,
+    color: globals.colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  bigNote: {
+    color: globals.colors.primary,
+    fontSize: globals.fontSize.lg,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   errorText: {
     color: globals.colors.danger,
-    fontSize: globals.fontSize.sm,
+    fontSize: 12,
     marginBottom: globals.spacing.sm,
     textAlign: 'center',
   },
-  closeLink: {
-    textAlign: 'center',
-    color: globals.colors.textMuted,
+  timer: {
     marginTop: globals.spacing.md,
+    color: globals.colors.textMuted,
+    fontSize: 12,
+  },
+  qrBox: {
+    padding: globals.spacing.md,
+    backgroundColor: '#FFFFFF',
+    minHeight: 220,
+    minWidth: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBox: {
+    width: '100%',
+    height: 260,
+    overflow: 'hidden',
+    borderRadius: globals.radius.sm,
+    backgroundColor: '#000',
   },
 });

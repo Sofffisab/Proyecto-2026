@@ -60,6 +60,8 @@ import { useTranslation } from '../../i18n/I18nContext';
  *   exactAddress        -> deliveryAddress: string
  *   noTrainerHelp       -> disableAssistance: boolean
  *   noMachineApp        -> machineTrackingOptOut: boolean
+ *   noSocial            -> disableSocial: boolean (no "¿Querés hacer un amigo?"
+ *                          pop-ups; see social/SocialContext.js)
  *
  * Email is shown as an editable-looking field (matches the mockup) but is
  * validated client-side only and deliberately NOT sent in the onSave
@@ -426,6 +428,7 @@ function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth
 const PREFERENCES = [
   { key: 'noTrainerHelp', labelKey: 'user.settings.noTrainerHelp' },
   { key: 'noMachineApp', labelKey: 'user.settings.noMachineApp' },
+  { key: 'noSocial', labelKey: 'user.settings.noSocial' },
 ];
 
 export default function SettingsScreen({
@@ -485,6 +488,7 @@ export default function SettingsScreen({
   const [preferences, setPreferences] = useState({
     noTrainerHelp: Boolean(initialValues.disableAssistance),
     noMachineApp: Boolean(initialValues.machineTrackingOptOut),
+    noSocial: Boolean(initialValues.disableSocial),
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -555,6 +559,7 @@ export default function SettingsScreen({
         deliveryAddress: exactAddress.trim(),
         disableAssistance: preferences.noTrainerHelp,
         machineTrackingOptOut: preferences.noMachineApp,
+        disableSocial: preferences.noSocial,
       });
     } catch (err) {
       setError(err.message || t('user.settings.errorSaving'));

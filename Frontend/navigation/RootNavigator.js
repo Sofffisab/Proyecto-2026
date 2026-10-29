@@ -319,6 +319,7 @@ export default function RootNavigator() {
               exactAddress: user?.deliveryAddress ?? '',
               disableAssistance: user?.settings?.disableAssistance ?? false,
               machineTrackingOptOut: user?.settings?.machineTrackingOptOut ?? false,
+              disableSocial: user?.settings?.disableSocial ?? false,
             }}
             onChangePassword={async ({ currentPassword, newPassword }) => {
               // PATCH /users/me/password (see
@@ -342,6 +343,7 @@ export default function RootNavigator() {
               await updateSettings({
                 disableAssistance: payload.disableAssistance,
                 machineTrackingOptOut: payload.machineTrackingOptOut,
+                disableSocial: payload.disableSocial,
               });
 
               // First-time completion (coming from Onboarding): once the

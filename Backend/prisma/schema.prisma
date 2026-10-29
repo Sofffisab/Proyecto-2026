@@ -712,12 +712,22 @@ model SocialChallenge {
   completedAt   DateTime?
   createdAt     DateTime              @default(now())
 
+  // Real-time "¿Querés hacer un amigo?" flow (services/social.service.js).
+  // Legacy rows (nightly job / scan-user) keep isRealtime = false.
+  isRealtime        Boolean   @default(false)
+  userAcceptedAt    DateTime?  // when `userId` pressed "Sí"
+  partnerAcceptedAt DateTime?  // when `partnerUserId` pressed "Sí"
+  pairedAt          DateTime?  // both said yes -> QR / camera stage started
+  qrHolderId        String?    // the one who accepted first: shows the QR
+  cancelledById     String?    // who pressed No / closed the pop-up
+
   user          User @relation("ChallengeOwner",   fields: [userId],        references: [id], onDelete: Cascade)
   partner       User @relation("ChallengePartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([partnerUserId])
   @@index([status])
+  @@index([status, expiresAt])
 }
 
 model SocialInteraction {
