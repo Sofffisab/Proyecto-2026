@@ -4,7 +4,6 @@ import { generateAnnualWrapped } from './wrapped.job.js';
 import { checkInactiveProgress } from './progress.job.js';
 import { processComplaints } from './complaints.job.js';
 import { expireStaleEntities } from './expiration.job.js';
-import { assignRandomChallenges } from './challenge.job.js';
 import { processMachineConflicts } from './machineConflicts.job.js';
 import { sendBirthdayGreetings } from './birthday.job.js';
 import { logger } from "../utils/logger.js";
@@ -46,7 +45,8 @@ export async function runJobs() {
   await withRetry('processComplaints', processComplaints);
   await withRetry('processMachineConflicts', processMachineConflicts);
   await withRetry('expireStaleEntities', expireStaleEntities);
-  await withRetry('assignRandomChallenges', assignRandomChallenges);
+  // Social interactions are matched live every 2 minutes (services/social.service.js),
+  // so the old nightly auto-assignment (challenge.job.js) no longer runs here.
   await withRetry('sendBirthdayGreetings', sendBirthdayGreetings);
 
   // Run wrapped job on January 1st (only once per year)

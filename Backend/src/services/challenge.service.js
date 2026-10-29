@@ -2,6 +2,8 @@ import { prisma } from "../config/index.js";
 import { POINTS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { AppError } from "../utils/errors.js";
+import { publishToUsers } from "../realtime/ably.js";
+import { cancelChallenge, expireChallenge } from "./social.service.js";
 
 // Social challenges expire after this long if nobody responds/completes them.
 const CHALLENGE_TTL_HOURS = parseInt(process.env.SOCIAL_CHALLENGE_TTL_HOURS ?? "24", 10);
@@ -126,6 +128,12 @@ export async function rejectChallenge(challengeId, callerId) {
     throw new AppError("Forbidden", 403);
   }
 
+  // Real-time interactions have their own cancel rules (reduced points for
+  // the one who accepted + a push to the other phone).
+  if (challenge.isRealtime) {
+    return cancelChallenge(callerId, challengeId, { strict: true });
+  }
+
   const allowed = ["ASSIGNED", "ACCEPTED"];
   if (!allowed.includes(challenge.status)) {
     throw new AppError("Challenge cannot be cancelled in its current state", 400);
@@ -164,10 +172,31 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
     throw new AppError("Challenge must be ACCEPTED by the partner before it can be completed", 400);
   }
 
-  const updated = await prisma.socialChallenge.update({
-    where: { id: challengeId },
-    data: { status: "COMPLETED", completedAt: new Date() },
-  });
+  let updated;
+  if (challenge.isRealtime) {
+    const now = new Date();
+
+    // Two minutes to scan once both said yes. Refused scans end the
+    // interaction for both: nobody gets points.
+    if (challenge.expiresAt && new Date(challenge.expiresAt) <= now) {
+      await expireChallenge(challenge);
+      throw new AppError("This interaction has expired", 410);
+    }
+
+    // The status guard lets exactly one of two simultaneous scans win, so
+    // the points can never be paid twice.
+    const claimed = await prisma.socialChallenge.updateMany({
+      where: { id: challengeId, status: "ACCEPTED" },
+      data: { status: "COMPLETED", completedAt: now },
+    });
+    if (!claimed?.count) throw new AppError("This interaction was already completed", 409);
+    updated = { ...challenge, status: "COMPLETED", completedAt: now };
+  } else {
+    updated = await prisma.socialChallenge.update({
+      where: { id: challengeId },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+  }
 
   await Promise.all([
     addPoints(challenge.userId, POINTS.SOCIAL_CHALLENGE_COMPLETED, "Social challenge completed"),
@@ -188,6 +217,16 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
       },
     }),
   ]);
+
+  // Close the pop-up on both phones right away (the scanner also gets it in
+  // the HTTP response; the one showing the QR only learns it from this push).
+  if (challenge.isRealtime) {
+    const points = POINTS.SOCIAL_CHALLENGE_COMPLETED;
+    await publishToUsers([
+      { userId: challenge.userId, event: "completed", data: { challengeId, points } },
+      { userId: challenge.partnerUserId, event: "completed", data: { challengeId, points } },
+    ]);
+  }
 
   // May unlock a social-interaction achievement (best-effort)
   Promise.all([

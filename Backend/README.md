@@ -28,7 +28,7 @@ Key variables:
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis credentials, used for caching.
 - `CRON_SECRET` — shared secret required to trigger the scheduled jobs endpoints.
 - `ALLOWED_ORIGINS` — comma-separated list of allowed CORS origins (`*` for all).
-- `ABLY_API_KEY` — Ably credentials for realtime events.
+- `ABLY_API_KEY` — Ably credentials for realtime events (also powers the social interaction pop-ups: apps get a subscribe-only token from `GET /social/ably-token`).
 - `GMAIL_USER` / `GMAIL_APP_PASSWORD` — Gmail SMTP credentials for transactional email (app password from myaccount.google.com/apppasswords, requires 2-step verification enabled on the account).
 - `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` — Firebase Admin credentials, used for push notifications.
 - `FRONTEND_URL` — base URL of the frontend app, used to build links in emails.

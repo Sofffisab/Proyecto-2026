@@ -131,6 +131,32 @@
       "retry": "Reintentar",
       "pickDefaultTitle": "Elegí una rutina",
       "pickDefaultEmpty": "Todavía no hay rutinas generales cargadas."
+    },
+    "settings": {
+      "noSocial": "No aceptar interacciones sociales"
+    },
+    "popups": {
+      "socialInteraction": {
+        "question": "¿Querés hacer un amigo?",
+        "yes": "Sí",
+        "no": "No",
+        "close": "Cerrar",
+        "fun": "¡súper divertido!",
+        "willNotify": "te notificaremos cuando te encontremos un amigo",
+        "friendWaits": "¡tu amigo te espera!",
+        "scanHeader": "escaneá su QR para completar el desafío",
+        "showHeader": "dejá que escanee tu QR para completar el desafío",
+        "goToCamera": "ir a cámara",
+        "wrongQr": "Ese no es el QR de tu amigo. Probá de nuevo.",
+        "timeLeft": "quedan {{time}}",
+        "doneTitle": "¡Desafío cumplido!",
+        "donePoints": "+{{points}} puntos",
+        "cancelledTitle": "Tu amigo cerró la interacción",
+        "cancelledPoints": "Igual te llevás {{points}} puntos por aceptar.",
+        "expiredTitle": "Se acabó el tiempo",
+        "expiredBody": "Nadie escaneó a tiempo, así que esta vez no hay puntos.",
+        "error": "Algo salió mal. Probá de nuevo."
+      }
     }
   }
 }
