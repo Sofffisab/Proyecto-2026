@@ -29,6 +29,7 @@ import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
 import GenerateQRScreen from '../screens/shared/GenerateQRScreen';
+import AdminTabsScreen from '../screens/admin/AdminTabsScreen';
 
 /*
  * Route names for the whole navigation tree.
@@ -203,15 +204,19 @@ export default function RootNavigator() {
       {/* ---------- Staff (Admin / Trainer) ---------- */}
 
       <Stack.Screen name={ROUTES.STAFF_HOME}>
-        {({ navigation }) => (
-          <GenerateQRScreen
-            role={user?.role}
-            onLogout={async () => {
-              await logout();
-              goToWelcome(navigation)();
-            }}
-          />
-        )}
+        {({ navigation }) => {
+          const handleStaffLogout = async () => {
+            await logout();
+            goToWelcome(navigation)();
+          };
+          // ADMIN: tabbed shell with the persistent footer (briefcase / home /
+          // QR camera / training / profile). TRAINER keeps the QR screen.
+          return user?.role === 'ADMIN' ? (
+            <AdminTabsScreen user={user} onLogout={handleStaffLogout} />
+          ) : (
+            <GenerateQRScreen role={user?.role} onLogout={handleStaffLogout} />
+          );
+        }}
       </Stack.Screen>
 
       {/* ---------- User ---------- */}

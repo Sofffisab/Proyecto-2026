@@ -158,5 +158,30 @@
         "error": "Algo salió mal. Probá de nuevo."
       }
     }
+  },
+  "admin": {
+    "comingSoon": "Próximamente",
+    "tabs": {
+      "home": "Inicio",
+      "training": "Entrenamiento"
+    },
+    "profile": {
+      "admin": "Administrador"
+    },
+    "qr": {
+      "title": "Códigos QR",
+      "machinesTitle": "Máquinas",
+      "loadError": "No se pudieron cargar las máquinas.",
+      "createSuccess": "Máquina creada. Su QR aparece en la lista."
+    },
+    "scan": {
+      "entryExit": "QR de entrada / salida del gimnasio",
+      "machine": "QR de máquina: {{name}}",
+      "machineOutdated": "El QR de {{name}} está desactualizado (fue regenerado).",
+      "machineUnknown": "Esta máquina no existe o está inactiva.",
+      "user": "QR de socio",
+      "unknown": "Código QR no reconocido.",
+      "again": "Escanear otro"
+    }
   }
 }
