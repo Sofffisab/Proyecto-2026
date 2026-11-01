@@ -1,0 +1,120 @@
+h1{
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+.Titulo{
+   
+    
+}
+
+
+h5{
+    font-family: Arial, Helvetica, sans-serif;
+    color: grey;
+}
+
+.txt{
+    margin-left: 3%;
+    width: 80%;
+}
+
+.cuadrado{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 6%;
+    width: 90%;
+    height: 100px;
+    background-color: white;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.15);
+    gap: 29px;
+}
+img{
+    width: 20%;
+    height: 70px
+}
+.textoo{
+    font-family: Arial, Helvetica, sans-serif;
+    color: #168B98;
+}
+h2{
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+
+.vamos h3 {
+    margin-bottom: 9px;
+}
+
+.vamos h2 {
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+.vamos h5 {
+    margin-top: 0;
+}
+
+
+.derecha{
+    width: 3%;
+    height: 17px;
+}
+
+
+
+
+.tus{
+    display: flex;
+    justify-content: center;
+}
+
+
+.vert{
+    width: 20%;
+    color: #168B98;
+}
+
+
+.cuadrados{
+    display: flex;
+    width: 90%;
+    margin-left: 6%;
+    gap: 3%;
+}
+
+
+
+.cuadrado2{
+    display: flex;
+    flex-direction: column;
+    border-radius: 9px;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 130px;
+    background-color: white;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.15); 
+
+}
+
+
+
+.izquierda{
+    width: 39%;
+    height: 30px;
+}
+
+
+
+
+.h3{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+}
+
+.entrenamiento{
+    font-size: 9px;
+}
