@@ -1,4 +1,5 @@
 import * as historyService from "../services/history.service.js";
+import * as historialService from "../services/historial.service.js";
 
 /** User's complete interaction history: trainers worked with + social challenge partners. */
 export async function getInteractionHistory(req, res, next) {
@@ -25,6 +26,20 @@ export async function getTrainerAssistanceHistory(req, res, next) {
   try {
     const trainerId = req.user.id;
     const data = await historyService.getTrainerAssistanceHistory(trainerId);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Full personal history (entries/exits, machines, trainer help, social), newest first, paginated. */
+export async function getHistorial(req, res, next) {
+  try {
+    const data = await historialService.getHistorial(req.user.id, {
+      limit: req.query.limit,
+      before: req.query.before,
+      tipo: req.query.tipo,
+    });
     res.json({ success: true, data });
   } catch (err) {
     next(err);

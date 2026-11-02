@@ -241,6 +241,24 @@
         "errorMismatch": "Passwords don't match",
         "errorFailed": "Couldn't update your password. Check your current password and try again",
         "successMessage": "Your password was updated successfully."
+      },
+      "social": {
+        "title": "Social interactions",
+        "noSocial": "Don't receive social interactions",
+        "sameGender": "Only people of my gender",
+        "sameAge": "Only people in my age range",
+        "blockTitle": "Block a person",
+        "blockPlaceholder": "First and last name",
+        "blockButton": "Block",
+        "blocked": "You blocked {{name}}",
+        "blockError": "We couldn't block that person.",
+        "unblock": "Unblock"
+      },
+      "photo": {
+        "change": "Change profile photo",
+        "remove": "Remove photo",
+        "permissionDenied": "We need permission to access your photos.",
+        "error": "We couldn't load that photo."
       }
     },
     "history": {
@@ -271,7 +289,20 @@
       "back": "Back",
       "sessionDetailTitle": "Session detail",
       "sessionDetailError": "Couldn't load this session's detail.",
-      "sessionDuration": "Duration: {{minutes}} min"
+      "sessionDuration": "Duration: {{minutes}} min",
+      "activityTitle": "My activity",
+      "activityEmpty": "No activity recorded yet.",
+      "loadMore": "Load more",
+      "events": {
+        "GYM_CHECK_IN": "You entered the gym",
+        "GYM_CHECK_OUT": "You left the gym",
+        "GYM_CHECK_OUT_DURATION": "You left the gym ({{minutes}} min)",
+        "MACHINE_USE": "You used: {{name}}",
+        "aMachine": "a machine",
+        "TRAINER_ASSISTANCE": "{{name}} helped you",
+        "TRAINER_ASSISTANCE_GIVEN": "You helped {{name}}",
+        "SOCIAL_INTERACTION": "You made a friend: {{name}}"
+      }
     },
     "routines": {
       "title": "Routine selector",
@@ -505,6 +536,27 @@
         "error": "Could not submit. Please try again.",
         "success": "Thanks for your feedback!",
         "markNotHelped": "They didn't help me"
+      },
+      "checkout": {
+        "title": "How was your day?",
+        "rateDay": "Rate your day",
+        "rateTrainers": "Rate the trainers who helped you",
+        "denuncias": "Reports",
+        "denunciasTitle": "Reports",
+        "denunciasHint": "Only people who were in the gym during your visit are listed.",
+        "category": {
+          "TRAINER": "A trainer",
+          "MACHINE": "A broken / not working machine",
+          "MEMBER": "Another gym member"
+        },
+        "trainerMisconduct": "Behaved badly",
+        "trainerFalseHelp": "Lied about helping",
+        "send": "Send",
+        "done": "Done",
+        "close": "Close",
+        "thanks": "Thanks! See you next time",
+        "error": "We couldn't send your answers. Try again.",
+        "loadError": "We couldn't load your visit details."
       }
     },
     "analytics": {

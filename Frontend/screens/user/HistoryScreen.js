@@ -10,6 +10,29 @@ import * as gamificationApi from '../../features/api/services/gamification.api';
 import * as rewardApi from '../../features/api/services/reward.api';
 import * as complaintApi from '../../features/api/services/complaint.api';
 
+// One line per history row (GET /history/events), e.g. "Entraste al gimnasio".
+function describeEvent(ev, t) {
+  const m = ev.metadata ?? {};
+  switch (ev.tipo) {
+    case 'GYM_CHECK_IN':
+      return t('user.history.events.GYM_CHECK_IN');
+    case 'GYM_CHECK_OUT':
+      return typeof m.durationMinutes === 'number'
+        ? t('user.history.events.GYM_CHECK_OUT_DURATION', { minutes: m.durationMinutes })
+        : t('user.history.events.GYM_CHECK_OUT');
+    case 'MACHINE_USE':
+      return t('user.history.events.MACHINE_USE', { name: m.machineName ?? t('user.history.events.aMachine') });
+    case 'TRAINER_ASSISTANCE':
+      return m.role === 'TRAINER'
+        ? t('user.history.events.TRAINER_ASSISTANCE_GIVEN', { name: ev.otherUserName ?? '' })
+        : t('user.history.events.TRAINER_ASSISTANCE', { name: ev.otherUserName ?? '' });
+    case 'SOCIAL_INTERACTION':
+      return t('user.history.events.SOCIAL_INTERACTION', { name: ev.otherUserName ?? '' });
+    default:
+      return ev.tipo;
+  }
+}
+
 function formatDateTime(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -47,6 +70,10 @@ export default function HistoryScreen({ onBack }) {
   const [sessions, setSessions] = useState([]);
   const [machineLog, setMachineLog] = useState([]);
   const [interactions, setInteractions] = useState([]);
+  // Personal history table (entries/exits, machines, trainer help, social).
+  const [events, setEvents] = useState([]);
+  const [eventsCursor, setEventsCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [achievements, setAchievements] = useState([]);
   const [rewards, setRewards] = useState([]);
   const [pointsLog, setPointsLog] = useState([]);
@@ -80,6 +107,20 @@ export default function HistoryScreen({ onBack }) {
     setSessionDetailError(null);
   };
 
+  const loadMoreEvents = async () => {
+    if (!eventsCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await historyApi.getHistorialEvents({ before: eventsCursor });
+      setEvents((prev) => [...prev, ...(data?.items ?? [])]);
+      setEventsCursor(data?.nextCursor ?? null);
+    } catch {
+      setHadError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     const [
@@ -90,6 +131,7 @@ export default function HistoryScreen({ onBack }) {
       rewardsResult,
       pointsResult,
       reportsResult,
+      eventsResult,
     ] = await Promise.allSettled([
       gymApi.getSessionHistory(),
       historyApi.getDailyMachineUsageLog(),
@@ -98,6 +140,7 @@ export default function HistoryScreen({ onBack }) {
       rewardApi.getMyRedemptions(),
       gamificationApi.getPoints(),
       complaintApi.getMyComplaints(),
+      historyApi.getHistorialEvents(),
     ]);
 
     let anyFailed = false;
@@ -123,6 +166,11 @@ export default function HistoryScreen({ onBack }) {
     if (reportsResult.status === 'fulfilled') setReports(reportsResult.value.data ?? []);
     else anyFailed = true;
 
+    if (eventsResult.status === 'fulfilled') {
+      setEvents(eventsResult.value.data?.items ?? []);
+      setEventsCursor(eventsResult.value.data?.nextCursor ?? null);
+    } else anyFailed = true;
+
     setHadError(anyFailed);
     setLoading(false);
   }, []);
@@ -135,10 +183,29 @@ export default function HistoryScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('user.history.title')} />
+      <Header pageTitle={t('user.history.title')} onBack={onBack} />
 
       <ScrollView style={styles.content}>
         {hadError && <Text style={styles.errorText}>{t('user.history.loadError')}</Text>}
+
+        <Section
+          title={t('user.history.activityTitle')}
+          loading={loading}
+          empty={events.length === 0}
+          emptyLabel={t('user.history.activityEmpty')}
+        >
+          {events.map((ev) => (
+            <View key={ev.id} style={styles.row}>
+              <Text style={styles.rowPrimary}>{describeEvent(ev, t)}</Text>
+              <Text style={styles.rowSecondary}>{formatDateTime(ev.occurredAt)}</Text>
+            </View>
+          ))}
+          {eventsCursor && (
+            <TouchableOpacity onPress={loadMoreEvents} disabled={loadingMore}>
+              <Text style={styles.backLink}>{loadingMore ? t('user.history.loading') : t('user.history.loadMore')}</Text>
+            </TouchableOpacity>
+          )}
+        </Section>
 
         <Section
           title={t('user.history.sessionsTitle')}

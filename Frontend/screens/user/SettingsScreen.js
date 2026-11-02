@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,15 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  Image,
   StyleSheet,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import globals from '../../styles/globals';
 import Button from '../../components/common/Button';
 import { useTranslation } from '../../i18n/I18nContext';
+import { pickProfilePhoto } from '../../utils/imagePicker';
+import * as userApi from '../../features/api/services/user.api';
 
 /**
  * Edit Profile / Settings & customization Screen (User) - spec section 7.
@@ -428,7 +431,14 @@ function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth
 const PREFERENCES = [
   { key: 'noTrainerHelp', labelKey: 'user.settings.noTrainerHelp' },
   { key: 'noMachineApp', labelKey: 'user.settings.noMachineApp' },
-  { key: 'noSocial', labelKey: 'user.settings.noSocial' },
+];
+
+// "Interacciones sociales" section (the filters are mutual, see
+// Backend/src/services/social.service.js#canPair).
+const SOCIAL_PREFERENCES = [
+  { key: 'noSocial', labelKey: 'user.settings.social.noSocial' },
+  { key: 'sameGender', labelKey: 'user.settings.social.sameGender' },
+  { key: 'sameAge', labelKey: 'user.settings.social.sameAge' },
 ];
 
 export default function SettingsScreen({
@@ -489,7 +499,69 @@ export default function SettingsScreen({
     noTrainerHelp: Boolean(initialValues.disableAssistance),
     noMachineApp: Boolean(initialValues.machineTrackingOptOut),
     noSocial: Boolean(initialValues.disableSocial),
+    sameGender: Boolean(initialValues.socialSameGenderOnly),
+    sameAge: Boolean(initialValues.socialSameAgeRangeOnly),
   });
+
+  // ---- Foto de perfil: data URL, undefined = unchanged, null = removed ----
+  const [photo, setPhoto] = useState(initialValues.profilePhoto ?? null);
+  const [photoChanged, setPhotoChanged] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
+  const choosePhoto = async () => {
+    setPhotoError(null);
+    try {
+      const picked = await pickProfilePhoto();
+      if (picked) {
+        setPhoto(picked);
+        setPhotoChanged(true);
+      }
+    } catch (err) {
+      setPhotoError(err.code === 'PERMISSION_DENIED' ? t('user.settings.photo.permissionDenied') : t('user.settings.photo.error'));
+    }
+  };
+  const removePhoto = () => {
+    setPhoto(null);
+    setPhotoChanged(true);
+  };
+
+  // ---- Bloquear persona x: type a name, no options. Applies immediately. ----
+  const [blocks, setBlocks] = useState([]);
+  const [blockName, setBlockName] = useState('');
+  const [blockMsg, setBlockMsg] = useState(null); // { type: 'ok' | 'error', text }
+  const [blocking, setBlocking] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    userApi
+      .getBlocks()
+      .then((res) => !cancelled && setBlocks(res.data ?? []))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const handleBlock = async () => {
+    if (!blockName.trim()) return;
+    setBlocking(true);
+    setBlockMsg(null);
+    try {
+      const { data } = await userApi.blockByName(blockName.trim());
+      setBlocks((prev) => (prev.some((b) => b.blockedId === data.blockedId) ? prev : [data, ...prev]));
+      setBlockName('');
+      setBlockMsg({ type: 'ok', text: t('user.settings.social.blocked', { name: data.name }) });
+    } catch (err) {
+      setBlockMsg({ type: 'error', text: err.message || t('user.settings.social.blockError') });
+    } finally {
+      setBlocking(false);
+    }
+  };
+  const handleUnblock = async (blockedId) => {
+    try {
+      await userApi.unblock(blockedId);
+      setBlocks((prev) => prev.filter((b) => b.blockedId !== blockedId));
+    } catch (err) {
+      setBlockMsg({ type: 'error', text: err.message || t('user.settings.social.blockError') });
+    }
+  };
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -560,6 +632,9 @@ export default function SettingsScreen({
         disableAssistance: preferences.noTrainerHelp,
         machineTrackingOptOut: preferences.noMachineApp,
         disableSocial: preferences.noSocial,
+        socialSameGenderOnly: preferences.sameGender,
+        socialSameAgeRangeOnly: preferences.sameAge,
+        ...(photoChanged ? { profilePhoto: photo } : {}),
       });
     } catch (err) {
       setError(err.message || t('user.settings.errorSaving'));
@@ -620,13 +695,22 @@ export default function SettingsScreen({
 
       {/* Avatar + edit-photo badge */}
       <View style={styles.avatarBlock}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitials}>{initialsFor(firstName, lastName)}</Text>
-        </View>
-        <View style={styles.avatarEditBadge}>
-          <Text style={styles.avatarEditGlyph}>{'\u270E'}</Text>
-        </View>
+        <TouchableOpacity onPress={choosePhoto} disabled={saving} activeOpacity={0.8}>
+          <View style={styles.avatarCircle}>
+            {photo ? (
+              <Image source={{ uri: photo }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitials}>{initialsFor(firstName, lastName)}</Text>
+            )}
+          </View>
+          <View style={styles.avatarEditBadge}>
+            <Text style={styles.avatarEditGlyph}>{'\u270E'}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
+      <Text style={styles.photoHint} onPress={choosePhoto}>{t('user.settings.photo.change')}</Text>
+      {photo ? <Text style={styles.photoHint} onPress={removePhoto}>{t('user.settings.photo.remove')}</Text> : null}
+      {photoError && <Text style={styles.errorText}>{photoError}</Text>}
 
       {/* ---------------- ONE continuous card ---------------- */}
       <View style={styles.card}>
@@ -751,6 +835,56 @@ export default function SettingsScreen({
             <Text style={styles.checkbox}>{preferences[key] ? '☑' : '☐'}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Interacciones sociales */}
+      <Text style={styles.sectionTitle}>{t('user.settings.social.title')}</Text>
+      <View style={styles.card}>
+        {SOCIAL_PREFERENCES.map(({ key, labelKey }, idx) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.preferenceRow, idx > 0 && styles.rowDivider]}
+            onPress={() => togglePreference(key)}
+            disabled={saving}
+          >
+            <Text style={styles.fieldLabel}>{t(labelKey)}</Text>
+            <Text style={styles.checkbox}>{preferences[key] ? '☑' : '☐'}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <View style={[styles.inputWrapper, styles.rowDivider]}>
+          <Text style={styles.fieldLabel}>{t('user.settings.social.blockTitle')}</Text>
+          <View style={styles.blockRow}>
+            <TextInput
+              style={[styles.input, styles.blockInput]}
+              placeholder={t('user.settings.social.blockPlaceholder')}
+              placeholderTextColor={globals.colors.textMuted}
+              value={blockName}
+              onChangeText={setBlockName}
+              editable={!blocking}
+              onSubmitEditing={handleBlock}
+              returnKeyType="done"
+            />
+            <TouchableOpacity style={styles.blockButton} onPress={handleBlock} disabled={blocking || !blockName.trim()}>
+              {blocking ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.blockButtonText}>{t('user.settings.social.blockButton')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {blockMsg && (
+            <Text style={blockMsg.type === 'ok' ? styles.successText : styles.errorText}>{blockMsg.text}</Text>
+          )}
+          {blocks.map((b) => (
+            <View key={b.blockedId} style={styles.blockedItem}>
+              <Text style={styles.fieldLabel}>{b.name}</Text>
+              <TouchableOpacity onPress={() => handleUnblock(b.blockedId)} hitSlop={8}>
+                <Text style={styles.unblockText}>{t('user.settings.social.unblock')}</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -931,6 +1065,47 @@ const styles = StyleSheet.create({
     backgroundColor: globals.colors.avatarPlaceholder,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+  },
+  photoHint: {
+    textAlign: 'center',
+    color: globals.colors.primary,
+    fontSize: globals.fontSize.sm,
+    marginBottom: globals.spacing.xs,
+  },
+  blockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: globals.spacing.xs,
+  },
+  blockInput: {
+    flex: 1,
+  },
+  blockButton: {
+    marginLeft: globals.spacing.sm,
+    backgroundColor: globals.colors.primary,
+    borderRadius: globals.radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: globals.spacing.md,
+  },
+  blockButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: globals.fontSize.sm,
+  },
+  blockedItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: globals.spacing.xs,
+  },
+  unblockText: {
+    color: globals.colors.danger,
+    fontSize: globals.fontSize.sm,
   },
   avatarInitials: {
     fontSize: globals.fontSize.xxl,

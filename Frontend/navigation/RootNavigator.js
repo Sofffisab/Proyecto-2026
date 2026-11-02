@@ -346,6 +346,9 @@ export default function RootNavigator() {
               disableAssistance: user?.settings?.disableAssistance ?? false,
               machineTrackingOptOut: user?.settings?.machineTrackingOptOut ?? false,
               disableSocial: user?.settings?.disableSocial ?? false,
+              socialSameGenderOnly: user?.settings?.socialSameGenderOnly ?? false,
+              socialSameAgeRangeOnly: user?.settings?.socialSameAgeRangeOnly ?? false,
+              profilePhoto: user?.profilePhoto ?? null,
             }}
             onChangePassword={async ({ currentPassword, newPassword }) => {
               // PATCH /users/me/password (see
@@ -365,11 +368,14 @@ export default function RootNavigator() {
                 medicalConditions: payload.medicalConditions,
                 birthday: payload.birthday,
                 deliveryAddress: payload.deliveryAddress,
+                ...(payload.profilePhoto !== undefined ? { profilePhoto: payload.profilePhoto } : {}),
               });
               await updateSettings({
                 disableAssistance: payload.disableAssistance,
                 machineTrackingOptOut: payload.machineTrackingOptOut,
                 disableSocial: payload.disableSocial,
+                socialSameGenderOnly: payload.socialSameGenderOnly,
+                socialSameAgeRangeOnly: payload.socialSameAgeRangeOnly,
               });
 
               // First-time completion (coming from Onboarding): once the

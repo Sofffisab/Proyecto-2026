@@ -6,6 +6,7 @@ import { MACHINE_USAGE_DURATION_TIERS, POINTS } from "../constants/points.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { checkIn as gymCheckIn, checkOut as gymCheckOut, reopenSessionIfAutoClosed } from "./gym.service.js";
 import { flagMachineConflict } from "./machineConflict.service.js";
+import { registrarUsoMaquina } from "./historial.service.js";
 import { logger } from "../utils/logger.js";
 
 // QR tokens expire after this many milliseconds (default: 5 minutes)
@@ -316,6 +317,13 @@ export async function processScan(scannerId, rawPayload) {
         gymSessionId: activeSession?.id ?? null,
         startedAt: new Date(),
       },
+    });
+
+    await registrarUsoMaquina({
+      userId: scannerId,
+      machineId,
+      gymSessionId: activeSession?.id ?? null,
+      occurredAt: created.startedAt,
     });
 
     // Points are awarded on the "end" scan only, to prevent farming by

@@ -5,6 +5,7 @@ import { addPoints } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
 import { sendTrainerAlert } from "./pushNotification.service.js";
+import { registrarEvento } from "./historial.service.js";
 
 export async function requestAssistance(userId) {
   // disableAssistance only blocks proactive outreach (see gym.service.js);
@@ -217,6 +218,15 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
   if (updated.trainerId) {
     await updateTrainerMetrics(updated.trainerId);
     await setTrainerAvailability(updated.trainerId, "AVAILABLE");
+  }
+
+  // Both sides keep it in their personal history (trainer help for the student, student helped for the trainer).
+  if (updated.trainerId) {
+    const at = updated.completedAt ?? new Date();
+    await Promise.all([
+      registrarEvento({ userId: updated.userId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.trainerId, occurredAt: at, metadata: { assistanceId: updated.id, role: "STUDENT" } }),
+      registrarEvento({ userId: updated.trainerId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.userId, occurredAt: at, metadata: { assistanceId: updated.id, role: "TRAINER" } }),
+    ]);
   }
 
   // Reward the student for the real, staff-facilitated engagement (non-blocking)

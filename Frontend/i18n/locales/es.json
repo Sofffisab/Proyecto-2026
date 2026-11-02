@@ -133,7 +133,25 @@
       "pickDefaultEmpty": "Todavía no hay rutinas generales cargadas."
     },
     "settings": {
-      "noSocial": "No aceptar interacciones sociales"
+      "noSocial": "No aceptar interacciones sociales",
+      "social": {
+        "title": "Interacciones sociales",
+        "noSocial": "No recibir interacciones sociales",
+        "sameGender": "Solo con personas de mi mismo género",
+        "sameAge": "Solo con personas de mi rango de edad",
+        "blockTitle": "Bloquear persona",
+        "blockPlaceholder": "Nombre y apellido",
+        "blockButton": "Bloquear",
+        "blocked": "Bloqueaste a {{name}}",
+        "blockError": "No pudimos bloquear a esa persona.",
+        "unblock": "Desbloquear"
+      },
+      "photo": {
+        "change": "Cambiar foto de perfil",
+        "remove": "Quitar foto",
+        "permissionDenied": "Necesitamos permiso para acceder a tus fotos.",
+        "error": "No pudimos cargar esa foto."
+      }
     },
     "popups": {
       "socialInteraction": {
@@ -156,6 +174,44 @@
         "expiredTitle": "Se acabó el tiempo",
         "expiredBody": "Nadie escaneó a tiempo, así que esta vez no hay puntos.",
         "error": "Algo salió mal. Probá de nuevo."
+      },
+      "checkout": {
+        "title": "¿Cómo estuvo tu día?",
+        "rateDay": "Calificá tu día",
+        "rateTrainers": "Calificá a los entrenadores que te ayudaron",
+        "denuncias": "Denuncias",
+        "denunciasTitle": "Denuncias",
+        "denunciasHint": "Solo aparecen las personas que estaban en el gimnasio durante tu visita.",
+        "category": {
+          "TRAINER": "Un entrenador",
+          "MACHINE": "Una máquina rota o que no funcionaba",
+          "MEMBER": "Un compañero del gimnasio"
+        },
+        "trainerMisconduct": "Tuvo mal comportamiento",
+        "trainerFalseHelp": "Mintió sobre ayudar",
+        "send": "Enviar",
+        "done": "Listo",
+        "close": "Cerrar",
+        "thanks": "¡Gracias! Hasta la próxima",
+        "error": "No pudimos enviar tus respuestas. Probá de nuevo.",
+        "loadError": "No pudimos cargar los datos de tu visita."
+      }
+    },
+    "history": {
+      "title": "Historial",
+      "activityTitle": "Mi actividad",
+      "activityEmpty": "Todavía no hay actividad registrada.",
+      "loadMore": "Ver más",
+      "loading": "Cargando...",
+      "events": {
+        "GYM_CHECK_IN": "Entraste al gimnasio",
+        "GYM_CHECK_OUT": "Saliste del gimnasio",
+        "GYM_CHECK_OUT_DURATION": "Saliste del gimnasio ({{minutes}} min)",
+        "MACHINE_USE": "Usaste: {{name}}",
+        "aMachine": "una máquina",
+        "TRAINER_ASSISTANCE": "Te ayudó {{name}}",
+        "TRAINER_ASSISTANCE_GIVEN": "Ayudaste a {{name}}",
+        "SOCIAL_INTERACTION": "Hiciste un amigo: {{name}}"
       }
     }
   },

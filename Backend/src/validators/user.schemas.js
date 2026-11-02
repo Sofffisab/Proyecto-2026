@@ -21,6 +21,15 @@ export const updateUserSchema = z.object({
   // Desired training type — 4 fixed options.
   trainingType: z.enum(TRAINING_TYPE_OPTIONS).optional(),
   deliveryAddress: z.string().max(500).optional(),
+  // Profile picture uploaded from Settings: a small JPEG/PNG/WebP data URL, or
+  // null to go back to the initials avatar. ~1.4M chars = ~1 MB of image; the
+  // app downsizes it before sending (Frontend/utils/imagePicker.js).
+  profilePhoto: z
+    .string()
+    .max(1_400_000)
+    .regex(/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "Invalid image")
+    .nullable()
+    .optional(),
 });
 
 export const updateProfileSchema = updateUserSchema;
@@ -28,6 +37,9 @@ export const updateProfileSchema = updateUserSchema;
 export const updateSettingsSchema = z.object({
   disableAssistance: z.boolean().optional(),
   disableSocial: z.boolean().optional(),
+  // Only be matched with people of the same gender / of a similar age.
+  socialSameGenderOnly: z.boolean().optional(),
+  socialSameAgeRangeOnly: z.boolean().optional(),
   trainerPreference: z.string().nullable().optional(),
   // Opt out of machine QR scans; only gym entry/exit is tracked.
   machineTrackingOptOut: z.boolean().optional(),
@@ -59,6 +71,11 @@ export const gymCheckinSchema = z.object({}).optional();
 export const createNoteSchema = z.object({
   note: z.string().trim().min(1).max(2000),
   visibility: z.enum(["PUBLIC", "PRIVATE"]).optional(),
+});
+
+// "Bloquear persona x": the member types a name, there are no options to pick.
+export const blockUserSchema = z.object({
+  name: z.string().trim().min(1).max(200),
 });
 
 export const requestRoutineSchema = z.object({

@@ -58,3 +58,16 @@ export function getPriorityAssistanceList() {
   return apiClient.get('/gym/priority-assistance');
 }
 
+
+// GET /gym/sessions/:id/checkout-context — what the exit pop-up needs:
+// { trainersHelped, trainersPresent, members, machines, dayRating }.
+export function getCheckoutContext(sessionId) {
+  return apiClient.get(`/gym/sessions/${sessionId}/checkout-context`);
+}
+
+// POST /gym/sessions/:id/checkout-feedback — day rating, trainer ratings and
+// denuncias in ONE request: { dayRating?, trainerRatings?: [{trainerId, rating}],
+// denuncias?: [{ type, reportedUserId? | machineId?, comment? }] }.
+export function submitCheckoutFeedback(sessionId, body) {
+  return apiClient.post(`/gym/sessions/${sessionId}/checkout-feedback`, body);
+}
