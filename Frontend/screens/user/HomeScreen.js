@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
 import BottomNav from '../../components/common/BottomNav';
-import RateTrainerPopup from '../../components/user/RateTrainerPopup';
+import CheckoutPopup from '../../components/user/CheckoutPopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSocial } from '../../social/SocialContext';
@@ -98,9 +98,9 @@ export default function HomeScreen({
 
   // Rate Trainer(s) pop-up state — opened from the CHECK_OUT branch of
   // handleScanned below, not from a button.
-  const [showRateTrainer, setShowRateTrainer] = useState(false);
-  const [rateTrainerSessionId, setRateTrainerSessionId] = useState(null);
-  const [rateTrainerList, setRateTrainerList] = useState([]);
+  // Exit pop-up (day rating + trainers + denuncias): opened right after the
+  // exit QR scan; holds the id of the session that just ended.
+  const [checkoutSessionId, setCheckoutSessionId] = useState(null);
 
   // "Arrival successful" pop-up — CHECK_IN branch of handleScanned.
   const [showCheckInSuccess, setShowCheckInSuccess] = useState(false);
@@ -233,38 +233,8 @@ export default function HomeScreen({
 
       if (data?.action === 'CHECK_OUT') {
         setShowScanQR(false);
-        try {
-          const { data: history } = await assistanceApi.getMyAssistanceHistory();
-          const todayStr = new Date().toDateString();
-          // Backend/src/services/assistance.service.js#getAssistanceHistory
-          // returns raw Assistance rows (no joined trainer name), for every
-          // status — filter to COMPLETED + today client-side.
-          const helpedToday = (history ?? []).filter(
-            (a) =>
-              a.status === 'COMPLETED' &&
-              a.trainerId &&
-              a.completedAt &&
-              new Date(a.completedAt).toDateString() === todayStr
-          );
-          if (helpedToday.length > 0) {
-            const uniqueTrainers = [];
-            const seen = new Set();
-            for (const a of helpedToday) {
-              if (!seen.has(a.trainerId)) {
-                seen.add(a.trainerId);
-                // No trainer name available from this endpoint (data gap);
-                // RateTrainerPopup falls back to showing the id.
-                uniqueTrainers.push({ id: a.trainerId, name: a.trainerId });
-              }
-            }
-            setRateTrainerSessionId(data.session?.id ?? null);
-            setRateTrainerList(uniqueTrainers);
-            setShowRateTrainer(true);
-          }
-        } catch {
-          // If we can't tell whether they were helped, skip the pop-up
-          // rather than block checkout on it.
-        }
+        // Always ask: rate the day, rate the trainers who helped, and denuncias.
+        if (data.session?.id) setCheckoutSessionId(data.session.id);
         return;
       }
 
@@ -561,20 +531,8 @@ export default function HomeScreen({
         </View>
       </Modal>
 
-      {showRateTrainer && (
-        <Modal
-          visible={showRateTrainer}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowRateTrainer(false)}
-        >
-          <RateTrainerPopup
-            sessionId={rateTrainerSessionId}
-            trainers={rateTrainerList}
-            onRated={() => setShowRateTrainer(false)}
-            onClose={() => setShowRateTrainer(false)}
-          />
-        </Modal>
+      {checkoutSessionId && (
+        <CheckoutPopup sessionId={checkoutSessionId} onClose={() => setCheckoutSessionId(null)} />
       )}
 
       {/* QR scan pop-up — real camera (expo-camera) via the QRScanner

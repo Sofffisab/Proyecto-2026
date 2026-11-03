@@ -27,6 +27,8 @@ import * as syncController         from "../controllers/sync.controller.js";
 import * as noteController         from "../controllers/note.controller.js";
 import * as historyController      from "../controllers/history.controller.js";
 import * as socialController       from "../controllers/social.controller.js";
+import * as denunciaController     from "../controllers/denuncia.controller.js";
+import * as blockController        from "../controllers/block.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
@@ -34,6 +36,7 @@ import * as userSchemas     from "../validators/user.schemas.js";
 import * as progressSchemas from "../validators/progress.schemas.js";
 import * as challengeSchemas from "../validators/challenge.schemas.js";
 import * as socialSchemas    from "../validators/social.schemas.js";
+import * as denunciaSchemas  from "../validators/denuncia.schemas.js";
 
 const router = express.Router();
 
@@ -83,7 +86,7 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 const PROTECTED_PREFIXES = [
   "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
-  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history", "/social",
+  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history", "/social", "/denuncias",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
 // Blocks members from the rest of the API until required profile data is
@@ -103,6 +106,10 @@ router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSch
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
 router.patch("/users/me/fcm-token", validateSchema(userSchemas.fcmTokenSchema), userController.updateFcmToken);
 router.patch("/users/me/deactivate", userController.deactivateSelf);
+// "Bloquear persona x" (Settings): the member types a name, there is no list to pick from.
+router.get("/users/me/blocks",              blockController.listBlocks);
+router.post("/users/me/blocks",             validateSchema(userSchemas.blockUserSchema), blockController.blockByName);
+router.delete("/users/me/blocks/:blockedId", blockController.unblock);
 router.delete("/users/me",          userController.deleteSelf);
 
 router.get("/users",                authorize(["ADMIN", "TRAINER"]), userController.getUsers);
@@ -124,11 +131,20 @@ router.get("/gym/priority-assistance", authorize(["TRAINER", "ADMIN"]), gymContr
 router.get("/gym/sessions",         gymController.getSessionHistory);
 router.get("/gym/sessions/:id",     gymController.getSessionById);
 router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);
+// Exit pop-up: who/what was in the gym during the visit, and the day rating +
+// trainer ratings + denuncias sent in one go.
+router.get("/gym/sessions/:id/checkout-context",   denunciaController.getCheckoutContext);
+router.post("/gym/sessions/:id/checkout-feedback", validateSchema(denunciaSchemas.checkoutFeedbackSchema), denunciaController.submitCheckoutFeedback);
+
+// DENUNCIAS (admin review of what members reported from the exit pop-up)
+router.get("/denuncias",                    authorize(["ADMIN"]), denunciaController.listDenuncias);
+router.patch("/denuncias/:id/status",       authorize(["ADMIN"]), validateSchema(denunciaSchemas.updateDenunciaStatusSchema), denunciaController.updateDenunciaStatus);
 
 // HISTORY ROUTES
 // These map to an already-implemented history.controller.js/history.service.js
 // that was never mounted here — adding only the route registrations below,
 // no controller/service logic changed.
+router.get("/history/events",               historyController.getHistorial);
 router.get("/history/interactions",         historyController.getInteractionHistory);
 router.get("/history/machine-usage",        historyController.getDailyMachineUsageLog);
 router.get("/history/trainer-assistance",   authorize(["TRAINER", "ADMIN"]), historyController.getTrainerAssistanceHistory);

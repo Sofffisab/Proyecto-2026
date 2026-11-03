@@ -137,6 +137,31 @@ enum MachineConflictResolution {
   UNVERIFIED       // No trainer verified before the timeout — auto-closed
 }
 
+// What a member can report from the exit pop-up ("Denuncias"). The first two
+// target a trainer who was in the gym, MACHINE_BROKEN targets a machine, and
+// MEMBER_MISCONDUCT targets another member who was in the gym at the same time.
+enum DenunciaType {
+  TRAINER_MISCONDUCT  // Trainer behaved badly
+  TRAINER_FALSE_HELP  // Trainer lied about having helped
+  MACHINE_BROKEN      // A machine was broken / not working
+  MEMBER_MISCONDUCT   // Another member behaved badly
+}
+
+enum DenunciaStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+}
+
+// Kinds of rows in the personal history ("Historial") table.
+enum HistorialTipo {
+  GYM_CHECK_IN         // Entrada al gym
+  GYM_CHECK_OUT        // Salida del gym
+  MACHINE_USE          // Uso de una máquina
+  TRAINER_ASSISTANCE   // Ayuda de un entrenador
+  SOCIAL_INTERACTION   // Interacción social con otra persona
+}
+
 enum RewardRedemptionStatus {
   SHIPPED
   DELIVERED
@@ -178,6 +203,10 @@ model User {
   trainingType         TrainingType?
   medicalConditions    Json?
   deliveryAddress      String?
+  // Profile picture as a data URL ("data:image/jpeg;base64,..."), uploaded from
+  // Settings. Stored in the DB because the API runs on Vercel (no persistent
+  // disk). The app downsizes it before sending (see Frontend/utils/imagePicker.js).
+  profilePhoto         String?   @db.Text
   fcmToken             String?
   isActive             Boolean   @default(true)
   // Set once birthday, medicalConditions and deliveryAddress are all filled in.
@@ -228,6 +257,12 @@ model User {
   machineConflictsResolved MachineConflict[] @relation("MachineConflictResolver")
   customExercises      Exercise[]          @relation("ExerciseCreator")
   scheduleDays         ScheduleDay[]
+  denunciasMade        Denuncia[]          @relation("DenunciaReporter")
+  denunciasReceived    Denuncia[]          @relation("DenunciaReported")
+  blocksMade           UserBlock[]         @relation("UserBlockBlocker")
+  blocksReceived       UserBlock[]         @relation("UserBlockBlocked")
+  historial            HistorialEvento[]   @relation("HistorialOwner")
+  historialAsOther     HistorialEvento[]   @relation("HistorialOther")
 
   @@index([email])
   @@index([role])
@@ -270,6 +305,10 @@ model UserSettings {
   userId            String   @unique
   disableAssistance Boolean  @default(false)
   disableSocial     Boolean  @default(false)
+  // Social-interaction filters (see social.service.js#canPair). Mutual: a pair
+  // is only formed when it satisfies the filters of BOTH people.
+  socialSameGenderOnly   Boolean @default(false)
+  socialSameAgeRangeOnly Boolean @default(false)
   trainerPreference String?
   machineTrackingOptOut Boolean @default(false)
   analyticsConsent  Boolean  @default(true)
@@ -302,12 +341,15 @@ model GymSession {
   checkOutAt      DateTime?
   durationMinutes Int?
   autoClosed      Boolean   @default(false)
+  // 1-5 rating of the day, asked in the exit pop-up (null = not rated).
+  dayRating       Int?
   createdAt       DateTime  @default(now())
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   machineUsages   MachineUsage[]
   ratings         TrainerRating[]
   complaints      Complaint[]
+  denuncias       Denuncia[]
 
   @@index([userId])
   @@index([checkInAt])
@@ -331,6 +373,7 @@ model Machine {
 
   usages           MachineUsage[]
   conflicts        MachineConflict[]
+  denuncias        Denuncia[]
 
   @@index([active])
 }
@@ -768,6 +811,73 @@ model Complaint {
   @@index([reportedUserId])
   @@index([status])
   @@index([gymSessionId])
+}
+
+// "Denuncias" made from the exit pop-up. One row per thing reported. Exactly
+// one of reportedUserId (trainer / member) or machineId (broken machine) is set,
+// depending on `type`.
+model Denuncia {
+  id             String         @id @default(uuid())
+  reporterId     String
+  gymSessionId   String?
+  type           DenunciaType
+  reportedUserId String?
+  machineId      String?
+  comment        String?
+  status         DenunciaStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+
+  reporter       User        @relation("DenunciaReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
+  reported       User?       @relation("DenunciaReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  machine        Machine?    @relation(fields: [machineId], references: [id])
+  gymSession     GymSession? @relation(fields: [gymSessionId], references: [id])
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([machineId])
+  @@index([status])
+  @@index([gymSessionId])
+  @@map("denuncias")
+}
+
+// "Bloquear persona x" (Settings). The blocker never gets paired with the
+// blocked person in social interactions, and vice versa.
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker   User @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+// Personal history ("Historial"): every gym entry/exit, machine use, trainer
+// assistance and social interaction of a member, one row each, owned by `userId`.
+// Written best-effort by services/historial.service.js#registrarEvento.
+model HistorialEvento {
+  id           String        @id @default(uuid())
+  userId       String
+  tipo         HistorialTipo
+  // The other person involved (trainer / social partner), when there is one.
+  otherUserId  String?
+  machineId    String?
+  gymSessionId String?
+  // Small snapshot for display (machine name, duration, points...), so the
+  // history keeps reading well even if the original row is edited/removed.
+  metadata     Json?
+  occurredAt   DateTime      @default(now())
+
+  user         User  @relation("HistorialOwner", fields: [userId],      references: [id], onDelete: Cascade)
+  otherUser    User? @relation("HistorialOther", fields: [otherUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([tipo])
+  @@map("historial")
 }
 
 model PointReviewRequest {

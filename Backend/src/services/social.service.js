@@ -25,6 +25,7 @@ import { POINTS } from "../constants/points.js";
 import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 import { addPoints } from "./gamification.service.js";
+import { calculateAge } from "../utils/age.js";
 import {
   createSocialTokenRequest,
   getLobbyMemberIds,
@@ -50,12 +51,53 @@ export function getSocialConfig() {
     qrTtlMs: int("SOCIAL_QR_TTL_MS", 2 * 60 * 1000),
     // The same two people are not paired again for this long.
     pairCooldownMs: int("SOCIAL_PAIR_COOLDOWN_MS", 30 * 60 * 1000),
+    // "Filtrar a personas de mi rango de edad": max age difference, in years.
+    ageRangeYears: int("SOCIAL_AGE_RANGE_YEARS", 5),
   };
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
 const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Does `other` satisfy the social filters that `me` set in Settings?
+ * `me` / `other` are { gender, birthday, sameGenderOnly, sameAgeRangeOnly }.
+ *
+ *  - sameGenderOnly: both genders must be known, and equal. Someone who did
+ *    not say their gender (null / PREFER_NOT_TO_SAY) can't be matched by it.
+ *  - sameAgeRangeOnly: both ages must be known and differ by at most
+ *    `ageRangeYears`.
+ */
+export function satisfiesFilters(me, other, ageRangeYears = 5) {
+  if (me.sameGenderOnly) {
+    const known = (g) => Boolean(g) && g !== "PREFER_NOT_TO_SAY";
+    if (!known(me.gender) || !known(other.gender) || me.gender !== other.gender) return false;
+  }
+
+  if (me.sameAgeRangeOnly) {
+    const myAge = calculateAge(me.birthday);
+    const otherAge = calculateAge(other.birthday);
+    if (myAge == null || otherAge == null || Math.abs(myAge - otherAge) > ageRangeYears) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Can these two people be paired? Filters are mutual (each one's filters must
+ * be met by the other) and a block by either side rules the pair out.
+ *
+ * @param {object} a  profile of person A (see satisfiesFilters)
+ * @param {object} b  profile of person B
+ * @param {object} [ctx]
+ * @param {boolean} [ctx.blocked]  A blocked B or B blocked A
+ * @param {number} [ctx.ageRangeYears]
+ */
+export function canPair(a, b, { blocked = false, ageRangeYears = 5 } = {}) {
+  if (blocked) return false;
+  return satisfiesFilters(a, b, ageRangeYears) && satisfiesFilters(b, a, ageRangeYears);
+}
 
 function shuffle(list) {
   const arr = [...list];
@@ -175,7 +217,7 @@ export async function expireChallenge(challenge) {
  *            AND social interactions not disabled AND not already in a
  *            challenge AND is a member (not staff).
  *
- * Always 4 DB queries + 1-2 Ably calls, however many people are in the gym.
+ * Always 5 DB queries + 1-2 Ably calls, however many people are in the gym.
  */
 export async function runMatchingRound(callerId) {
   const cfg = getSocialConfig();
@@ -210,18 +252,32 @@ export async function runMatchingRound(callerId) {
     const cooldownStart = new Date(now.getTime() - cfg.pairCooldownMs);
     const involvesLobby = [{ userId: { in: lobbyIds } }, { partnerUserId: { in: lobbyIds } }];
 
-    const [sessions, optedOut, open, recent] = await Promise.all([
+    const [sessions, settingsRows, blocks, open, recent] = await Promise.all([
       prisma.gymSession.findMany({
         where: {
           userId: { in: lobbyIds },
           checkOutAt: null,
           user: { role: "USER", isActive: true },
         },
-        select: { userId: true },
+        select: { userId: true, user: { select: { gender: true, birthday: true } } },
       }),
+      // Only people who changed something from the defaults have a row that matters.
       prisma.userSettings.findMany({
-        where: { userId: { in: lobbyIds }, disableSocial: true },
-        select: { userId: true },
+        where: {
+          userId: { in: lobbyIds },
+          OR: [{ disableSocial: true }, { socialSameGenderOnly: true }, { socialSameAgeRangeOnly: true }],
+        },
+        select: {
+          userId: true,
+          disableSocial: true,
+          socialSameGenderOnly: true,
+          socialSameAgeRangeOnly: true,
+        },
+      }),
+      // "Bloquear persona x": a block by either side keeps the two apart.
+      prisma.userBlock.findMany({
+        where: { OR: [{ blockerId: { in: lobbyIds } }, { blockedId: { in: lobbyIds } }] },
+        select: { blockerId: true, blockedId: true },
       }),
       prisma.socialChallenge.findMany({
         // Legacy (non-realtime) rows are never shown to anybody anymore, so
@@ -235,24 +291,49 @@ export async function runMatchingRound(callerId) {
       }),
     ]);
 
-    const excluded = new Set((optedOut ?? []).map((s) => s.userId));
+    const settingsByUser = new Map((settingsRows ?? []).map((row) => [row.userId, row]));
+    const blockedPairs = new Set((blocks ?? []).map((b) => pairKey(b.blockerId, b.blockedId)));
+
+    const excluded = new Set((settingsRows ?? []).filter((s) => s.disableSocial).map((s) => s.userId));
     for (const c of open ?? []) {
       excluded.add(c.userId);
       excluded.add(c.partnerUserId);
     }
     const recentPairs = new Set((recent ?? []).map((c) => pairKey(c.userId, c.partnerUserId)));
 
+    // Everything canPair() needs about each person, from the queries above.
+    const profiles = new Map();
+    for (const s of sessions ?? []) {
+      const settings = settingsByUser.get(s.userId);
+      profiles.set(s.userId, {
+        gender: s.user?.gender ?? null,
+        birthday: s.user?.birthday ?? null,
+        sameGenderOnly: Boolean(settings?.socialSameGenderOnly),
+        sameAgeRangeOnly: Boolean(settings?.socialSameAgeRangeOnly),
+      });
+    }
+
     const eligible = shuffle(
       [...new Set((sessions ?? []).map((s) => s.userId))].filter((id) => !excluded.has(id))
     );
 
-    // Greedy random pairing that avoids people who were just paired together.
+    // Greedy random pairing that avoids people who were just paired together,
+    // blocked people and anybody who doesn't meet the other's filters.
     const pairs = [];
     const used = new Set();
     for (const a of eligible) {
       if (used.has(a)) continue;
       if (pairs.length >= MAX_PAIRS_PER_ROUND) break;
-      const b = eligible.find((c) => c !== a && !used.has(c) && !recentPairs.has(pairKey(a, c)));
+      const b = eligible.find(
+        (c) =>
+          c !== a &&
+          !used.has(c) &&
+          !recentPairs.has(pairKey(a, c)) &&
+          canPair(profiles.get(a) ?? {}, profiles.get(c) ?? {}, {
+            blocked: blockedPairs.has(pairKey(a, c)),
+            ageRangeYears: cfg.ageRangeYears,
+          })
+      );
       if (!b) continue;
       used.add(a);
       used.add(b);

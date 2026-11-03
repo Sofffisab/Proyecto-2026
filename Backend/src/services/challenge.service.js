@@ -4,6 +4,7 @@ import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js
 import { AppError } from "../utils/errors.js";
 import { publishToUsers } from "../realtime/ably.js";
 import { cancelChallenge, expireChallenge } from "./social.service.js";
+import { registrarEvento } from "./historial.service.js";
 
 // Social challenges expire after this long if nobody responds/completes them.
 const CHALLENGE_TTL_HOURS = parseInt(process.env.SOCIAL_CHALLENGE_TTL_HOURS ?? "24", 10);
@@ -216,6 +217,13 @@ export async function completeChallengeByQR(challengeId, callerId, partnerId) {
         type: "CHALLENGE_COMPLETED",
       },
     }),
+  ]);
+
+  // Each of the two keeps the interaction in their personal history.
+  const metAt = updated.completedAt ?? new Date();
+  await Promise.all([
+    registrarEvento({ userId: challenge.userId, tipo: "SOCIAL_INTERACTION", otherUserId: challenge.partnerUserId, occurredAt: metAt, metadata: { challengeId, points: POINTS.SOCIAL_CHALLENGE_COMPLETED } }),
+    registrarEvento({ userId: challenge.partnerUserId, tipo: "SOCIAL_INTERACTION", otherUserId: challenge.userId, occurredAt: metAt, metadata: { challengeId, points: POINTS.SOCIAL_CHALLENGE_COMPLETED } }),
   ]);
 
   // Close the pop-up on both phones right away (the scanner also gets it in

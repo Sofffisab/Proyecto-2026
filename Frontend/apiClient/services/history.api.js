@@ -44,3 +44,11 @@ export function getDailyMachineUsageLog() {
 export function getTrainerAssistanceHistory() {
   return apiClient.get('/history/trainer-assistance');
 }
+
+// GET /history/events?limit=&before= — the personal history table: gym entries
+// and exits, machine use, trainer help and social interactions, newest first.
+// Returns { items, nextCursor } (pass nextCursor as `before` for the next page).
+export function getHistorialEvents({ limit = 50, before } = {}) {
+  const qs = `limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+  return apiClient.get(`/history/events?${qs}`);
+}

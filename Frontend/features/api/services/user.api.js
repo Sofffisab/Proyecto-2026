@@ -100,3 +100,15 @@ export function upsertTrainerProfile(userId, { specialty } = {}) {
   return apiClient.post(`/users/${userId}/trainer-profile`, { specialty });
 }
 
+
+// "Bloquear persona x" (Settings): the person types a name, there are no options.
+// GET /users/me/blocks | POST /users/me/blocks { name } | DELETE /users/me/blocks/:blockedId
+export function getBlocks() {
+  return apiClient.get('/users/me/blocks');
+}
+export function blockByName(name) {
+  return apiClient.post('/users/me/blocks', { name });
+}
+export function unblock(blockedId) {
+  return apiClient.delete(`/users/me/blocks/${blockedId}`);
+}

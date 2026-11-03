@@ -48,3 +48,22 @@ export const COMPLAINT_REASON_LABELS_ES = {
 };
 
 export default MESSAGES;
+
+// Social blocks ("Bloquear persona" in Settings), block.service.js
+export const BLOCK_MESSAGES = {
+  NAME_REQUIRED: "Escribí el nombre de la persona que querés bloquear.",
+  NOT_FOUND: "No encontramos a ninguna persona con ese nombre. Escribí nombre y apellido tal como figura en su perfil.",
+  AMBIGUOUS: "Hay más de una persona con ese nombre, así que no podemos bloquearla sin riesgo de equivocarnos. Pedile ayuda a un entrenador.",
+  CANNOT_BLOCK_SELF: "No podés bloquearte a vos mismo.",
+};
+
+// Exit pop-up feedback + denuncias, denuncia.service.js
+export const DENUNCIA_MESSAGES = {
+  SESSION_NOT_FOUND: "No encontramos esa visita al gimnasio.",
+  SESSION_NOT_YOURS: "Esa visita no es tuya.",
+  SESSION_NOT_FINISHED: "Primero tenés que registrar tu salida del gimnasio.",
+  TRAINER_NOT_PRESENT: "Ese entrenador no estaba en el gimnasio durante tu visita.",
+  MEMBER_NOT_PRESENT: "Esa persona no estaba en el gimnasio durante tu visita.",
+  MACHINE_NOT_FOUND: "No encontramos esa máquina.",
+  CANNOT_REPORT_SELF: "No podés denunciarte a vos mismo.",
+};

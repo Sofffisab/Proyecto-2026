@@ -7,6 +7,7 @@ import { notifyTrainerOfReturningStudent } from "./communication.service.js";
 import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 import { createAutoNoHelpComplaint } from "./complaint.service.js";
+import { registrarEvento } from "./historial.service.js";
 import { MESSAGES } from "../locales/es.js";
 
 // Minutes without assistance before triggering USER_NEEDS_ATTENTION
@@ -43,6 +44,8 @@ export async function checkIn(userId, options = {}) {
       checkInAt,
     },
   });
+
+  await registrarEvento({ userId, tipo: "GYM_CHECK_IN", gymSessionId: session?.id ?? null, occurredAt: checkInAt });
 
   // Award check-in points (non-blocking)
   addPoints(userId, POINTS.CHECK_IN, "Gym check-in").catch((err) =>
@@ -175,6 +178,14 @@ export async function checkOut(userId) {
   const updated = await prisma.gymSession.update({
     where: { id: session.id },
     data: { checkOutAt, durationMinutes, autoClosed: false },
+  });
+
+  await registrarEvento({
+    userId,
+    tipo: "GYM_CHECK_OUT",
+    gymSessionId: updated.id,
+    occurredAt: checkOutAt,
+    metadata: { durationMinutes },
   });
 
   // Leaving the gym also closes any active machine usage.

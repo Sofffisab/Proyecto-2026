@@ -170,6 +170,8 @@ export async function updateNotificationPreferences(id, data) {
   const {
     disableAssistance,
     disableSocial,
+    socialSameGenderOnly,
+    socialSameAgeRangeOnly,
     trainerPreference,
     machineTrackingOptOut,
     analyticsConsent,
@@ -177,6 +179,8 @@ export async function updateNotificationPreferences(id, data) {
   const safeData = {};
   if (disableAssistance !== undefined) safeData.disableAssistance = disableAssistance;
   if (disableSocial !== undefined) safeData.disableSocial = disableSocial;
+  if (socialSameGenderOnly !== undefined) safeData.socialSameGenderOnly = socialSameGenderOnly;
+  if (socialSameAgeRangeOnly !== undefined) safeData.socialSameAgeRangeOnly = socialSameAgeRangeOnly;
   if (trainerPreference !== undefined) safeData.trainerPreference = trainerPreference;
   if (machineTrackingOptOut !== undefined) safeData.machineTrackingOptOut = machineTrackingOptOut;
   if (analyticsConsent !== undefined) safeData.analyticsConsent = analyticsConsent;
