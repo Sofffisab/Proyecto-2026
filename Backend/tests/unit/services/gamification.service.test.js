@@ -268,3 +268,25 @@ describe("GamificationService", () => {
     });
   });
 });
+
+describe("gamification.service getSummary", () => {
+  it("returns the member's objectives and weekly target from the database", async () => {
+    prisma.achievement.findMany.mockResolvedValue([]);
+    prisma.pointTransaction.aggregate.mockResolvedValue({ _sum: { points: 360 } });
+    prisma.userAchievement.count.mockResolvedValue(2);
+    prisma.gymSession.findMany.mockResolvedValue([]);
+    prisma.gymSession.count.mockResolvedValue(5);
+    prisma.machineUsage.count.mockResolvedValue(0);
+    prisma.machineUsage.findMany.mockResolvedValue([]);
+    prisma.assistance.count.mockResolvedValue(0);
+    prisma.socialInteraction.count.mockResolvedValue(0);
+    prisma.user.findUnique.mockResolvedValue({ objectives: ["GAIN_MUSCLE"], weeklyTrainingDays: "FOUR" });
+
+    const summary = await gamificationService.getSummary("user-1");
+
+    expect(summary.objectives).toEqual(["GAIN_MUSCLE"]);
+    expect(summary.weeklyTrainingDays).toBe("FOUR");
+    expect(summary.totalPoints).toBe(360);
+    expect(summary.achievementsCount).toBe(2);
+  });
+});

@@ -155,6 +155,7 @@ export default function ProfileScreen({
   // focus (e.g. coming back from Routines after a machine scan awarded
   // points), not just on first mount.
   const [points, setPoints] = useState(0);
+  const [objectives, setObjectives] = useState(null); // from the Backend (GET /users/me strips it for members)
   const [stats, setStats] = useState({ gymVisits: 0, streakDays: 0, achievementsCount: 0 });
   const [pointsLoading, setPointsLoading] = useState(true);
 
@@ -165,6 +166,7 @@ export default function ProfileScreen({
       // numbers the Logros screen shows).
       const { data } = await gamificationApi.getSummary();
       setPoints(data?.totalPoints ?? 0);
+      setObjectives(Array.isArray(data?.objectives) ? data.objectives : null);
       setStats({
         gymVisits: data?.gymVisits ?? 0,
         streakDays: data?.streakDays ?? 0,
@@ -228,7 +230,11 @@ export default function ProfileScreen({
 
   const initials = `${(user?.firstName || '').charAt(0)}${(user?.lastName || '').charAt(0)}`.toUpperCase();
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || t('user.home.title');
-  const mainGoalLabel = Array.isArray(user?.objectives) ? user.objectives[0] : null;
+  const knownGoals = ['LOSE_WEIGHT', 'GAIN_MUSCLE', 'IMPROVE_HEALTH', 'INCREASE_ENDURANCE'];
+  const firstGoal = (objectives ?? (Array.isArray(user?.objectives) ? user.objectives : []))[0];
+  const mainGoalLabel = firstGoal
+    ? knownGoals.includes(firstGoal) ? t(`user.achievementsGoals.objective.${firstGoal}`) : firstGoal
+    : null;
 
   return (
     <View style={styles.body}>
