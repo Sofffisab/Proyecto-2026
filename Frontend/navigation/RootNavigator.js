@@ -24,6 +24,9 @@ import SelectExerciseScreen from '../screens/user/SelectExerciseScreen';
 import FreeRoutineScreen from '../screens/user/FreeRoutineScreen';
 import StepByStepScreen from '../screens/user/StepByStepScreen';
 import GeneralRoutinesScreen from '../screens/user/GeneralRoutinesScreen';
+import RoutineModeScreen from '../screens/user/RoutineModeScreen';
+import RoutinePickerScreen from '../screens/user/RoutinePickerScreen';
+import AiRoutineScreen from '../screens/user/AiRoutineScreen';
 import CameraScreen from '../screens/user/CameraScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
@@ -71,6 +74,10 @@ export const ROUTES = {
   USER_FREE_ROUTINE: 'UserFreeRoutine',
   USER_STEP_BY_STEP: 'UserStepByStep',
   USER_CAMERA: 'UserCamera',
+  // Redesigned routine flow: "¿Cómo querés entrenar?", "Elegí tu rutina", AI routine.
+  USER_ROUTINE_MODE: 'UserRoutineMode',
+  USER_ROUTINE_PICKER: 'UserRoutinePicker',
+  USER_AI_ROUTINE: 'UserAiRoutine',
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
@@ -452,12 +459,43 @@ export default function RootNavigator() {
             onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
             onGoToAchievementsGoals={() => navigation.navigate(ROUTES.USER_ACHIEVEMENTS_GOALS)}
             onGoToSchedule={() => navigation.navigate(ROUTES.USER_SCHEDULE)}
-            onGoToGeneralRoutines={() => navigation.navigate(ROUTES.USER_GENERAL_ROUTINES)}
+            onGoToRoutinePicker={() => navigation.navigate(ROUTES.USER_ROUTINE_PICKER)}
+            onGoToRoutineMode={(params) => navigation.navigate(ROUTES.USER_ROUTINE_MODE, params)}
             onGoToRoutineDay={(dateKey) => navigation.navigate(ROUTES.USER_ROUTINE_DAY, { dateKey })}
-            onGoToStepByStep={(params) => navigation.navigate(ROUTES.USER_STEP_BY_STEP, params)}
             onGoToFreeMode={(params) => navigation.navigate(ROUTES.USER_FREE_ROUTINE, params)}
           />
         )}
+      </Stack.Screen>
+
+      {/* "¿Cómo querés entrenar?" -> replaces itself with the chosen mode, so
+          "back" from the exercises returns to "Tu cronograma". */}
+      <Stack.Screen name={ROUTES.USER_ROUTINE_MODE}>
+        {({ navigation, route }) => (
+          <RoutineModeScreen
+            {...route.params}
+            onBack={goBack(navigation)}
+            onStart={(mode, params) =>
+              navigation.replace(mode === 'stepByStep' ? ROUTES.USER_STEP_BY_STEP : ROUTES.USER_FREE_ROUTINE, params)
+            }
+          />
+        )}
+      </Stack.Screen>
+
+      {/* "Elegí tu rutina" -> replaces itself with the list / schedule / AI screen. */}
+      <Stack.Screen name={ROUTES.USER_ROUTINE_PICKER}>
+        {({ navigation }) => (
+          <RoutinePickerScreen
+            onBack={goBack(navigation)}
+            onDone={goBack(navigation)}
+            onGoToGeneralRoutines={() => navigation.replace(ROUTES.USER_GENERAL_ROUTINES)}
+            onGoToSchedule={() => navigation.replace(ROUTES.USER_SCHEDULE)}
+            onGoToAiRoutine={() => navigation.replace(ROUTES.USER_AI_ROUTINE)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name={ROUTES.USER_AI_ROUTINE}>
+        {({ navigation }) => <AiRoutineScreen onBack={goBack(navigation)} onSaved={goBack(navigation)} />}
       </Stack.Screen>
 
       <Stack.Screen name={ROUTES.USER_GENERAL_ROUTINES}>

@@ -176,6 +176,7 @@ export function deleteScheduleDay(date) {
 // POST /routines/ai/generate — the backend reads the user's history
 // (sessions + machine usage), analyses it and saves a routine for every date.
 // data: { days: Day[], analysis: {...}, saved: boolean }
-export function generateAiRoutines({ dates, language, save = true } = {}) {
-  return apiClient.post('/routines/ai/generate', { dates, language, save });
+// `prompt` (optional, e.g. "día de piernas") picks the focus; save:false only previews.
+export function generateAiRoutines({ dates, language, save = true, prompt } = {}) {
+  return apiClient.post('/routines/ai/generate', { dates, language, save, ...(prompt ? { prompt } : {}) });
 }

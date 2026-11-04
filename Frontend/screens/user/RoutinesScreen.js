@@ -1,54 +1,40 @@
 // src/screens/user/RoutinesScreen.js
 //
-// Routines Screen (User) - "Tu cronograma" hero + option list.
+// Routines Screen (User) - "Tu cronograma": today's training hero, the
+// routine in use ("Cambiar rutina" -> "Elegí tu rutina") and the next trainings.
 //
 // Everything shown comes from the database (the day's routine / the general
 // routine with its exercises are fetched when the screen opens). The hero
-// follows the selected option:
-//   - My routines:       today's entry of the weekly schedule (arrow -> schedule).
+// follows the selected option (chosen on RoutinePickerScreen):
+//   - My routines:       today's entry of the weekly schedule (incl. AI-made ones).
 //   - General routines:  a default routine for today; if none was picked it is
-//                        assigned at random, favouring ones not done yet
-//                        (arrow -> list of default routines to pick from).
-//   - Don't follow:      no routine, only "Free mode" (camera only).
-// "Paso a paso" opens the step-by-step screen and "Seguir libre" the static
-// free-mode screen. If "My routines" has nothing for today, a pop-up asks
-// whether to build it by hand, generate it with AI or cancel.
+//                        assigned at random, favouring ones not done yet.
+//   - Don't follow:      no routine, only the free mode (camera only).
+// "Ver ejercicios" opens "¿Cómo querés entrenar?" (step by step / read on your
+// own). If "My routines" has nothing for today, a pop-up asks whether to build
+// it by hand, generate it with AI or cancel.
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Alert, StyleSheet } from 'react-native';
+import { ChevronRightIcon } from '../../components/common/PopupKit';
 import globals from '../../styles/globals';
 import BottomNav from '../../components/common/BottomNav';
 import EmptyRoutinePopup from './popups/EmptyRoutinePopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines, useLoadRoutine } from '../../context/RoutinesContext';
 import { ROUTINE_OPTIONS, ROUTINE_SOURCES } from '../../constants/generalRoutines';
-import { getDateParts, resolveRoutineTitle, toDateKey } from '../../utils/schedule';
-
-const START_MODES = {
-  STEP_BY_STEP: 'stepByStep',
-  FREE: 'free',
-};
-
-// Square checkbox on the left of an option row: empty when idle, filled teal
-// with a check when selected.
-function Checkbox({ selected }) {
-  return (
-    <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-      {selected && <Text style={styles.checkboxCheck}>✓</Text>}
-    </View>
-  );
-}
+import { capitalize, getDateParts, getWeekDays, resolveRoutineTitle, toDateKey } from '../../utils/schedule';
 
 /**
  * @param {function} [onBack]
  * @param {function} [onGoToHome] - "house" footer icon
  * @param {function} [onGoToProfile] - "person" footer icon
  * @param {function} [onGoToAchievementsGoals] - "trophy" footer icon
- * @param {function} [onGoToSchedule] - arrow of the "My routines" row
- * @param {function} [onGoToGeneralRoutines] - arrow of the "General routines" row
+ * @param {function} [onGoToSchedule] - weekly schedule ("planificá tu semana")
+ * @param {function} [onGoToRoutinePicker] - "Cambiar rutina" -> "Elegí tu rutina"
+ * @param {function} [onGoToRoutineMode] - ({ source, dateKey, generalRoutineId }) => void, "¿Cómo querés entrenar?"
  * @param {function} [onGoToRoutineDay] - (dateKey) => void, opens a day's editor
- * @param {function} [onGoToStepByStep] - ({ source, dateKey, generalRoutineId }) => void
- * @param {function} [onGoToFreeMode] - ({ source, dateKey, generalRoutineId }) => void
+ * @param {function} [onGoToFreeMode] - ({ source, dateKey, generalRoutineId }) => void (no routine: camera only)
  */
 export default function RoutinesScreen({
   onBack,
@@ -56,16 +42,16 @@ export default function RoutinesScreen({
   onGoToProfile,
   onGoToAchievementsGoals,
   onGoToSchedule,
-  onGoToGeneralRoutines,
+  onGoToRoutinePicker,
+  onGoToRoutineMode,
   onGoToRoutineDay,
-  onGoToStepByStep,
   onGoToFreeMode,
 }) {
   const { t, language } = useTranslation();
-  const { generateWithAi, routineOption, setRoutineOption, getGeneralChoice, assignRandomGeneralRoutine, generalRoutines } = useRoutines();
+  const { generateWithAi, routineOption, getGeneralChoice, assignRandomGeneralRoutine, generalRoutines, loadWeek, getDay } = useRoutines();
 
-  // Start mode waiting on the "empty routine" pop-up (null = pop-up closed).
-  const [pendingMode, setPendingMode] = useState(null);
+  // "Empty routine" pop-up (My routines with nothing planned for today).
+  const [emptyPopup, setEmptyPopup] = useState(false);
 
   const today = new Date();
   const todayKey = toDateKey(today);
@@ -89,6 +75,17 @@ export default function RoutinesScreen({
   const { routine, loading: routineLoading } = useLoadRoutine(routineParams);
   const exerciseCount = routine?.exerciseCount ?? 0;
 
+  // The next two planned days of the weekly schedule ("Próximo entrenamiento").
+  const upcomingKeys = getWeekDays(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)).map(toDateKey);
+  useEffect(() => {
+    loadWeek(upcomingKeys).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayKey]);
+  const upcoming = upcomingKeys
+    .map((key) => ({ key, day: getDay(key) }))
+    .filter(({ day }) => day && day.exerciseCount > 0)
+    .slice(0, 2);
+
   const todayLabel = t('user.routines.todayDate', getDateParts(today, language));
   const heroTitle =
     source === ROUTINE_SOURCES.NONE
@@ -105,45 +102,47 @@ export default function RoutinesScreen({
       ]
     : [];
 
-  const routineOptions = [
-    { key: ROUTINE_OPTIONS.MY_ROUTINES, label: t('user.routines.options.myRoutines'), hasArrow: true, onArrow: onGoToSchedule },
-    { key: ROUTINE_OPTIONS.GENERAL_ROUTINES, label: t('user.routines.options.generalRoutines'), hasArrow: true, onArrow: onGoToGeneralRoutines },
-    { key: ROUTINE_OPTIONS.NO_ROUTINE, label: t('user.routines.options.noRoutine') },
-  ];
+  // Which kind of routine is in use today (shown in the "Cambiar rutina" row).
+  const currentKindLabel =
+    routineOption === ROUTINE_OPTIONS.NO_ROUTINE
+      ? t('user.routines.pickFree')
+      : routineOption === ROUTINE_OPTIONS.GENERAL_ROUTINES
+        ? t('user.routines.pickPremade')
+        : routine?.source === 'AI'
+          ? t('user.routines.pickAi')
+          : t('user.routines.pickMine');
 
-  const goToMode = (mode, params) => {
-    const handler = mode === START_MODES.STEP_BY_STEP ? onGoToStepByStep : onGoToFreeMode;
-    if (handler) handler(params);
-  };
-
-  // With a routine open the mode screen; without one (only possible on "My
-  // routines") ask what to do. "Don't follow" has nothing to ask: free mode
-  // is just the camera.
-  const handleStart = (mode) => {
-    if (routineLoading && source !== ROUTINE_SOURCES.NONE) return;
-    if (source === ROUTINE_SOURCES.NONE || exerciseCount > 0) {
-      goToMode(mode, routineParams);
+  // With a routine open "¿Cómo querés entrenar?"; without one (only possible
+  // on "My routines") ask what to do. "Don't follow" has nothing to ask: free
+  // mode is just the camera.
+  const handleViewExercises = () => {
+    if (source === ROUTINE_SOURCES.NONE) {
+      if (onGoToFreeMode) onGoToFreeMode(routineParams);
+      return;
+    }
+    if (routineLoading) return;
+    if (exerciseCount > 0) {
+      if (onGoToRoutineMode) onGoToRoutineMode(routineParams);
     } else {
-      setPendingMode(mode);
+      setEmptyPopup(true);
     }
   };
 
   const handleDoItMyself = () => {
-    setPendingMode(null);
+    setEmptyPopup(false);
     if (onGoToRoutineDay) onGoToRoutineDay(todayKey);
   };
 
   // The backend analyses the person's history and saves today's routine.
   const handleGenerateWithAi = async () => {
-    const mode = pendingMode;
     try {
       await generateWithAi([todayKey]);
     } catch {
       Alert.alert(t('user.routines.aiError'));
       return;
     }
-    setPendingMode(null);
-    goToMode(mode, { source: ROUTINE_SOURCES.SCHEDULE, dateKey: todayKey });
+    setEmptyPopup(false);
+    if (onGoToRoutineMode) onGoToRoutineMode({ source: ROUTINE_SOURCES.SCHEDULE, dateKey: todayKey });
   };
 
   return (
@@ -167,40 +166,55 @@ export default function RoutinesScreen({
               </View>
             )}
             <View style={styles.heroButtonsRow}>
-              {source !== ROUTINE_SOURCES.NONE && (
-                <TouchableOpacity style={styles.heroButton} onPress={() => handleStart(START_MODES.STEP_BY_STEP)}>
-                  <Text style={styles.heroButtonLabel}>{t('user.routines.stepByStep')}</Text>
-                  <Text style={styles.heroButtonArrow}>›</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.heroButton} onPress={() => handleStart(START_MODES.FREE)}>
-                <Text style={styles.heroButtonLabel}>{t('user.routines.freeMode')}</Text>
-                <Text style={styles.heroButtonArrow}>›</Text>
+              <TouchableOpacity style={styles.heroButton} onPress={handleViewExercises} activeOpacity={0.85}>
+                <Text style={styles.heroButtonLabel}>
+                  {source === ROUTINE_SOURCES.NONE ? t('user.routines.freeMode') : t('user.routines.viewExercises')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
+        <TouchableOpacity style={styles.kindRow} onPress={onGoToRoutinePicker} activeOpacity={0.8} accessibilityRole="button">
+          <View style={styles.kindText}>
+            <Text style={styles.kindLabel}>{t('user.routines.currentRoutine')}</Text>
+            <Text style={styles.kindValue} numberOfLines={1}>{currentKindLabel}</Text>
+          </View>
+          <Text style={styles.kindAction}>{t('user.routines.changeRoutine')}</Text>
+          <ChevronRightIcon size={16} />
+        </TouchableOpacity>
+
         <Text style={styles.sectionLabel}>{t('user.routines.nextTrainingLabel')}</Text>
-        {routineOptions.map((opt) => {
-          const selected = routineOption === opt.key;
-          return (
-            <TouchableOpacity
-              key={opt.key}
-              style={[styles.optionRow, selected && styles.optionRowSelected]}
-              onPress={() => setRoutineOption(opt.key)}
-              activeOpacity={0.8}
-            >
-              <Checkbox selected={selected} />
-              <Text style={styles.optionText}>{opt.label}</Text>
-              {opt.hasArrow && (
-                <TouchableOpacity style={styles.optionArrowButton} onPress={opt.onArrow} hitSlop={10}>
-                  <Image source={require('../../assets/derecha.png')} style={styles.optionArrow} />
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+        {upcoming.length > 0 ? (
+          upcoming.map(({ key, day }) => {
+            const parts = getDateParts(new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10))), language);
+            return (
+              <TouchableOpacity
+                key={key}
+                style={styles.nextCard}
+                onPress={() => onGoToRoutineDay && onGoToRoutineDay(key)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.nextText}>
+                  <Text style={styles.nextDay}>{t('user.routines.dayTitle', { ...parts, weekday: capitalize(parts.weekday) })}</Text>
+                  <Text style={styles.nextTitle} numberOfLines={1}>{resolveRoutineTitle(day, t)}</Text>
+                  <Text style={styles.nextMeta}>
+                    {`${t('user.home.durationMinutes', { count: day.estimatedMinutes })}  |  ${t('user.home.exercisesCount', { count: day.exerciseCount })}`}
+                  </Text>
+                </View>
+                <ChevronRightIcon size={16} color={globals.colors.navInactive} />
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <TouchableOpacity style={[styles.nextCard, styles.nextEmpty]} onPress={onGoToSchedule} activeOpacity={0.8}>
+            <View style={styles.nextText}>
+              <Text style={styles.nextTitle}>{t('user.routines.nextEmptyTitle')}</Text>
+              <Text style={styles.nextMeta}>{t('user.routines.nextEmptyBody')}</Text>
+            </View>
+            <ChevronRightIcon size={16} color={globals.colors.navInactive} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Shared footer: this IS the "calendar" destination, so that tab is
@@ -212,11 +226,11 @@ export default function RoutinesScreen({
         onGoToAchievements={onGoToAchievementsGoals}
       />
 
-      <Modal transparent animationType="fade" visible={pendingMode != null} onRequestClose={() => setPendingMode(null)}>
+      <Modal transparent animationType="fade" visible={emptyPopup} onRequestClose={() => setEmptyPopup(false)}>
         <EmptyRoutinePopup
           onDoIt={handleDoItMyself}
           onGenerateWithAi={handleGenerateWithAi}
-          onCancel={() => setPendingMode(null)}
+          onCancel={() => setEmptyPopup(false)}
         />
       </Modal>
     </View>
@@ -250,58 +264,53 @@ const styles = StyleSheet.create({
   heroMetaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   heroMeta: { fontSize: 10, fontWeight: '600', color: globals.colors.textSecondary },
   heroMetaDivider: { width: 1, height: 10, marginHorizontal: 12, backgroundColor: '#CFCFCF' },
-  heroButtonsRow: { flexDirection: 'row', gap: 8, marginTop: 'auto' },
+  heroButtonsRow: { flexDirection: 'row', marginTop: 'auto' },
   heroButton: {
-    flex: 1,
-    maxWidth: '50%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignSelf: 'flex-start',
     backgroundColor: globals.colors.primary,
-    borderRadius: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     ...globals.shadow.button,
   },
-  heroButtonLabel: { color: '#fff', fontWeight: '600', fontSize: 12 },
-  heroButtonArrow: { color: '#fff', fontSize: 18, lineHeight: 18 },
+  heroButtonLabel: { color: '#fff', fontWeight: '700', fontSize: 11 },
 
-  // option rows: light grey, darker when selected, checkbox left + arrow right
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: globals.colors.navInactive, marginTop: 22, marginBottom: 10, textTransform: 'uppercase' },
-  optionRow: {
+  // "Rutina de hoy: … Cambiar rutina ›"
+  kindRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
-    backgroundColor: '#EEF2F3',
+    backgroundColor: globals.colors.surface,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    ...globals.shadow.card,
+  },
+  kindText: { flex: 1 },
+  kindLabel: { fontSize: 9, color: globals.colors.textSecondary },
+  kindValue: { fontSize: 12, fontWeight: '800', color: globals.colors.text, marginTop: 1 },
+  kindAction: { fontSize: 11, fontWeight: '700', color: globals.colors.primary, marginRight: 4 },
+
+  // upcoming trainings
+  sectionLabel: { fontSize: 10, fontWeight: '700', color: globals.colors.navInactive, marginTop: 22, marginBottom: 10, textTransform: 'uppercase' },
+  nextCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 72,
+    backgroundColor: globals.colors.surface,
+    borderWidth: 1,
+    borderColor: globals.colors.surfaceBorder,
     borderRadius: 8,
     paddingHorizontal: 14,
+    paddingVertical: 10,
     marginBottom: 12,
+    ...globals.shadow.card,
   },
-  optionRowSelected: { backgroundColor: '#D9D9D9' },
-  optionText: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '500',
-    color: globals.colors.text,
-  },
-  optionArrowButton: { marginLeft: 'auto' },
-  optionArrow: { width: 18, height: 18, resizeMode: 'contain' },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#CFCFCF',
-    backgroundColor: globals.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: globals.colors.primary,
-    borderColor: globals.colors.primary,
-  },
-  checkboxCheck: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
+  nextEmpty: { borderStyle: 'dashed' },
+  nextText: { flex: 1, paddingRight: 8 },
+  nextDay: { fontSize: 9, fontWeight: '700', color: globals.colors.primary },
+  nextTitle: { fontSize: 12, fontWeight: '800', color: globals.colors.text, marginTop: 2 },
+  nextMeta: { fontSize: 9, color: globals.colors.textSecondary, marginTop: 3 },
 });

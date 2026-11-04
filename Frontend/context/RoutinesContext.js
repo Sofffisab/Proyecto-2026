@@ -486,13 +486,21 @@ export function RoutinesProvider({ children }) {
 
   // "Hacer con IA personalizada": the backend analyses the user's history
   // (sessions + machine usage) and saves a routine for every given day.
+  //
+  // Options: { prompt } free text like "día de piernas" (optional) and
+  // { save: false } to only PREVIEW: nothing is stored, and the result carries
+  // `preview` (the first day, normalized like a schedule day) to show it.
   const generateWithAi = useCallback(
-    async (dateKeys) => {
-      const { data } = await routineApi.generateAiRoutines({ dates: dateKeys, language, save: true });
-      ingestDays(data.days);
-      return data;
+    async (dateKeys, { prompt, save = true } = {}) => {
+      const { data } = await routineApi.generateAiRoutines({ dates: dateKeys, language, save, prompt });
+      if (save) {
+        ingestDays(data.days);
+        return data;
+      }
+      mergeExercises(data.days.flatMap((day) => (day.exercises ?? []).map((item) => item.exercise)));
+      return { ...data, preview: data.days[0] ? normalizeDay(data.days[0]) : null };
     },
-    [ingestDays, language]
+    [ingestDays, mergeExercises, language]
   );
 
   const value = useMemo(

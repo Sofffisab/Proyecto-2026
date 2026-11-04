@@ -87,6 +87,8 @@ export const generateAiRoutinesSchema = z.object({
   dates: z.array(dateKeySchema).min(1).max(14),
   language: z.enum(["es", "en"]).optional(),
   save: z.boolean().optional(),
+  // Free text like "día de piernas": picks the focus of the generated days.
+  prompt: z.string().trim().max(120).optional(),
 });
 
 // Rewards

@@ -613,14 +613,44 @@ export function planDay(profile, focus, usedInBatch = new Set(), weekday = null)
   }));
 }
 
-/** Plans every requested date (ascending). */
-export function planDays(profile, dates, language = "es") {
+// Words in the "¿Qué querés entrenar hoy?" box that point to a focus.
+const PROMPT_KEYWORDS = {
+  FULL: ["cuerpo completo", "full body", "todo el cuerpo", "full"],
+  UPPER: ["tren superior", "upper", "brazo", "arms"],
+  LEGS: ["pierna", "gluteo", "cuadricep", "isquio", "sentadilla", "leg", "glute", "squat"],
+  PUSH: ["pecho", "chest", "tricep", "empuje", "push", "hombro", "shoulder"],
+  PULL: ["espalda", "back", "bicep", "tiron", "pull", "dorsal"],
+};
+
+/**
+ * Focus asked for in free text ("día de piernas" -> LEGS), or null when the
+ * text doesn't say anything we know (then the usual learned/rotation focus is used).
+ */
+export function focusFromPrompt(prompt) {
+  const text = normalizeText(prompt);
+  if (!text) return null;
+  const has = (focus) => PROMPT_KEYWORDS[focus].some((word) => text.includes(word));
+
+  if (has("FULL")) return "FULL";
+  if (has("UPPER")) return "UPPER";
+  const hits = ["LEGS", "PUSH", "PULL"].filter(has);
+  if (hits.length === 1) return hits[0];
+  if (hits.length === 2 && hits.includes("PUSH") && hits.includes("PULL")) return "UPPER";
+  if (hits.length >= 2) return "FULL";
+  return null;
+}
+
+/** Plans every requested date (ascending). `focusOverride` forces the focus of every day. */
+export function planDays(profile, dates, language = "es", focusOverride = null) {
   const lang = language === "en" ? "en" : "es";
   const usedInBatch = new Set();
 
   return dates.map((date, index) => {
     const weekday = weekdayOf(date);
-    const { focus, basedOn } = chooseFocus(profile, weekday, index + profile.rotationOffset);
+    const chosen = focusOverride
+      ? { focus: focusOverride, basedOn: "PROMPT" }
+      : chooseFocus(profile, weekday, index + profile.rotationOffset);
+    const { focus, basedOn } = chosen;
     const exercises = planDay(profile, focus, usedInBatch, weekday);
     exercises.forEach((item) => usedInBatch.add(item.exerciseId));
     return { date, focus, basedOn, title: FOCUS_TITLES[focus][lang], exercises };
@@ -736,9 +766,11 @@ function normalizeDates(dates) {
 /**
  * Generates (and by default saves) personalized routines for the given days.
  * Returns { days, analysis }: each day has the same shape as the schedule API
- * plus `focus` and `basedOn` ("WEEKDAY_PATTERN" | "ROTATION").
+ * plus `focus` and `basedOn` ("WEEKDAY_PATTERN" | "ROTATION" | "PROMPT").
+ * `prompt` (optional free text like "día de piernas") picks the focus when it
+ * mentions a known muscle group; `save: false` only previews.
  */
-export async function generateRoutines(userId, { dates, language = "es", save = true, now = new Date() }) {
+export async function generateRoutines(userId, { dates, language = "es", save = true, prompt, now = new Date() }) {
   const sortedDates = normalizeDates(dates);
 
   const input = await loadGeneratorInput(userId, sortedDates, now);
@@ -747,7 +779,7 @@ export async function generateRoutines(userId, { dates, language = "es", save = 
   }
 
   const profile = buildTrainingProfile(input);
-  const plan = planDays(profile, sortedDates, language);
+  const plan = planDays(profile, sortedDates, language, focusFromPrompt(prompt));
   const exerciseMap = new Map(input.catalog.map((exercise) => [exercise.id, serializeExercise(exercise)]));
 
   let rows;
