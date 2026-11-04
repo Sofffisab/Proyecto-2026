@@ -13,10 +13,11 @@
 // lobby and listens to their private channel; this file turns what arrives
 // there into pop-up phases (socialReducer.js) and owns the timers:
 //
-//   Sí pressed      -> confirmation for 5 s, then the pop-up closes
+//   Sí pressed      -> "Buscando un amigo…" for 5 s, then the pop-up closes
 //   both said Sí    -> QR for one, camera for the other, 2 minutes to scan
 //   2 minutes pass  -> pop-up closes, no points (the Backend enforces it too)
 //   close / No      -> cancelled; only the one who accepted gets reduced points
+//   scan done       -> "¿Cómo fue tu experiencia?" (optional stars / 👍👎 / Denunciar)
 
 import React, {
   createContext,
@@ -42,7 +43,8 @@ import {
 import SocialInteractionPopup from '../components/user/SocialInteractionPopup';
 
 const CONFIRMATION_MS = 5000; // "te notificaremos…" stays 5 s after pressing Sí
-const RESULT_MS = 4000; // done / cancelled / expired messages close by themselves
+const RESULT_MS = 4000; // cancelled / expired / error messages close by themselves
+const FEEDBACK_MS = 90 * 1000; // the "¿Cómo fue tu experiencia?" card waits for the person
 const DEFAULT_ROUND_MS = 2 * 60 * 1000;
 
 const SocialContext = createContext({
@@ -107,7 +109,7 @@ export function SocialProvider({ children }) {
           dispatch({ type: 'INVITE', id: data.challengeId, ttlMs: data.ttlMs });
           break;
         case 'paired':
-          dispatch({ type: 'PAIRED', id: data.id, role: data.role, ttlMs: data.ttlMs });
+          dispatch({ type: 'PAIRED', id: data.id, role: data.role, ttlMs: data.ttlMs, partner: data.partner });
           break;
         case 'completed':
           dispatch({ type: 'COMPLETED', id: data.challengeId, points: data.points });
@@ -157,6 +159,8 @@ export function SocialProvider({ children }) {
     } else if (phase === PHASE.ASK || phase === PHASE.WAITING || PAIRING_PHASES.includes(phase)) {
       // Unanswered invitation -> disappears; QR/camera stage -> "se acabó el tiempo".
       timer = setTimeout(() => dispatch({ type: 'EXPIRED', id }), untilDeadline);
+    } else if (phase === PHASE.DONE) {
+      timer = setTimeout(() => dispatch({ type: 'CLEAR' }), FEEDBACK_MS);
     } else if (RESULT_PHASES.includes(phase)) {
       timer = setTimeout(() => dispatch({ type: 'CLEAR' }), RESULT_MS);
     }
@@ -177,7 +181,7 @@ export function SocialProvider({ children }) {
       const { data } = await socialApi.respond(id, true);
       if (data?.status === 'ACCEPTED') {
         // The other person was faster: go straight to QR / camera.
-        dispatch({ type: 'PAIRED', id, role: data.role, ttlMs: data.ttlMs });
+        dispatch({ type: 'PAIRED', id, role: data.role, ttlMs: data.ttlMs, partner: data.partner });
       } else if (data?.status === 'REJECTED' || data?.status === 'EXPIRED') {
         dispatch({ type: 'EXPIRED', id });
       }
@@ -201,6 +205,26 @@ export function SocialProvider({ children }) {
   }, []);
 
   const openCamera = useCallback(() => dispatch({ type: 'OPEN_CAMERA' }), []);
+
+  /**
+   * "Enviar" on "¿Cómo fue tu experiencia?". Closes at once; the request is
+   * only made when the person actually chose something (everything is optional).
+   */
+  const sendFeedback = useCallback(async (feedback) => {
+    const current = viewRef.current;
+    dispatch({ type: 'CLEAR' });
+    const has = feedback && (feedback.rating > 0 || feedback.liked != null || feedback.report);
+    if (!current || !has) return;
+    try {
+      await socialApi.sendFeedback(current.id, {
+        ...(feedback.rating > 0 ? { rating: feedback.rating } : {}),
+        ...(feedback.liked != null ? { liked: feedback.liked } : {}),
+        ...(feedback.report ? { report: true } : {}),
+      });
+    } catch {
+      // Optional and best-effort: nothing to undo if it didn't go through.
+    }
+  }, []);
 
   /** The camera read a QR. Only a person's QR can complete the interaction. */
   const scanned = useCallback(async (payload) => {
@@ -243,6 +267,7 @@ export function SocialProvider({ children }) {
         onDecline={decline}
         onOpenCamera={openCamera}
         onScanned={scanned}
+        onFeedback={sendFeedback}
       />
     </SocialContext.Provider>
   );

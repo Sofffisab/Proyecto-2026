@@ -40,3 +40,9 @@ export function respond(challengeId, accept) {
 export function cancel(challengeId) {
   return apiClient.post(`/social/${challengeId}/cancel`, {});
 }
+
+// POST /social/:id/feedback — "¿Cómo fue tu experiencia?" after a completed
+// interaction: { rating?: 1-5, liked?: boolean, report?: boolean }.
+export function sendFeedback(challengeId, feedback) {
+  return apiClient.post(`/social/${challengeId}/feedback`, feedback);
+}

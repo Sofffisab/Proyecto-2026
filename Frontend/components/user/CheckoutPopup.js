@@ -8,41 +8,36 @@
 //                 - Máquina: rota o no funciona
 //                 - Compañero: mal comportamiento
 //
-// Same look as SocialInteractionPopup (teal header, white body, ✕ to close).
+// Same look as SocialInteractionPopup (white card, teal ✕, soft inner cards;
+// shared pieces in components/common/PopupKit.js).
 // Denuncias end up in the `denuncias` table (Backend/src/services/denuncia.service.js).
 
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as gymApi from '../../features/api/services/gym.api';
+import {
+  HERO,
+  PopupModal,
+  Hero,
+  Title,
+  Subtitle,
+  PrimaryButton,
+  SoftCard,
+  Avatar,
+  Stars,
+  CheckRow,
+  FlagIcon,
+  ChevronRightIcon,
+  CheckIcon,
+  popupStyles,
+} from '../common/PopupKit';
 
-const STARS = [1, 2, 3, 4, 5];
 const VIEW = { MAIN: 'MAIN', DENUNCIAS: 'DENUNCIAS', CATEGORY: 'CATEGORY' };
 const CATEGORY = { TRAINER: 'TRAINER', MACHINE: 'MACHINE', MEMBER: 'MEMBER' };
 
 const denunciaKey = (type, id) => `${type}:${id}`;
-
-function Stars({ value, onChange, size = 28 }) {
-  return (
-    <View style={styles.starsRow}>
-      {STARS.map((n) => (
-        <TouchableOpacity key={n} onPress={() => onChange(n)} hitSlop={6}>
-          <Text style={[styles.star, { fontSize: size }, n <= value && styles.starOn]}>★</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-function Check({ checked, label, onPress }) {
-  return (
-    <TouchableOpacity style={styles.checkRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.box, checked && styles.boxOn]}>{checked ? <Text style={styles.tick}>✓</Text> : null}</View>
-      <Text style={styles.checkLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
 
 /**
  * @param {string} sessionId  the gym session that just ended
@@ -127,75 +122,111 @@ export default function CheckoutPopup({ sessionId, onClose }) {
     [VIEW.DENUNCIAS]: k('denunciasTitle'),
     [VIEW.CATEGORY]: category ? k(`category.${category}`) : '',
   };
+  const subtitles = {
+    [VIEW.MAIN]: k('subtitle'),
+    [VIEW.DENUNCIAS]: k('denunciasHint'),
+    [VIEW.CATEGORY]: null,
+  };
 
   let body;
   if (sent) {
-    body = <Text style={styles.bigNote}>{k('thanks')}</Text>;
+    body = (
+      <View style={popupStyles.center}>
+        <Hero source={HERO.found} width={84} height={46} />
+        <Title>{k('thanks')}</Title>
+      </View>
+    );
   } else if (!ctx && !loadFailed) {
-    body = <ActivityIndicator color={globals.colors.primary} />;
+    body = <ActivityIndicator color={globals.colors.primary} style={styles.loader} />;
   } else if (view === VIEW.MAIN) {
     body = (
       <>
-        <Text style={styles.label}>{k('rateDay')}</Text>
-        <Stars value={dayRating} onChange={setDayRating} size={34} />
+        <SoftCard style={[styles.rateCard, popupStyles.gapMd]}>
+          <Text style={styles.label}>{k('rateDay')}</Text>
+          <Stars value={dayRating} onChange={setDayRating} size={30} />
+          <Text style={[popupStyles.muted, { marginTop: 4 }]}>{k('optional')}</Text>
+        </SoftCard>
 
-        {toRate.length > 0 && <Text style={[styles.label, styles.gap]}>{k('rateTrainers')}</Text>}
         {toRate.map((tr) => (
-          <View key={tr.id} style={styles.trainerBlock}>
-            <Text style={styles.name}>{tr.name}</Text>
-            <Stars value={trainerRatings[tr.id] ?? 0} onChange={(n) => setTrainerRatings((p) => ({ ...p, [tr.id]: n }))} />
-          </View>
+          <SoftCard key={tr.id} style={[styles.rateCard, popupStyles.gapSm]}>
+            <View style={popupStyles.row}>
+              <Avatar size={30} />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={styles.name}>{tr.name}</Text>
+                <Text style={popupStyles.muted}>{k('rateTrainer')}</Text>
+              </View>
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <Stars
+                value={trainerRatings[tr.id] ?? 0}
+                onChange={(n) => setTrainerRatings((p) => ({ ...p, [tr.id]: n }))}
+              />
+            </View>
+          </SoftCard>
         ))}
 
         {ctx && (
-          <TouchableOpacity style={styles.denunciasButton} onPress={() => setView(VIEW.DENUNCIAS)}>
-            <Text style={styles.denunciasButtonText}>
-              {k('denuncias')}
-              {denunciaCount > 0 ? ` (${denunciaCount})` : ''}
-            </Text>
-          </TouchableOpacity>
+          <Text
+            onPress={() => setView(VIEW.DENUNCIAS)}
+            accessibilityRole="button"
+            style={styles.denunciasLink}
+          >
+            <FlagIcon size={13} color={globals.colors.danger} />
+            {'  '}
+            {k('denuncias')}
+            {denunciaCount > 0 ? ` (${denunciaCount})` : ''}
+          </Text>
         )}
-        {loadFailed && <Text style={styles.errorText}>{k('loadError')}</Text>}
+        {loadFailed && <Text style={popupStyles.error}>{k('loadError')}</Text>}
       </>
     );
   } else if (view === VIEW.DENUNCIAS) {
     const count = (type) => Object.values(selected).filter((s) => s.type === type || (type === 'TRAINER' && s.type.startsWith('TRAINER'))).length;
     body = (
-      <>
+      <View style={popupStyles.stack}>
         {[
           [CATEGORY.TRAINER, ctx.trainersPresent.length, count('TRAINER')],
           [CATEGORY.MACHINE, ctx.machines.length, count('MACHINE_BROKEN')],
           [CATEGORY.MEMBER, ctx.members.length, count('MEMBER_MISCONDUCT')],
         ].map(([cat, available, picked]) => (
-          <TouchableOpacity
+          <SoftCard
             key={cat}
-            style={[styles.categoryRow, available === 0 && styles.disabled]}
-            disabled={available === 0}
-            onPress={() => {
-              setCategory(cat);
-              setView(VIEW.CATEGORY);
-            }}
+            style={[popupStyles.gapSm, available === 0 && styles.disabled]}
+            onPress={
+              available === 0
+                ? undefined
+                : () => {
+                    setCategory(cat);
+                    setView(VIEW.CATEGORY);
+                  }
+            }
           >
             <Text style={styles.categoryText}>{k(`category.${cat}`)}</Text>
-            <Text style={styles.categoryCount}>{picked > 0 ? `✓ ${picked}` : '›'}</Text>
-          </TouchableOpacity>
+            {picked > 0 ? (
+              <View style={popupStyles.row}>
+                <CheckIcon size={14} />
+                <Text style={styles.categoryCount}>{picked}</Text>
+              </View>
+            ) : (
+              <ChevronRightIcon size={18} />
+            )}
+          </SoftCard>
         ))}
-        <Text style={styles.hint}>{k('denunciasHint')}</Text>
-      </>
+      </View>
     );
   } else {
     body = (
-      <ScrollView style={styles.list}>
+      <View style={[popupStyles.stack, popupStyles.gapMd]}>
         {category === CATEGORY.TRAINER &&
           ctx.trainersPresent.map((tr) => (
             <View key={tr.id} style={styles.trainerBlock}>
               <Text style={styles.name}>{tr.name}</Text>
-              <Check
+              <CheckRow
                 label={k('trainerMisconduct')}
                 checked={Boolean(selected[denunciaKey('TRAINER_MISCONDUCT', tr.id)])}
                 onPress={() => toggleDenuncia('TRAINER_MISCONDUCT', 'reportedUserId', tr.id)}
               />
-              <Check
+              <CheckRow
                 label={k('trainerFalseHelp')}
                 checked={Boolean(selected[denunciaKey('TRAINER_FALSE_HELP', tr.id)])}
                 onPress={() => toggleDenuncia('TRAINER_FALSE_HELP', 'reportedUserId', tr.id)}
@@ -204,7 +235,7 @@ export default function CheckoutPopup({ sessionId, onClose }) {
           ))}
         {category === CATEGORY.MACHINE &&
           ctx.machines.map((m) => (
-            <Check
+            <CheckRow
               key={m.id}
               label={m.zone ? `${m.name} (${m.zone})` : m.name}
               checked={Boolean(selected[denunciaKey('MACHINE_BROKEN', m.id)])}
@@ -213,89 +244,56 @@ export default function CheckoutPopup({ sessionId, onClose }) {
           ))}
         {category === CATEGORY.MEMBER &&
           ctx.members.map((m) => (
-            <Check
+            <CheckRow
               key={m.id}
               label={m.name}
               checked={Boolean(selected[denunciaKey('MEMBER_MISCONDUCT', m.id)])}
               onPress={() => toggleDenuncia('MEMBER_MISCONDUCT', 'reportedUserId', m.id)}
             />
           ))}
-      </ScrollView>
+      </View>
     );
   }
 
+  const showHeader = !sent && !(!ctx && !loadFailed);
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <View style={styles.header}>
-            {view !== VIEW.MAIN && !sent ? (
-              <TouchableOpacity onPress={goBack} hitSlop={12} style={styles.backX}>
-                <Text style={styles.headerIcon}>‹</Text>
-              </TouchableOpacity>
-            ) : null}
-            <Text style={styles.headerText}>{titles[view]}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel={k('close')} style={styles.closeX}>
-              <Text style={styles.headerIcon}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.body}>
-            {body}
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-
-          {!sent && (
-            <View style={styles.footer}>
-              {view === VIEW.MAIN ? (
-                <TouchableOpacity style={styles.button} onPress={send} disabled={sending} activeOpacity={0.8}>
-                  {sending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>{k('send')}</Text>}
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.button} onPress={goBack} activeOpacity={0.8}>
-                  <Text style={styles.buttonText}>{k('done')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+    <PopupModal
+      onClose={onClose}
+      closeLabel={k('close')}
+      onBack={view !== VIEW.MAIN && !sent ? goBack : undefined}
+      backLabel={k('back')}
+    >
+      {showHeader && (
+        <View style={popupStyles.stack}>
+          <Title align="left" style={view !== VIEW.MAIN ? styles.titleSub : null}>
+            {titles[view]}
+          </Title>
+          {subtitles[view] ? <Subtitle align="left">{subtitles[view]}</Subtitle> : null}
         </View>
-      </View>
-    </Modal>
+      )}
+      <View style={popupStyles.stack}>{body}</View>
+      {error ? <Text style={popupStyles.error}>{error}</Text> : null}
+      {!sent && (ctx || loadFailed) ? (
+        <PrimaryButton
+          label={view === VIEW.MAIN ? k('send') : k('done')}
+          onPress={view === VIEW.MAIN ? send : goBack}
+          loading={sending}
+          style={popupStyles.gapLg}
+        />
+      ) : null}
+    </PopupModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: globals.spacing.md },
-  card: { width: '100%', maxWidth: 380, maxHeight: '90%', backgroundColor: globals.colors.background, borderRadius: globals.radius.sm, overflow: 'hidden' },
-  header: { backgroundColor: globals.colors.primary, paddingVertical: globals.spacing.md, paddingHorizontal: 40, alignItems: 'center', justifyContent: 'center' },
-  headerText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  headerIcon: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  closeX: { position: 'absolute', top: 10, right: 12 },
-  backX: { position: 'absolute', top: 8, left: 12 },
-  body: { paddingVertical: globals.spacing.lg, paddingHorizontal: globals.spacing.lg, alignItems: 'stretch' },
-  footer: { paddingHorizontal: globals.spacing.lg, paddingBottom: globals.spacing.lg },
-  label: { color: globals.colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: globals.spacing.sm },
-  gap: { marginTop: globals.spacing.lg },
-  starsRow: { flexDirection: 'row', justifyContent: 'center' },
-  star: { color: globals.colors.border, marginHorizontal: 3 },
-  starOn: { color: globals.colors.primary },
-  trainerBlock: { marginBottom: globals.spacing.md },
-  name: { color: globals.colors.text, fontSize: 13, textAlign: 'center', marginBottom: 4 },
-  denunciasButton: { marginTop: globals.spacing.lg, paddingVertical: 10, borderRadius: globals.radius.sm, borderWidth: 1, borderColor: globals.colors.danger, alignItems: 'center' },
-  denunciasButtonText: { color: globals.colors.danger, fontWeight: '700', fontSize: 13 },
-  categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: globals.colors.border },
-  categoryText: { color: globals.colors.text, fontSize: 14 },
-  categoryCount: { color: globals.colors.primary, fontWeight: '700', fontSize: 14 },
+  loader: { marginVertical: 30 },
+  titleSub: { marginLeft: 26 },
+  rateCard: { flexDirection: 'column', alignItems: 'center', paddingVertical: 14 },
+  label: { color: globals.colors.text, fontSize: 12, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  name: { color: globals.colors.text, fontSize: 13, fontWeight: '800' },
+  denunciasLink: { color: globals.colors.danger, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 18 },
+  categoryText: { flex: 1, color: globals.colors.text, fontSize: 13, fontWeight: '700', paddingRight: 8 },
+  categoryCount: { color: globals.colors.primary, fontWeight: '800', fontSize: 13, marginLeft: 4 },
   disabled: { opacity: 0.4 },
-  hint: { marginTop: globals.spacing.md, color: globals.colors.textMuted, fontSize: 11, textAlign: 'center' },
-  list: { maxHeight: 320 },
-  checkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  box: { width: 20, height: 20, borderWidth: 1, borderColor: globals.colors.border, borderRadius: 4, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
-  boxOn: { backgroundColor: globals.colors.primary, borderColor: globals.colors.primary },
-  tick: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  checkLabel: { color: globals.colors.text, fontSize: 13, flex: 1 },
-  button: { backgroundColor: globals.colors.primary, paddingVertical: 12, borderRadius: globals.radius.sm, alignItems: 'center' },
-  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  bigNote: { color: globals.colors.primary, fontSize: globals.fontSize.lg, fontWeight: '700', textAlign: 'center' },
-  errorText: { color: globals.colors.danger, fontSize: 12, textAlign: 'center', marginTop: globals.spacing.sm },
+  trainerBlock: { marginBottom: 10 },
 });

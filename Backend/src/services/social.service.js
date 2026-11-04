@@ -121,7 +121,7 @@ function assertParticipant(challenge, userId) {
 }
 
 /** Client-facing view of a challenge, from one participant's point of view. */
-export function shapeChallenge(challenge, userId, now = Date.now()) {
+export function shapeChallenge(challenge, userId, now = Date.now(), partner = null) {
   const paired = challenge.status === "ACCEPTED";
   return {
     id: challenge.id,
@@ -133,7 +133,64 @@ export function shapeChallenge(challenge, userId, now = Date.now()) {
     // Remaining time relative to the server clock; clients count down from
     // "now" so a wrong phone clock can't make a pop-up open or close early.
     ttlMs: challenge.expiresAt ? Math.max(0, new Date(challenge.expiresAt).getTime() - now) : 0,
+    // Who is on the other side (only sent once paired, see loadPartnerCard).
+    ...(partner ? { partner } : {}),
   };
+}
+
+const AGE_BUCKET_YEARS = 5;
+
+/** "25 - 29" style bucket instead of the exact age (privacy). */
+export function ageBucket(birthday, now = new Date()) {
+  const age = calculateAge(birthday, now);
+  if (age == null || age < 0) return null;
+  const from = Math.floor(age / AGE_BUCKET_YEARS) * AGE_BUCKET_YEARS;
+  return { from, to: from + AGE_BUCKET_YEARS - 1 };
+}
+
+/**
+ * What the pop-up shows about the person you were paired with: first name, the
+ * machine they are using right now, and a small public profile. Sent ONLY to
+ * the two participants and only after both said Yes, inside the `paired` event
+ * / the respond answer / GET /social/state — so it costs no extra request.
+ * Best-effort: any failure just means the pop-up shows less.
+ */
+export async function loadPartnerCard(challenge, userId) {
+  try {
+    const partnerId = otherParticipant(challenge, userId);
+    const p = await prisma.user.findUnique({
+      where: { id: partnerId },
+      select: {
+        firstName: true,
+        birthday: true,
+        trainingLevel: true,
+        trainingType: true,
+        objectives: true,
+        settings: { select: { machineTrackingOptOut: true } },
+        machineUsages: {
+          where: { endedAt: null, startedAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) } },
+          orderBy: { startedAt: "desc" },
+          take: 1,
+          select: { machine: { select: { name: true } } },
+        },
+        _count: { select: { achievements: true } },
+      },
+    });
+    if (!p) return null;
+    const trackingOff = Boolean(p.settings?.machineTrackingOptOut);
+    return {
+      name: p.firstName ?? "",
+      machine: trackingOff ? null : p.machineUsages?.[0]?.machine?.name ?? null,
+      level: p.trainingLevel ?? null,
+      interests: p.trainingType ? [p.trainingType] : [],
+      goals: p.objectives ?? [],
+      achievements: p._count?.achievements ?? 0,
+      ageRange: ageBucket(p.birthday),
+    };
+  } catch (err) {
+    logger.warn(`[social] Could not load partner card: ${err.message}`);
+    return null;
+  }
 }
 
 // ── redis guard: only one matching round per interval ────────────────────
@@ -433,17 +490,20 @@ export async function respondToChallenge(userId, challengeId, accept) {
     current = await prisma.socialChallenge.findUnique({ where: { id: challengeId } });
 
     if (paired?.count) {
+      const ids = [current.userId, current.partnerUserId];
+      const cards = await Promise.all(ids.map((id) => loadPartnerCard(current, id)));
       await publishToUsers(
-        [current.userId, current.partnerUserId].map((id) => ({
+        ids.map((id, i) => ({
           userId: id,
           event: "paired",
-          data: shapeChallenge(current, id),
+          data: shapeChallenge(current, id, Date.now(), cards[i]),
         }))
       );
     }
   }
 
-  return shapeChallenge(current, userId);
+  const card = current.status === "ACCEPTED" ? await loadPartnerCard(current, userId) : null;
+  return shapeChallenge(current, userId, Date.now(), card);
 }
 
 // ── cancelling ───────────────────────────────────────────────────────────
@@ -551,8 +611,65 @@ export async function getSocialState(userId) {
     inGym: Boolean(session),
     disabled: Boolean(settings?.disableSocial),
     roundIntervalMs: cfg.roundIntervalMs,
-    challenge: challenge ? shapeChallenge(challenge, userId, now.getTime()) : null,
+    challenge: challenge
+      ? shapeChallenge(
+          challenge,
+          userId,
+          now.getTime(),
+          challenge.status === "ACCEPTED" ? await loadPartnerCard(challenge, userId) : null
+        )
+      : null,
   };
+}
+
+// ── feedback after completing ────────────────────────────────────────────
+
+/**
+ * "¿Cómo fue tu experiencia?" after a completed interaction: optional 1-5
+ * stars, optional thumbs up/down and an optional report of the other person.
+ * One feedback per person per interaction (a repeat is ignored). A report is
+ * stored as a regular MEMBER_MISCONDUCT denuncia, so admins see it with the
+ * ones that come from the exit pop-up.
+ */
+export async function submitFeedback(userId, challengeId, { rating, liked, report } = {}) {
+  const challenge = await prisma.socialChallenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) throw new AppError("Challenge not found", 404);
+  assertParticipant(challenge, userId);
+  if (challenge.status !== "COMPLETED") {
+    throw new AppError("Only completed interactions can be rated", 400);
+  }
+
+  try {
+    await prisma.socialFeedback.create({
+      data: {
+        challengeId,
+        userId,
+        rating: rating ?? null,
+        liked: liked ?? null,
+        reported: Boolean(report),
+      },
+    });
+  } catch (err) {
+    if (err?.code === "P2002") return { saved: false }; // already sent once
+    throw err;
+  }
+
+  if (report) {
+    try {
+      await prisma.denuncia.create({
+        data: {
+          reporterId: userId,
+          type: "MEMBER_MISCONDUCT",
+          reportedUserId: otherParticipant(challenge, userId),
+          comment: `Social interaction ${challengeId}`,
+        },
+      });
+    } catch (err) {
+      logger.error(`[social] Failed to store the report: ${err.message}`);
+    }
+  }
+
+  return { saved: true };
 }
 
 /** Ably TokenRequest for this user (clientId = userId, see realtime/ably.js). */

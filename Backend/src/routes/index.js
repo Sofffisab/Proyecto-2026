@@ -239,6 +239,7 @@ router.get("/social/ably-token",         authorize(["USER"]), socialController.g
 router.post("/social/tick",              authorize(["USER"]), socialController.tick);
 router.post("/social/:id/respond",       authorize(["USER"]), validateSchema(socialSchemas.respondSocialSchema), socialController.respond);
 router.post("/social/:id/cancel",        authorize(["USER"]), socialController.cancel);
+router.post("/social/:id/feedback",      authorize(["USER"]), validateSchema(socialSchemas.feedbackSocialSchema), socialController.feedback);
 
 // ASSISTANCE ROUTES
 router.post("/assistance/request",          assistanceController.request);

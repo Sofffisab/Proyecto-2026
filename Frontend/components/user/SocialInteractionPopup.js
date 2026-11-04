@@ -1,29 +1,49 @@
 // src/components/user/SocialInteractionPopup.js
 //
-// The "¿Querés hacer un amigo?" pop-ups. Purely presentational: it renders
-// the `view` that social/SocialContext.js keeps (see social/socialReducer.js
-// for the phases) and reports what the person pressed.
+// The "¿Querés hacer un amigo en el gimnasio?" pop-ups. Purely presentational:
+// it renders the `view` that social/SocialContext.js keeps (see
+// social/socialReducer.js for the phases) and reports what the person pressed.
 //
-//   ASK / ASK_ACCEPTED  "¿Querés hacer un amigo?"  [Sí] [No]  "súper divertido!"
-//                       after Sí the button turns green and says
-//                       "te notificaremos cuando te encontremos un amigo"
-//   SCAN / CAMERA       "tu amigo te espera! escaneá su QR…"   [ir a cámara]
-//   QR                  "tu amigo te espera! dejá que escanee tu QR…"  <QR>
-//   DONE / CANCELLED / EXPIRED / ERROR   short result message
+//   ASK / (ASK_ACCEPTED)  invitation            [Sí, quiero] [Ahora no]
+//   ASK_ACCEPTED          "Buscando un amigo…" spinner (5 s, then it closes)
+//   SCAN / QR             "¡Encontramos a tu amigo!" + friend card (tap → profile)
+//                         [Escanear QR] -> camera      [Mostrar QR] -> my QR
+//   CAMERA                camera, scanning their QR
+//   DONE                  "¿Cómo fue tu experiencia?"  stars / 👍👎 / Denunciar
+//   CANCELLED / EXPIRED / ERROR   short result message
 //
-// The QR is the person's own signed QR (GET /qr/me), fetched once when this
-// pop-up opens. The camera is the app's normal QRScanner.
+// The QR is the person's own signed QR (GET /qr/me), fetched once when it is
+// shown. The camera is the app's normal QRScanner. Look & feel: PopupKit.js
+// (shared with the exit pop-up).
 
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as qrApi from '../../features/api/services/qr.api';
 import QRScanner from '../common/QRScanner';
 import { PHASE, isVisible, PAIRING_PHASES } from '../../social/socialReducer';
+import {
+  PopupModal,
+  Hero,
+  HERO,
+  SoftCircle,
+  Spinner,
+  Title,
+  Subtitle,
+  PrimaryButton,
+  OutlineButton,
+  SoftCard,
+  Avatar,
+  ChevronRightIcon,
+  Stars,
+  ThumbButton,
+  FlagIcon,
+  popupStyles,
+} from '../common/PopupKit';
 
-const GREEN = '#1F9D3A';
+const { colors } = globals;
 
 const formatTime = (ms) => {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -44,55 +64,89 @@ function useTimeLeft(deadline, enabled) {
   return Math.max(0, (deadline ?? 0) - now);
 }
 
-function Header({ lines, onClose, closeLabel }) {
-  return (
-    <View style={styles.header}>
-      <View style={styles.headerTexts}>
-        {lines.map((line, idx) => (
-          <Text key={idx} style={styles.headerText}>
-            {line}
-          </Text>
-        ))}
-      </View>
-      <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel={closeLabel} style={styles.closeX}>
-        <Text style={styles.closeXText}>✕</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
+/** "¿Cómo fue tu experiencia?" — everything optional. */
+function FeedbackCard({ view, name, tk, onSend, onClose }) {
+  const [rating, setRating] = useState(0);
+  const [liked, setLiked] = useState(null); // true | false | null
+  const [report, setReport] = useState(false);
 
-function PopupButton({ label, onPress, green, disabled }) {
   return (
-    <TouchableOpacity
-      style={[styles.button, green && styles.buttonGreen]}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.8}
-    >
-      <Text style={styles.buttonText}>{label}</Text>
-    </TouchableOpacity>
+    <PopupModal onClose={onClose} closeLabel={tk('close')}>
+      {view.points > 0 ? (
+        <View style={styles.pointsPill}>
+          <Text style={styles.pointsText}>{tk('donePoints', { points: view.points })}</Text>
+        </View>
+      ) : null}
+      <Title align="left">{tk('feedbackTitle')}</Title>
+      <Subtitle align="left">{tk('feedbackBody', { name })}</Subtitle>
+
+      <SoftCard style={[popupStyles.gapMd, styles.feedbackBox]}>
+        <View style={popupStyles.row}>
+          <Avatar />
+          <Text style={[styles.friendName, { marginLeft: 10 }]}>{name}</Text>
+        </View>
+
+        <View style={styles.starsWrap}>
+          <Stars value={rating} onChange={setRating} size={28} />
+          <Text style={[popupStyles.muted, styles.optional]}>{tk('optional')}</Text>
+        </View>
+
+        <View style={styles.thumbsRow}>
+          <ThumbButton up selected={liked === true} onPress={() => setLiked(liked === true ? null : true)} label={tk('like')} />
+          <View style={{ width: 14 }} />
+          <ThumbButton selected={liked === false} onPress={() => setLiked(liked === false ? null : false)} label={tk('dislike')} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.reportWrap}
+          onPress={() => setReport((r) => !r)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ selected: report }}
+        >
+          <FlagIcon size={16} color={colors.danger} fill={report ? colors.danger : 'none'} />
+          <Text style={styles.reportText}>{report ? tk('reported') : tk('report')}</Text>
+        </TouchableOpacity>
+      </SoftCard>
+
+      <PrimaryButton
+        label={tk('send')}
+        onPress={() => onSend?.({ rating, liked, report })}
+        style={popupStyles.gapMd}
+      />
+    </PopupModal>
   );
 }
 
 /**
- * @param {object|null} view  current pop-up state ({ id, phase, deadline, points, scanError })
- * @param {function} onAccept     "Sí"
- * @param {function} onDecline    "No" or the X (cancels whatever is in progress)
- * @param {function} onOpenCamera "ir a cámara"
+ * @param {object|null} view  current pop-up state ({ id, phase, deadline, points, scanError, partner })
+ * @param {function} onAccept     "Sí, quiero"
+ * @param {function} onDecline    "Ahora no" or the ✕ (cancels whatever is in progress)
+ * @param {function} onOpenCamera "Escanear QR"
  * @param {function} onScanned    (rawQrString) => void
+ * @param {function} onFeedback   ({ rating, liked, report }) => void — closes the pop-up
  */
-export default function SocialInteractionPopup({ view, onAccept, onDecline, onOpenCamera, onScanned }) {
+export default function SocialInteractionPopup({ view, onAccept, onDecline, onOpenCamera, onScanned, onFeedback }) {
   const { t } = useTranslation();
-  const key = (name, params) => t(`user.popups.socialInteraction.${name}`, params);
+  const tk = (name, params) => t(`user.popups.socialInteraction.${name}`, params);
 
   const phase = view?.phase;
   const pairing = PAIRING_PHASES.includes(phase);
   const timeLeft = useTimeLeft(view?.deadline, pairing);
 
+  // Sub-screens of the pairing stage (kept here: they are pure presentation).
+  const [showQr, setShowQr] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  useEffect(() => {
+    setShowQr(false);
+    setShowProfile(false);
+  }, [view?.id]);
+
   // Own QR, requested only when this person is the one who shows it.
   const [qrPayload, setQrPayload] = useState(null);
+  const qrVisible = phase === PHASE.QR && showQr;
   useEffect(() => {
-    if (phase !== PHASE.QR) return undefined;
+    if (!qrVisible) return undefined;
     let cancelled = false;
     qrApi
       .getMyQR()
@@ -105,218 +159,199 @@ export default function SocialInteractionPopup({ view, onAccept, onDecline, onOp
     return () => {
       cancelled = true;
     };
-  }, [phase, view?.id]);
+  }, [qrVisible, view?.id]);
 
   if (!isVisible(view)) return null;
 
   const close = onDecline;
-  let content = null;
+  const closeLabel = tk('close');
+  const partner = view.partner ?? null;
+  const name = partner?.name || tk('friendFallback');
+  const timer = <Text style={[popupStyles.muted, styles.timer]}>{tk('timeLeft', { time: formatTime(timeLeft) })}</Text>;
 
-  if (phase === PHASE.ASK || phase === PHASE.ASK_ACCEPTED) {
-    const accepted = phase === PHASE.ASK_ACCEPTED;
-    content = (
-      <>
-        <Header lines={[key('question')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          <View style={styles.buttonRow}>
-            <PopupButton label={key('yes')} onPress={onAccept} green={accepted} disabled={accepted} />
-            <PopupButton label={key('no')} onPress={onDecline} disabled={accepted} />
-          </View>
-          <Text style={styles.note}>{accepted ? key('willNotify') : key('fun')}</Text>
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.SCAN) {
-    content = (
-      <>
-        <Header lines={[key('friendWaits'), key('scanHeader')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          {view.scanError ? <Text style={styles.errorText}>{key('wrongQr')}</Text> : null}
-          <PopupButton label={key('goToCamera')} onPress={onOpenCamera} />
-          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.CAMERA) {
-    content = (
-      <>
-        <Header lines={[key('friendWaits'), key('scanHeader')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          <View style={styles.cameraBox}>
-            <QRScanner onScanned={onScanned} />
-          </View>
-          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.QR) {
-    content = (
-      <>
-        <Header lines={[key('friendWaits'), key('showHeader')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          <View style={styles.qrBox}>
-            {qrPayload ? (
-              <QRCode value={qrPayload} size={190} />
-            ) : (
-              <ActivityIndicator color={globals.colors.primary} />
-            )}
-          </View>
-          <Text style={styles.timer}>{key('timeLeft', { time: formatTime(timeLeft) })}</Text>
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.DONE) {
-    content = (
-      <>
-        <Header lines={[key('doneTitle')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          {view.points > 0 ? <Text style={styles.bigNote}>{key('donePoints', { points: view.points })}</Text> : null}
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.CANCELLED) {
-    content = (
-      <>
-        <Header lines={[key('cancelledTitle')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          {view.points > 0 ? (
-            <Text style={styles.note}>{key('cancelledPoints', { points: view.points })}</Text>
-          ) : null}
-        </View>
-      </>
-    );
-  } else if (phase === PHASE.EXPIRED) {
-    content = (
-      <>
-        <Header lines={[key('expiredTitle')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body}>
-          <Text style={styles.note}>{key('expiredBody')}</Text>
-        </View>
-      </>
-    );
-  } else {
-    content = (
-      <>
-        <Header lines={[key('error')]} onClose={close} closeLabel={key('close')} />
-        <View style={styles.body} />
-      </>
+  // ── invitation ──────────────────────────────────────────────────────
+  if (phase === PHASE.ASK) {
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel}>
+        <Hero source={HERO.friend} />
+        <Title>{tk('question')}</Title>
+        <Subtitle>{tk('questionBody')}</Subtitle>
+        <PrimaryButton label={tk('yes')} onPress={onAccept} style={popupStyles.gapLg} />
+        <OutlineButton label={tk('no')} onPress={onDecline} style={popupStyles.gapSm} />
+      </PopupModal>
     );
   }
 
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={close}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>{content}</View>
+  // ── "Buscando un amigo…" (5 s after pressing Sí) ────────────────────
+  if (phase === PHASE.ASK_ACCEPTED) {
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel}>
+        <SoftCircle>
+          <Spinner />
+        </SoftCircle>
+        <Title>{tk('searching')}</Title>
+        <Subtitle>{tk('searchingBody')}</Subtitle>
+      </PopupModal>
+    );
+  }
+
+  // ── friend profile (tap on the friend card) ─────────────────────────
+  if (pairing && showProfile && phase !== PHASE.CAMERA) {
+    const interests = [
+      ...(partner?.interests ?? []).map((k) => tk(`interest.${k}`)),
+      ...(partner?.level ? [tk(`level.${partner.level}`)] : []),
+    ];
+    const goals = [
+      ...(partner?.goals ?? []).map((k) => tk(`goal.${k}`)),
+      ...(partner?.achievements > 0 ? [tk(partner.achievements === 1 ? 'achievementsOne' : 'achievementsMany', { count: partner.achievements })] : []),
+    ];
+    const range = partner?.ageRange ? tk('ageRangeValue', partner.ageRange) : null;
+    const Section = ({ label, value }) => (
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{label}</Text>
+        <Text style={styles.sectionValue}>{value || tk('noInfo')}</Text>
       </View>
-    </Modal>
+    );
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel} onBack={() => setShowProfile(false)} backLabel={tk('back')}>
+        <View style={styles.profileHead}>
+          <Avatar size={38} />
+          <Text style={styles.profileName}>{name}</Text>
+        </View>
+        <Section label={tk('interests')} value={interests.join(' · ')} />
+        <Section label={tk('goalsAndAchievements')} value={goals.join(' · ')} />
+        <Section label={tk('ageRange')} value={range} />
+      </PopupModal>
+    );
+  }
+
+  // ── "¡Encontramos a tu amigo!" ──────────────────────────────────────
+  if ((phase === PHASE.SCAN || (phase === PHASE.QR && !showQr))) {
+    const isQr = phase === PHASE.QR;
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel}>
+        <Hero source={HERO.found} width={92} height={50} />
+        <Title>{tk('found')}</Title>
+        {view.scanError ? <Text style={popupStyles.error}>{tk('wrongQr')}</Text> : null}
+        <SoftCard onPress={() => setShowProfile(true)} style={popupStyles.gapMd}>
+          <Avatar />
+          <View style={styles.friendText}>
+            <Text style={styles.friendName}>{name}</Text>
+            <Text style={styles.friendLine}>
+              {partner?.machine ? tk('trainingAt') : tk('inGym')}
+            </Text>
+            {partner?.machine ? <Text style={styles.friendMachine}>{partner.machine}</Text> : null}
+          </View>
+          <ChevronRightIcon size={18} />
+        </SoftCard>
+        <PrimaryButton
+          label={isQr ? tk('showQr') : tk('scanQr')}
+          onPress={isQr ? () => setShowQr(true) : onOpenCamera}
+          style={popupStyles.gapMd}
+        />
+        {timer}
+      </PopupModal>
+    );
+  }
+
+  // ── camera ──────────────────────────────────────────────────────────
+  if (phase === PHASE.CAMERA) {
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel}>
+        <Title>{tk('scanTitle')}</Title>
+        <Subtitle>{tk('scanBody', { name })}</Subtitle>
+        <View style={[styles.cameraBox, popupStyles.gapMd]}>
+          <QRScanner onScanned={onScanned} />
+        </View>
+        {timer}
+      </PopupModal>
+    );
+  }
+
+  // ── my QR ───────────────────────────────────────────────────────────
+  if (phase === PHASE.QR) {
+    return (
+      <PopupModal onClose={close} closeLabel={closeLabel} onBack={() => setShowQr(false)} backLabel={tk('back')}>
+        <Title>{tk('showTitle')}</Title>
+        <Subtitle>{tk('showBody', { name })}</Subtitle>
+        <View style={[styles.qrBox, popupStyles.gapMd]}>
+          {qrPayload ? <QRCode value={qrPayload} size={190} /> : <ActivityIndicator color={colors.primary} />}
+        </View>
+        {timer}
+      </PopupModal>
+    );
+  }
+
+  // ── done: "¿Cómo fue tu experiencia?" ───────────────────────────────
+  if (phase === PHASE.DONE) {
+    return (
+      <FeedbackCard
+        view={view}
+        name={name}
+        tk={tk}
+        onClose={() => onFeedback?.(null)}
+        onSend={onFeedback}
+      />
+    );
+  }
+
+  // ── short result messages ───────────────────────────────────────────
+  const message =
+    phase === PHASE.CANCELLED
+      ? [tk('cancelledTitle'), view.points > 0 ? tk('cancelledPoints', { points: view.points }) : null]
+      : phase === PHASE.EXPIRED
+        ? [tk('expiredTitle'), tk('expiredBody')]
+        : [tk('error'), null];
+  return (
+    <PopupModal onClose={close} closeLabel={closeLabel}>
+      <Title>{message[0]}</Title>
+      {message[1] ? <Subtitle>{message[1]}</Subtitle> : null}
+    </PopupModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: globals.spacing.md,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: globals.colors.background,
-    borderRadius: globals.radius.sm,
+  friendText: { flex: 1, marginLeft: 10 },
+  friendName: { color: colors.text, fontSize: 13, fontWeight: '800', marginLeft: 0 },
+  friendLine: { color: colors.textSecondary, fontSize: 10, marginTop: 2 },
+  friendMachine: { color: colors.text, fontSize: 11, fontWeight: '800', marginTop: 2 },
+  timer: { marginTop: 12 },
+  cameraBox: {
+    alignSelf: 'stretch',
+    height: 250,
     overflow: 'hidden',
-  },
-  header: {
-    backgroundColor: globals.colors.primary,
-    paddingVertical: globals.spacing.md,
-    paddingHorizontal: globals.spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTexts: {
-    alignItems: 'center',
-  },
-  headerText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  closeX: {
-    position: 'absolute',
-    top: 8,
-    right: 10,
-  },
-  closeXText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  body: {
-    paddingVertical: globals.spacing.lg,
-    paddingHorizontal: globals.spacing.lg,
-    alignItems: 'center',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    backgroundColor: globals.colors.primary,
-    paddingVertical: 12,
-    borderRadius: globals.radius.sm,
-    alignItems: 'center',
-    marginHorizontal: 6,
-    minWidth: 110,
-  },
-  buttonGreen: {
-    backgroundColor: GREEN,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  note: {
-    marginTop: globals.spacing.md,
-    color: globals.colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  bigNote: {
-    color: globals.colors.primary,
-    fontSize: globals.fontSize.lg,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  errorText: {
-    color: globals.colors.danger,
-    fontSize: 12,
-    marginBottom: globals.spacing.sm,
-    textAlign: 'center',
-  },
-  timer: {
-    marginTop: globals.spacing.md,
-    color: globals.colors.textMuted,
-    fontSize: 12,
+    borderRadius: 8,
+    backgroundColor: '#000',
   },
   qrBox: {
-    padding: globals.spacing.md,
+    padding: 14,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: 8,
     minHeight: 220,
     minWidth: 220,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraBox: {
-    width: '100%',
-    height: 260,
-    overflow: 'hidden',
-    borderRadius: globals.radius.sm,
-    backgroundColor: '#000',
+  profileHead: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', marginBottom: 18 },
+  profileName: { color: colors.text, fontSize: 15, fontWeight: '800', marginLeft: 10 },
+  section: { alignSelf: 'stretch', marginBottom: 14 },
+  sectionLabel: { color: colors.text, fontSize: 11, fontWeight: '800' },
+  sectionValue: { color: colors.text, fontSize: 11, marginTop: 3, lineHeight: 16 },
+  pointsPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.tealSoft,
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 10,
   },
+  pointsText: { color: colors.primary, fontSize: 11, fontWeight: '800' },
+  feedbackBox: { flexDirection: 'column', alignItems: 'stretch' },
+  starsWrap: { marginTop: 14, alignItems: 'center' },
+  optional: { marginTop: 4 },
+  thumbsRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },
+  reportWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  reportText: { color: colors.danger, fontSize: 11, fontWeight: '700', marginLeft: 6 },
 });

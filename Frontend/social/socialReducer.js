@@ -3,13 +3,16 @@
 // State machine of the social-interaction pop-ups. Pure (no React, no timers,
 // no network) — SocialContext.js feeds it events and owns the timers.
 //
-//   ASK            "¿Querés hacer un amigo?"  Sí / No
-//   ASK_ACCEPTED   Sí pressed: button turns green + "te notificaremos…" (5 s)
+//   ASK            "¿Querés hacer un amigo en el gimnasio?"  Sí, quiero / Ahora no
+//   ASK_ACCEPTED   Sí pressed: "Buscando un amigo…" spinner (5 s)
 //   WAITING        pop-up closed, waiting for the other person's answer
-//   QR             both said Yes, I was first  -> I show my QR
-//   SCAN           both said Yes, I was second -> I get the camera button
+//   QR             both said Yes, I was first  -> "¡Encontramos a tu amigo!" + Mostrar QR
+//   SCAN           both said Yes, I was second -> "¡Encontramos a tu amigo!" + Escanear QR
 //   CAMERA         camera open, scanning their QR (a wrong QR goes back to SCAN)
-//   DONE           scanned correctly: points given, closes
+//   DONE           scanned correctly: points given + "¿Cómo fue tu experiencia?"
+//
+// `view.partner` ({ name, machine, interests, goals, achievements, ageRange })
+// travels with the pairing (see Backend social.service.js#loadPartnerCard).
 //   CANCELLED      the other person closed it (maybe I get reduced points)
 //   EXPIRED        2 minutes passed without scanning: no points
 //   ERROR          something failed talking to the server
@@ -66,6 +69,7 @@ function viewFromChallenge(challenge, now) {
       id: challenge.id,
       phase: challenge.role === 'SHOW_QR' ? PHASE.QR : PHASE.SCAN,
       deadline,
+      partner: challenge.partner ?? null,
     };
   }
   return {
@@ -103,6 +107,7 @@ export function socialReducer(view, action) {
         id: action.id,
         phase: action.role === 'SHOW_QR' ? PHASE.QR : PHASE.SCAN,
         deadline: now + (action.ttlMs ?? 0),
+        partner: action.partner ?? null,
       };
     }
 
@@ -149,6 +154,8 @@ export function socialReducer(view, action) {
       if (challenge.status === 'ACCEPTED' && !PAIRING_PHASES.includes(view.phase)) {
         return viewFromChallenge(challenge, now);
       }
+      // Same challenge, but the partner card only arrived with the sync.
+      if (!view.partner && challenge.partner) return { ...view, partner: challenge.partner };
       return view;
     }
 

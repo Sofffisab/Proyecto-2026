@@ -242,6 +242,7 @@ model User {
   rewardPendingGrants  RewardPendingGrant[]
   socialChallenges     SocialChallenge[]   @relation("ChallengeOwner")
   socialPartners       SocialChallenge[]   @relation("ChallengePartner")
+  socialFeedback       SocialFeedback[]
   socialInteractions   SocialInteraction[] @relation("SocialUser")
   socialTargets        SocialInteraction[] @relation("SocialTarget")
   complaintsCreated    Complaint[]         @relation("ComplaintReporter")
@@ -766,11 +767,30 @@ model SocialChallenge {
 
   user          User @relation("ChallengeOwner",   fields: [userId],        references: [id], onDelete: Cascade)
   partner       User @relation("ChallengePartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  feedback      SocialFeedback[]
 
   @@index([userId])
   @@index([partnerUserId])
   @@index([status])
   @@index([status, expiresAt])
+}
+
+// "¿Cómo fue tu experiencia?" after a completed real-time interaction: one row
+// per person per challenge (services/social.service.js#submitFeedback).
+model SocialFeedback {
+  id          String   @id @default(uuid())
+  challengeId String
+  userId      String
+  rating      Int?     // 1-5 stars, optional
+  liked       Boolean? // thumbs up (true) / down (false), optional
+  reported    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  challenge   SocialChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([userId])
 }
 
 model SocialInteraction {

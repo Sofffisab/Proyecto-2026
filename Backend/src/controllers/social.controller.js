@@ -53,3 +53,13 @@ export async function cancel(req, res, next) {
     next(err);
   }
 }
+
+// POST /social/:id/feedback { rating?, liked?, report? } — "¿Cómo fue tu experiencia?"
+export async function feedback(req, res, next) {
+  try {
+    const data = await socialService.submitFeedback(req.user.id, req.params.id, req.validatedData);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
