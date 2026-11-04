@@ -3,7 +3,8 @@ import { createNotification, sendEmail } from "./communication.service.js";
 import { autoGrantRewards } from "./reward.service.js";
 import { POINTS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
-import { computeUserMetrics } from "./achievementMetrics.service.js";
+import { computeUserMetrics, getWeekVisitsCount } from "./achievementMetrics.service.js";
+import { ACHIEVEMENT_CATALOG } from "../constants/achievementCatalog.js";
 
 export async function addPoints(userId, points, reason) {
   // Points can be negative (penalties, e.g. complaint.service.js#approveComplaint)
@@ -55,7 +56,58 @@ function isAchievementEarned(achievement, totalPoints, metrics) {
 
 // Evaluates every Achievement definition against the user's current stats
 // and unlocks any newly-earned ones (purely personal, no leaderboard)
-export async function checkAndUnlockAchievements(userId) {
+// Creates the catalog rows that don't exist yet (by name), so achievements work
+// even if the database was never seeded or the catalog grew. Once per process.
+let catalogEnsured = false;
+export async function ensureAchievementCatalog() {
+  if (catalogEnsured) return;
+  const existing = (await prisma.achievement.findMany({ select: { name: true } })) || [];
+  const have = new Set(existing.map((row) => row.name));
+  const missing = ACHIEVEMENT_CATALOG.filter((def) => !have.has(def.name));
+  if (missing.length > 0) {
+    await prisma.achievement.createMany({ data: missing });
+  }
+  catalogEnsured = true;
+}
+
+/**
+ * Evaluates (and silently unlocks) achievements the user already qualifies
+ * for. Called when the member opens Logros / Perfil so numbers are always
+ * current, including activity from before a badge existed. No notification or
+ * email is sent (that only happens when the activity itself unlocks it).
+ */
+export async function syncAchievements(userId) {
+  try {
+    await ensureAchievementCatalog();
+    await checkAndUnlockAchievements(userId, { silent: true });
+  } catch (err) {
+    logger.error("[gamification] Failed to sync achievements:", err.message);
+  }
+}
+
+/** Numbers for the Perfil header + Logros, in ONE request. */
+export async function getSummary(userId) {
+  await syncAchievements(userId);
+  const [points, achievements, metrics, weekVisits, profile] = await Promise.all([
+    prisma.pointTransaction.aggregate({ where: { userId }, _sum: { points: true } }),
+    prisma.userAchievement.count({ where: { userId } }),
+    computeUserMetrics(userId),
+    getWeekVisitsCount(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { objectives: true, weeklyTrainingDays: true } }),
+  ]);
+  return {
+    totalPoints: points?._sum?.points ?? 0,
+    achievementsCount: achievements ?? 0,
+    gymVisits: metrics.GYM_VISITS ?? 0,
+    streakDays: metrics.STREAK_DAYS ?? 0,
+    weekVisits,
+    // GET /users/me strips these for members, so Logros reads them here.
+    objectives: profile?.objectives ?? [],
+    weeklyTrainingDays: profile?.weeklyTrainingDays ?? null,
+  };
+}
+
+export async function checkAndUnlockAchievements(userId, { silent = false } = {}) {
   const agg = await prisma.pointTransaction.aggregate({
     where: { userId },
     _sum: { points: true },
@@ -100,7 +152,7 @@ export async function checkAndUnlockAchievements(userId) {
       return true;
     });
 
-    if (!unlocked) continue;
+    if (!unlocked || silent) continue;
 
     // Notify user (non-blocking)
     const user = await prisma.user.findUnique({

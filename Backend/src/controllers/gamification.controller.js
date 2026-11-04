@@ -15,6 +15,7 @@ export async function getUserPoints(req, res, next) {
 // GET /gamification/badges  (routes calls this name)
 export async function getUserBadges(req, res, next) {
   try {
+    await gamificationService.syncAchievements(req.user.id);
     const data = await gamificationService.getAchievements(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
@@ -90,3 +91,13 @@ export async function resolveReviewRequest(req, res, next) {
   }
 }
 
+
+// GET /gamification/summary — points, achievements, visits, streak and this week's visits
+export async function getSummary(req, res, next) {
+  try {
+    const data = await gamificationService.getSummary(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}

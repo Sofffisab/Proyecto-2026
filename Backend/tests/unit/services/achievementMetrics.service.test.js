@@ -80,6 +80,9 @@ describe("achievementMetrics.service", () => {
       prisma.gymSession.findMany.mockResolvedValue([]);
       prisma.socialInteraction.count.mockResolvedValue(2);
       prisma.machineUsage.count.mockResolvedValue(9);
+      prisma.gymSession.count.mockResolvedValue(12);
+      prisma.machineUsage.findMany.mockResolvedValue([{ machineId: "a" }, { machineId: "b" }]);
+      prisma.assistance.count.mockResolvedValue(3);
 
       const result = await metrics.computeUserMetrics("user-1", new Date("2026-07-07T12:00:00Z"));
 
@@ -89,7 +92,22 @@ describe("achievementMetrics.service", () => {
         STREAK_MONTHS: 0,
         SOCIAL_INTERACTIONS: 2,
         MACHINE_USES: 9,
+        GYM_VISITS: 12,
+        MACHINES_TRIED: 2,
+        TRAINER_ASSISTANCES: 3,
       });
+    });
+  });
+
+  describe("getWeekVisitsCount", () => {
+    it("counts distinct visit days this week", async () => {
+      const now = new Date(2026, 6, 8, 12); // Wednesday
+      prisma.gymSession.findMany.mockResolvedValue([
+        { checkInAt: new Date(2026, 6, 6, 9) },
+        { checkInAt: new Date(2026, 6, 6, 18) },
+        { checkInAt: new Date(2026, 6, 8, 9) },
+      ]);
+      expect(await metrics.getWeekVisitsCount("user-1", now)).toBe(2);
     });
   });
 });

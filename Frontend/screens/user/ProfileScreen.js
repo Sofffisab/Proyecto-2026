@@ -155,13 +155,21 @@ export default function ProfileScreen({
   // focus (e.g. coming back from Routines after a machine scan awarded
   // points), not just on first mount.
   const [points, setPoints] = useState(0);
+  const [stats, setStats] = useState({ gymVisits: 0, streakDays: 0, achievementsCount: 0 });
   const [pointsLoading, setPointsLoading] = useState(true);
 
   const loadPoints = useCallback(async () => {
     try {
       setPointsLoading(true);
-      const { data } = await gamificationApi.getPoints();
+      // One request: points, achievements, visits and streak (the same
+      // numbers the Logros screen shows).
+      const { data } = await gamificationApi.getSummary();
       setPoints(data?.totalPoints ?? 0);
+      setStats({
+        gymVisits: data?.gymVisits ?? 0,
+        streakDays: data?.streakDays ?? 0,
+        achievementsCount: data?.achievementsCount ?? 0,
+      });
     } catch {
       // Best-effort: keep the last known value on screen instead of
       // blocking the whole Home screen over a transient network error.
@@ -261,15 +269,15 @@ export default function ProfileScreen({
         {/* ---------------- STATS ---------------- */}
         <View style={styles.final}>
           <View style={styles.d1}>
-            <Text style={styles.d1Number}>{pointsLoading ? '…' : '28'}</Text>
+            <Text style={styles.d1Number}>{pointsLoading ? '…' : stats.gymVisits}</Text>
             <Text style={styles.texto}>{t('user.home.trainingsCompleted')}</Text>
           </View>
           <View style={styles.d1}>
-            <Text style={styles.d1Number}>14</Text>
+            <Text style={styles.d1Number}>{pointsLoading ? '…' : stats.streakDays}</Text>
             <Text style={styles.texto}>{t('user.home.currentStreak')}</Text>
           </View>
           <View style={styles.d1}>
-            <Text style={styles.d1Number}>6</Text>
+            <Text style={styles.d1Number}>{pointsLoading ? '…' : stats.achievementsCount}</Text>
             <Text style={styles.texto}>{t('user.home.achievementsObtained')}</Text>
           </View>
           <View style={styles.d1}>

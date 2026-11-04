@@ -23,6 +23,13 @@ export function getBadges() {
   return apiClient.get('/gamification/badges');
 }
 
+// GET /gamification/summary — { totalPoints, achievementsCount, gymVisits,
+// streakDays, weekVisits }: the numbers of Perfil + Logros in one request.
+// It also (silently) unlocks achievements the member already qualifies for.
+export function getSummary() {
+  return apiClient.get('/gamification/summary');
+}
+
 // POST /gamification/review-request — body validated against
 // Backend/src/validators/progress.schemas.js#pointReviewRequestSchema.
 // Used from the points-related "denuncia" flow (spec: pop-up de Denuncias

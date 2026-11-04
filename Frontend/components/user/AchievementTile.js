@@ -13,6 +13,7 @@ export const ACHIEVEMENT_ICONS = {
   CONSISTENCY: require('../../src/assets/Vector (7).png'),
   SOCIAL: require('../../src/assets/a.png'),
   MACHINE: require('../../src/assets/circum_dumbbell.png'),
+  TRAINER: require('../../src/assets/Group 87.png'),
   POINTS: require('../../src/assets/Vector (8).png'),
 };
 

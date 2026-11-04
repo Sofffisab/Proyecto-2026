@@ -509,7 +509,15 @@
         "MOBILITY": "Mobility",
         "NONE": "Goal",
         "OTHER": "Goal"
-      }
+      },
+      "objective": {
+        "LOSE_WEIGHT": "Lose weight",
+        "GAIN_MUSCLE": "Gain muscle",
+        "IMPROVE_HEALTH": "Improve health",
+        "INCREASE_ENDURANCE": "Increase endurance"
+      },
+      "weeklyProgress": "{{current}} of {{target}} visits this week",
+      "goalsHint": "Your progress is measured by your weekly gym visits."
     },
     "reports": {
       "target": "Report target",

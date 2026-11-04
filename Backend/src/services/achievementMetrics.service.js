@@ -100,14 +100,49 @@ export async function getMachineUsesCount(userId) {
   return prisma.machineUsage.count({ where: { userId, endedAt: { not: null } } });
 }
 
+/** Total gym visits (every check-in). */
+export async function getGymVisitsCount(userId) {
+  return prisma.gymSession.count({ where: { userId } });
+}
+
+/** Distinct machines the user has used. */
+export async function getMachinesTriedCount(userId) {
+  const rows = await prisma.machineUsage.findMany({
+    where: { userId },
+    distinct: ["machineId"],
+    select: { machineId: true },
+  });
+  return rows?.length ?? 0;
+}
+
+/** Completed trainer assistances received. */
+export async function getTrainerAssistancesCount(userId) {
+  return prisma.assistance.count({ where: { userId, status: "COMPLETED" } });
+}
+
+/** Gym visits since Monday of the current week (local server time). */
+export async function getWeekVisitsCount(userId, now = new Date()) {
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const sessions = await prisma.gymSession.findMany({
+    where: { userId, checkInAt: { gte: monday } },
+    select: { checkInAt: true },
+  });
+  // Days with at least one visit (two check-ins the same day count once).
+  return new Set((sessions ?? []).map((s) => dateKey(new Date(s.checkInAt)))).size;
+}
+
 /** Computes every metric an Achievement can be evaluated against in one pass. */
 export async function computeUserMetrics(userId, now = new Date()) {
-  const [streakDays, streakWeeks, streakMonths, socialInteractions, machineUses] = await Promise.all([
+  const [streakDays, streakWeeks, streakMonths, socialInteractions, machineUses, gymVisits, machinesTried, assistances] = await Promise.all([
     getStreakDays(userId, now),
     getStreakWeeks(userId, now),
     getStreakMonths(userId, now),
     getSocialInteractionsCount(userId),
     getMachineUsesCount(userId),
+    getGymVisitsCount(userId),
+    getMachinesTriedCount(userId),
+    getTrainerAssistancesCount(userId),
   ]);
 
   return {
@@ -116,5 +151,8 @@ export async function computeUserMetrics(userId, now = new Date()) {
     STREAK_MONTHS: streakMonths,
     SOCIAL_INTERACTIONS: socialInteractions,
     MACHINE_USES: machineUses,
+    GYM_VISITS: gymVisits,
+    MACHINES_TRIED: machinesTried,
+    TRAINER_ASSISTANCES: assistances,
   };
 }

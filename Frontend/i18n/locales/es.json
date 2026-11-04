@@ -317,7 +317,15 @@
         "MOBILITY": "Movilidad",
         "NONE": "Meta",
         "OTHER": "Meta"
-      }
+      },
+      "objective": {
+        "LOSE_WEIGHT": "Bajar de peso",
+        "GAIN_MUSCLE": "Ganar músculo",
+        "IMPROVE_HEALTH": "Mejorar la salud",
+        "INCREASE_ENDURANCE": "Aumentar la resistencia"
+      },
+      "weeklyProgress": "{{current}} de {{target}} visitas esta semana",
+      "goalsHint": "Tu progreso se mide con tus visitas semanales al gimnasio."
     }
   },
   "admin": {

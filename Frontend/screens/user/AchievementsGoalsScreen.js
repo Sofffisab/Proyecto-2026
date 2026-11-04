@@ -5,8 +5,8 @@
 //                        tapping the card shows/hides those movements)
 //   - Tus logros         GET /gamification/badges  (unlocked achievements;
 //                        "Ver todos" switches between the scrolling row and a grid)
-//   - Tus metas          GET /goals                (progress of each active goal;
-//                        "Ver todas" shows every goal instead of the first 3)
+//   - Tus metas          user.objectives (chosen in Settings); progress = this
+//                        week's visits (GET /gamification/summary) vs weekly target
 // Reloaded every time the screen gets focus.
 
 import React, { useCallback, useState } from 'react';
@@ -18,9 +18,13 @@ import AchievementTile from '../../components/user/AchievementTile';
 import GoalProgressCard from '../../components/user/GoalProgressCard';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as gamificationApi from '../../features/api/services/gamification.api';
-import * as progressApi from '../../features/api/services/progress.api';
+import { useAuth } from '../../context/AuthContext';
 
 const GOALS_PREVIEW = 3;
+const DEFAULT_WEEKLY_TARGET = 3;
+// TrainingFrequency (Settings) -> visits per week.
+const WEEKLY_TARGET = { ONE_TO_TWO: 2, THREE: 3, FOUR: 4, FIVE: 5, SIX: 6, SEVEN: 7 };
+const KNOWN_OBJECTIVES = ['LOSE_WEIGHT', 'GAIN_MUSCLE', 'IMPROVE_HEALTH', 'INCREASE_ENDURANCE'];
 
 /**
  * @param {function} [onBack] - kept for compatibility (the design has no header bar)
@@ -30,6 +34,7 @@ const GOALS_PREVIEW = 3;
  */
 export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, onGoToProfile }) {
   const { t, language } = useTranslation();
+  const { user } = useAuth();
   const k = (name, params) => t(`user.achievementsGoals.${name}`, params);
 
   const [loading, setLoading] = useState(true);
@@ -37,7 +42,8 @@ export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, on
   const [totalPoints, setTotalPoints] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [achievements, setAchievements] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [weekVisits, setWeekVisits] = useState(0);
+  const [profile, setProfile] = useState(null); // { objectives, weeklyTrainingDays } from the Backend
 
   const [showHistory, setShowHistory] = useState(false);
   const [allAchievements, setAllAchievements] = useState(false);
@@ -45,10 +51,12 @@ export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, on
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [pointsResult, achievementsResult, goalsResult] = await Promise.allSettled([
+    // Summary first: it silently unlocks anything the member already earned,
+    // so the badges list below is complete.
+    const summaryResult = await Promise.allSettled([gamificationApi.getSummary()]).then((r) => r[0]);
+    const [pointsResult, achievementsResult] = await Promise.allSettled([
       gamificationApi.getPoints(),
       gamificationApi.getBadges(),
-      progressApi.getGoals(),
     ]);
 
     let anyFailed = false;
@@ -68,8 +76,9 @@ export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, on
       anyFailed = true;
     }
 
-    if (goalsResult.status === 'fulfilled') {
-      setGoals((goalsResult.value.data ?? []).filter((goal) => goal.active !== false));
+    if (summaryResult.status === 'fulfilled') {
+      setWeekVisits(summaryResult.value.data?.weekVisits ?? 0);
+      setProfile(summaryResult.value.data ?? null);
     } else {
       anyFailed = true;
     }
@@ -83,6 +92,16 @@ export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, on
       loadAll();
     }, [loadAll])
   );
+
+  // Goals = what the member chose in Settings (user.objectives). Progress =
+  // this week's gym visits vs. their weekly training target.
+  const weeklyTarget = WEEKLY_TARGET[profile?.weeklyTrainingDays ?? user?.weeklyTrainingDays] ?? DEFAULT_WEEKLY_TARGET;
+  const goals = (profile?.objectives ?? user?.objectives ?? []).map((objective) => ({
+    id: objective,
+    title: KNOWN_OBJECTIVES.includes(objective) ? k(`objective.${objective}`) : objective,
+    current: Math.min(weekVisits, weeklyTarget),
+    target: weeklyTarget,
+  }));
 
   const visibleGoals = allGoals ? goals : goals.slice(0, GOALS_PREVIEW);
 
@@ -190,19 +209,13 @@ export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, on
           <Text style={[styles.emptyText, styles.indented]}>{k('goalsEmpty')}</Text>
         ) : (
           visibleGoals.map((goal) => {
-            const percent = goal.targetValue
-              ? Math.min(100, Math.max(0, Math.round((goal.currentValue / goal.targetValue) * 100)))
-              : 0;
+            const percent = Math.min(100, Math.round((goal.current / goal.target) * 100));
             return (
               <View key={goal.id} style={styles.goalWrap}>
                 <GoalProgressCard
-                  type={goal.type}
-                  title={goal.subType || k(`goalType.${goal.type}`)}
-                  progressLine={k('goalProgress', {
-                    current: goal.currentValue,
-                    target: goal.targetValue,
-                    unit: goal.unit || '',
-                  })}
+                  type="COMMITMENT"
+                  title={goal.title}
+                  progressLine={k('weeklyProgress', { current: goal.current, target: goal.target })}
                   percent={percent}
                   percentLabel={`${percent}%`}
                   statusLabel={percent >= 100 ? k('goalDone') : k('goalInProgress')}

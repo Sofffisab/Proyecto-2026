@@ -213,6 +213,7 @@ router.patch("/rewards/:id",                authorize(["ADMIN"]), validateSchema
 // GAMIFICATION ROUTES
 router.get("/gamification/points", gamificationController.getUserPoints);
 router.get("/gamification/badges",          gamificationController.getUserBadges);
+router.get("/gamification/summary",         gamificationController.getSummary);
 // Badges (above) auto-unlock from activity (see gamification.service.js).
 // No manual claim, catalog, or leaderboard route — by design.
 router.post("/gamification/review-request", validateSchema(progressSchemas.pointReviewRequestSchema), gamificationController.createReviewRequest);
