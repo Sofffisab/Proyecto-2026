@@ -19,6 +19,12 @@ const globals = {
     tealSoft: '#DCE8EA',       // icon circles, quote banner, today ring
     textSecondary: '#9A9A9A',  // captions / subtitles
     navInactive: '#6F6F6F',    // outlined footer icons
+    // --- Logros y metas design ---
+    accent: '#168B98',         // small teal headings ("PUNTOS ACUMULADOS", "Ver todos")
+    captionGrey: '#9D9D9D',    // subtitles under big titles
+    iconCircle: '#E1F3F4',     // round icon background in goal cards
+    goalBorder: '#DCECEF',     // hairline around goal cards
+    progressTrack: '#E5E5E5',  // empty part of a progress bar
   },
   // Soft card elevation used across the redesigned screens.
   // (RN-web turns shadow* into box-shadow; `elevation` covers Android.)

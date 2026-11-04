@@ -1,43 +1,47 @@
+// src/screens/user/AchievementsGoalsScreen.js
+//
+// "Logros y metas" (spec section 6). Everything comes from the Backend:
+//   - Puntos acumulados  GET /gamification/points  (total + last transactions;
+//                        tapping the card shows/hides those movements)
+//   - Tus logros         GET /gamification/badges  (unlocked achievements;
+//                        "Ver todos" switches between the scrolling row and a grid)
+//   - Tus metas          GET /goals                (progress of each active goal;
+//                        "Ver todas" shows every goal instead of the first 3)
+// Reloaded every time the screen gets focus.
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import globals from '../../styles/globals';
-import Header from '../../components/common/Header';
 import BottomNav from '../../components/common/BottomNav';
+import AchievementTile from '../../components/user/AchievementTile';
+import GoalProgressCard from '../../components/user/GoalProgressCard';
 import { useTranslation } from '../../i18n/I18nContext';
 import * as gamificationApi from '../../features/api/services/gamification.api';
 import * as progressApi from '../../features/api/services/progress.api';
 
-function Section({ title, loading, empty, emptyLabel, children }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {loading ? (
-        <ActivityIndicator color={globals.colors.primary} />
-      ) : empty ? (
-        <Text style={styles.emptyText}>{emptyLabel}</Text>
-      ) : (
-        children
-      )}
-    </View>
-  );
-}
+const GOALS_PREVIEW = 3;
 
 /**
- * @param {function} [onBack]
+ * @param {function} [onBack] - kept for compatibility (the design has no header bar)
  * @param {function} [onGoToRoutines] - "calendar" footer icon
  * @param {function} [onGoToHome] - "house" footer icon
  * @param {function} [onGoToProfile] - "person" footer icon
  */
-export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoToHome, onGoToProfile }) {
-  const { t } = useTranslation();
+export default function AchievementsGoalsScreen({ onGoToRoutines, onGoToHome, onGoToProfile }) {
+  const { t, language } = useTranslation();
+  const k = (name, params) => t(`user.achievementsGoals.${name}`, params);
 
   const [loading, setLoading] = useState(true);
   const [hadError, setHadError] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [transactions, setTransactions] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [goals, setGoals] = useState([]);
+
+  const [showHistory, setShowHistory] = useState(false);
+  const [allAchievements, setAllAchievements] = useState(false);
+  const [allGoals, setAllGoals] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -51,18 +55,21 @@ export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoTo
 
     if (pointsResult.status === 'fulfilled') {
       setTotalPoints(pointsResult.value.data?.totalPoints ?? 0);
+      setTransactions(pointsResult.value.data?.transactions ?? []);
     } else {
       anyFailed = true;
     }
 
     if (achievementsResult.status === 'fulfilled') {
-      setAchievements(achievementsResult.value.data ?? []);
+      const list = achievementsResult.value.data ?? [];
+      // Newest unlocked first.
+      setAchievements([...list].sort((a, b) => new Date(b.unlockedAt ?? 0) - new Date(a.unlockedAt ?? 0)));
     } else {
       anyFailed = true;
     }
 
     if (goalsResult.status === 'fulfilled') {
-      setGoals(goalsResult.value.data ?? []);
+      setGoals((goalsResult.value.data ?? []).filter((goal) => goal.active !== false));
     } else {
       anyFailed = true;
     }
@@ -77,68 +84,133 @@ export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoTo
     }, [loadAll])
   );
 
+  const visibleGoals = allGoals ? goals : goals.slice(0, GOALS_PREVIEW);
+
   return (
     <View style={styles.container}>
-      <Header pageTitle={t('user.achievementsGoals.title')} onBack={onBack} />
-
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-        {hadError && <Text style={styles.errorText}>{t('user.achievementsGoals.loadError')}</Text>}
+        {/* ---------------- title ---------------- */}
+        <View style={styles.txt}>
+          <Text style={styles.title}>{k('title')}</Text>
+          <Text style={styles.subtitle}>{k('subtitle')}</Text>
+        </View>
 
-        <Section title={t('user.achievementsGoals.pointsTitle')} loading={loading} empty={false}>
-          <Text style={styles.pointsText}>
-            {t('user.achievementsGoals.pointsTotal', { points: totalPoints })}
-          </Text>
-        </Section>
+        {hadError && <Text style={styles.errorText}>{k('loadError')}</Text>}
 
-        <Section
-          title={t('user.achievementsGoals.goalsTitle')}
-          loading={loading}
-          empty={goals.length === 0}
-          emptyLabel={t('user.achievementsGoals.goalsEmpty')}
-        >
-          {goals.map((goal) => {
+        {/* ---------------- puntos acumulados ---------------- */}
+        <TouchableOpacity style={styles.pointsCard} onPress={() => setShowHistory((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
+          <Image source={require('../../src/assets/Group 95.png')} style={styles.pointsIcon} resizeMode="contain" />
+          <View style={styles.pointsText}>
+            <Text style={styles.pointsLabel}>{k('pointsTitle')}</Text>
+            {loading ? (
+              <ActivityIndicator color={globals.colors.primary} style={styles.pointsLoader} />
+            ) : (
+              <Text style={styles.pointsValue}>{totalPoints}</Text>
+            )}
+            <Text style={styles.pointsHint}>{k('pointsHint')}</Text>
+          </View>
+          <Image
+            source={require('../../assets/derecha.png')}
+            style={[styles.pointsArrow, showHistory && styles.pointsArrowOpen]}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        {showHistory && (
+          <View style={styles.history}>
+            {transactions.length === 0 ? (
+              <Text style={styles.emptyText}>{k('pointsHistoryEmpty')}</Text>
+            ) : (
+              transactions.map((tx) => (
+                <View key={tx.id} style={styles.historyRow}>
+                  <View style={styles.historyInfo}>
+                    <Text style={styles.historyReason} numberOfLines={2}>{tx.reason}</Text>
+                    <Text style={styles.historyDate}>{new Date(tx.createdAt).toLocaleDateString(language)}</Text>
+                  </View>
+                  <Text style={[styles.historyPoints, tx.points < 0 && styles.historyNegative]}>
+                    {tx.points > 0 ? `+${tx.points}` : tx.points}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* ---------------- tus logros ---------------- */}
+        <View style={styles.sectionHead}>
+          <Text style={[styles.sectionTitle, styles.txt]}>{k('achievementsTitle')}</Text>
+          {achievements.length > 0 && (
+            <TouchableOpacity style={styles.seeAll} onPress={() => setAllAchievements((v) => !v)} hitSlop={8}>
+              <Text style={styles.seeAllText}>{allAchievements ? k('seeLess') : k('seeAllMasc')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={globals.colors.primary} />
+        ) : achievements.length === 0 ? (
+          <Text style={[styles.emptyText, styles.indented]}>{k('achievementsEmpty')}</Text>
+        ) : allAchievements ? (
+          <View style={[styles.tilesGrid, styles.indented]}>
+            {achievements.map((entry) => (
+              <AchievementTile
+                key={entry.id}
+                category={entry.achievement?.category}
+                name={entry.achievement?.name}
+                description={entry.achievement?.description}
+              />
+            ))}
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tilesRow}>
+            {achievements.map((entry) => (
+              <AchievementTile
+                key={entry.id}
+                category={entry.achievement?.category}
+                name={entry.achievement?.name}
+                description={entry.achievement?.description}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ---------------- tus metas ---------------- */}
+        <View style={styles.sectionHead}>
+          <Text style={[styles.sectionTitle, styles.txt]}>{k('goalsTitle')}</Text>
+          {goals.length > GOALS_PREVIEW && (
+            <TouchableOpacity style={styles.seeAll} onPress={() => setAllGoals((v) => !v)} hitSlop={8}>
+              <Text style={styles.seeAllText}>{allGoals ? k('seeLess') : k('seeAllFem')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={globals.colors.primary} />
+        ) : goals.length === 0 ? (
+          <Text style={[styles.emptyText, styles.indented]}>{k('goalsEmpty')}</Text>
+        ) : (
+          visibleGoals.map((goal) => {
             const percent = goal.targetValue
-              ? Math.min(100, Math.round((goal.currentValue / goal.targetValue) * 100))
+              ? Math.min(100, Math.max(0, Math.round((goal.currentValue / goal.targetValue) * 100)))
               : 0;
             return (
-              <View key={goal.id} style={styles.row}>
-                <Text style={styles.rowPrimary}>{goal.subType || goal.type}</Text>
-                <Text style={styles.rowSecondary}>
-                  {t('user.achievementsGoals.goalProgress', {
+              <View key={goal.id} style={styles.goalWrap}>
+                <GoalProgressCard
+                  type={goal.type}
+                  title={goal.subType || k(`goalType.${goal.type}`)}
+                  progressLine={k('goalProgress', {
                     current: goal.currentValue,
                     target: goal.targetValue,
                     unit: goal.unit || '',
                   })}
-                </Text>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
-                </View>
-                <Text style={styles.rowDetail}>
-                  {t('user.achievementsGoals.goalPercent', { percent })}
-                </Text>
+                  percent={percent}
+                  percentLabel={`${percent}%`}
+                  statusLabel={percent >= 100 ? k('goalDone') : k('goalInProgress')}
+                />
               </View>
             );
-          })}
-        </Section>
-
-        <Section
-          title={t('user.achievementsGoals.achievementsTitle')}
-          loading={loading}
-          empty={achievements.length === 0}
-          emptyLabel={t('user.achievementsGoals.achievementsEmpty')}
-        >
-          {achievements.map((entry) => (
-            <View key={entry.id} style={styles.row}>
-              <Text style={styles.rowPrimary}>{entry.achievement?.name}</Text>
-              {entry.unlockedAt && (
-                <Text style={styles.rowSecondary}>
-                  {new Date(entry.unlockedAt).toLocaleString()}
-                </Text>
-              )}
-            </View>
-          ))}
-        </Section>
-
+          })
+        )}
       </ScrollView>
 
       {/* ---------------- FOOTER ----------------
@@ -158,81 +230,66 @@ export default function AchievementsGoalsScreen({ onBack, onGoToRoutines, onGoTo
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: globals.colors.background,
-  },
-  content: {
-    flex: 1,
-  },
-  contentInner: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: globals.spacing.lg,
-  },
-  // each block (Points / Goals / Achievements) is one white card
-  section: {
+  container: { flex: 1, backgroundColor: globals.colors.background },
+  content: { flex: 1 },
+  contentInner: { paddingHorizontal: 8, paddingTop: 16, paddingBottom: 32 },
+
+  // title block (.txt: margin-left 3%, width 80%)
+  txt: { marginLeft: '3%', width: '80%' },
+  title: { fontSize: 32, lineHeight: 38, fontWeight: '700', color: globals.colors.text, marginTop: 8, marginBottom: 8 },
+  subtitle: { fontSize: 13, lineHeight: 18, color: globals.colors.captionGrey, marginTop: 4, marginBottom: 18 },
+  errorText: { color: globals.colors.danger, fontSize: globals.fontSize.sm, textAlign: 'center', marginBottom: 12 },
+
+  // points card (.cuadrado)
+  pointsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: '6%',
+    width: '90%',
+    height: 100,
     backgroundColor: globals.colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: globals.colors.surfaceBorder,
-    padding: 14,
-    marginBottom: 14,
     ...globals.shadow.card,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: globals.colors.text,
-    marginBottom: 12,
+  pointsIcon: { width: '20%', height: 70 },
+  pointsText: { marginLeft: 29 },
+  pointsLabel: { fontSize: 16, fontWeight: '700', color: globals.colors.accent, marginBottom: 6 },
+  pointsValue: { fontSize: 24, fontWeight: '700', color: globals.colors.text, marginBottom: 5 },
+  pointsLoader: { alignSelf: 'flex-start', marginVertical: 6 },
+  pointsHint: { fontSize: 13, color: globals.colors.captionGrey },
+  pointsArrow: { width: '3%', minWidth: 14, height: 17, marginLeft: 29 },
+  pointsArrowOpen: { transform: [{ rotate: '90deg' }] },
+
+  // points history (shown when the card is tapped)
+  history: {
+    marginLeft: '6%',
+    width: '90%',
+    backgroundColor: globals.colors.surface,
+    borderBottomLeftRadius: 9,
+    borderBottomRightRadius: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    ...globals.shadow.card,
   },
-  pointsText: {
-    fontSize: globals.fontSize.xl,
-    fontWeight: '700',
-    color: globals.colors.primary,
-  },
-  // inner rows (a goal / an unlocked achievement) are flat, soft-grey tiles
-  row: {
-    backgroundColor: globals.colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  rowPrimary: {
-    fontSize: 14,
-    color: globals.colors.text,
-    fontWeight: '600',
-  },
-  rowSecondary: {
-    fontSize: 11,
-    color: globals.colors.textSecondary,
-    marginTop: globals.spacing.xs,
-  },
-  rowDetail: {
-    fontSize: 11,
-    color: globals.colors.textSecondary,
-    marginTop: globals.spacing.xs,
-  },
-  progressBarTrack: {
-    height: 8,
-    borderRadius: globals.radius.full,
-    backgroundColor: globals.colors.tealSoft,
-    marginTop: globals.spacing.sm,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: globals.colors.primary,
-    borderRadius: globals.radius.full,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: globals.colors.textSecondary,
-  },
-  errorText: {
-    color: globals.colors.danger,
-    fontSize: globals.fontSize.sm,
-    marginBottom: globals.spacing.md,
-    textAlign: 'center',
-  },
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: globals.colors.surfaceBorder },
+  historyInfo: { flex: 1, paddingRight: 8 },
+  historyReason: { fontSize: 12, color: globals.colors.text },
+  historyDate: { fontSize: 10, color: globals.colors.captionGrey, marginTop: 2 },
+  historyPoints: { fontSize: 13, fontWeight: '700', color: globals.colors.primary },
+  historyNegative: { color: globals.colors.danger },
+
+  // section headings (.tus: title left, "Ver todos >" right)
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 22, marginBottom: 10 },
+  sectionTitle: { fontSize: 24, fontWeight: '700', color: globals.colors.text },
+  seeAll: { width: '20%' },
+  seeAllText: { fontSize: 13, color: globals.colors.accent },
+
+  // achievements (.cuadrados)
+  tilesRow: { paddingLeft: '6%', paddingRight: 16, paddingVertical: 6, gap: 12 },
+  tilesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  indented: { marginLeft: '6%' },
+
+  // goals (.caja-progreso)
+  goalWrap: { marginBottom: 10, alignItems: 'center' },
+  emptyText: { fontSize: 12, color: globals.colors.captionGrey },
 });

@@ -286,6 +286,38 @@
         "TRAINER_ASSISTANCE_GIVEN": "Ayudaste a {{name}}",
         "SOCIAL_INTERACTION": "Hiciste un amigo: {{name}}"
       }
+    },
+    "achievementsGoals": {
+      "title": "Logros y metas",
+      "subtitle": "Cada paso cuenta. Acá podés ver tu progreso, tus logros y lo que te queda por alcanzar.",
+      "back": "Volver",
+      "loadError": "No se pudieron cargar algunos datos.",
+      "pointsTitle": "PUNTOS ACUMULADOS",
+      "pointsHint": "¡Vamos por más!",
+      "pointsHistoryEmpty": "Todavía no tenés movimientos de puntos.",
+      "achievementsTitle": "Tus logros",
+      "achievementsEmpty": "Todavía no desbloqueaste logros.",
+      "goalsTitle": "Tus metas",
+      "goalsEmpty": "No tenés metas activas.",
+      "seeAllMasc": "Ver todos >",
+      "seeAllFem": "Ver todas >",
+      "seeLess": "Ver menos",
+      "goalProgress": "{{current}} de {{target}} {{unit}}",
+      "goalDone": "Completada",
+      "goalInProgress": "En progreso",
+      "goalType": {
+        "WEIGHT": "Peso",
+        "MUSCLE": "Masa muscular",
+        "FAT": "Grasa corporal",
+        "PHYSICAL_HEALTH": "Salud física",
+        "MENTAL_HEALTH": "Salud mental",
+        "STRENGTH": "Fuerza",
+        "ENDURANCE": "Resistencia",
+        "COMMITMENT": "Constancia",
+        "MOBILITY": "Movilidad",
+        "NONE": "Meta",
+        "OTHER": "Meta"
+      }
     }
   },
   "admin": {
