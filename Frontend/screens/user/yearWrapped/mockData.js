@@ -1,4 +1,4 @@
-// YearWrapped/frontend/mockData.js
+// Frontend/screens/user/yearWrapped/mockData.js
 // Datos de ejemplo para ver el Wrapped sin backend (prop `data` o `useMock`).
 
 export const mockWrapped = {

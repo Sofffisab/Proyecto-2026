@@ -1,4 +1,4 @@
-// YearWrapped/backend/yearWrapped.service.js
+// Backend/src/services/yearWrapped.service.js
 //
 // Calcula los números del "Wrapped" de fin de año para UN usuario.
 // Está separado en dos partes para poder testearlo sin base de datos:
@@ -9,7 +9,7 @@
 // No guarda nada en la tabla `Wrapped` (esa ya la usa wrapped.service.js con
 // otro formato); se calcula al vuelo.
 //
-// Uso típico (ver README.md):
+// Uso típico (ver controllers/yearWrapped.controller.js):
 //   import { prisma } from "../config/index.js";
 //   const data = await generateYearWrapped(prisma, req.user.id, 2026);
 

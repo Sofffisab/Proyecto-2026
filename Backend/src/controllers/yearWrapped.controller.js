@@ -1,7 +1,7 @@
-// YearWrapped/backend/yearWrapped.controller.js
+// Backend/src/controllers/yearWrapped.controller.js
 // GET /analytics/year-wrapped — ver Backend/src/routes/index.js
 import { prisma } from "../config/index.js";
-import { generateYearWrapped } from "./yearWrapped.service.js";
+import { generateYearWrapped } from "../services/yearWrapped.service.js";
 
 // GET /analytics/year-wrapped?year=2026
 export async function getYearWrapped(req, res, next) {

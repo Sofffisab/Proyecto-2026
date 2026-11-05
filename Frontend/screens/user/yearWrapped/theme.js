@@ -1,4 +1,4 @@
-// YearWrapped/frontend/theme.js
+// Frontend/screens/user/yearWrapped/theme.js
 
 import globals from '../../../styles/globals';
 

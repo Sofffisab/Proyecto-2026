@@ -1,9 +1,9 @@
-// YearWrapped/frontend/YearWrappedScreen.js
+// Frontend/screens/user/yearWrapped/YearWrappedScreen.js
 //
 // "Wrapped" de fin de año estilo stories (como Spotify), con la estética de la app.
 //
 // Props:
-//   data      payload de GET /wrapped/year (ver backend/yearWrapped.service.js).
+//   data      payload de GET /wrapped/year (ver Backend/src/services/yearWrapped.service.js).
 //   loading   true mientras se pide al backend.
 //   error     true si falló el pedido.
 //   onRetry   () => void  reintentar.

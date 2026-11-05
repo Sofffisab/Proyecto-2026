@@ -1,4 +1,4 @@
-// YearWrapped/frontend/slides.js
+// Frontend/screens/user/yearWrapped/slides.js
 // Convierte el payload del backend en la lista de diapositivas + textos.
 // Función PURA (sin React): acá vive todo el "tono" (divertido pero serio).
 //
