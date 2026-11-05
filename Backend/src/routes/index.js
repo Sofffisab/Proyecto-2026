@@ -28,6 +28,7 @@ import * as historyController      from "../controllers/history.controller.js";
 import * as socialController       from "../controllers/social.controller.js";
 import * as denunciaController     from "../controllers/denuncia.controller.js";
 import * as blockController        from "../controllers/block.controller.js";
+import * as yearWrappedController  from "../controllers/yearWrapped.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
@@ -271,6 +272,8 @@ router.delete("/notifications/:id",        notificationController.deleteNotifica
 router.get("/analytics/me",          analyticsController.getUserAnalytics);
 router.get("/analytics/gym",         authorize(["ADMIN"]), analyticsController.getGymAnalytics);
 router.get("/analytics/wrapped",     gamificationController.getWrapped);
+// "Tu año en el gym": stories de fin de año con datos reales de la DB (services/yearWrapped.service.js).
+router.get("/analytics/year-wrapped", yearWrappedController.getYearWrapped);
 // No global leaderboard or personal-rank route — no rankings, public or private.
 router.get("/analytics/patterns",    analyticsController.getUserPatterns);
 router.get("/analytics/engagement",  authorize(["ADMIN"]), analyticsController.getEngagementMetrics);

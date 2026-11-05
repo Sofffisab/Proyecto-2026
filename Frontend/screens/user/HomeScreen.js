@@ -71,6 +71,7 @@ function toDateKey(date) {
  * @param {function} [onGoToReports] - navigates to the Reports Screen (spec section 3)
  * @param {function} [onGoToSettings]
  * @param {function} [onGoToWrapped]
+ * @param {function} [onGoToYearWrapped] - opens the "Tu año en el gym" stories
  * @param {function} [onGoToNotifications]
  * @param {function} [onLogout] - called after the "are you sure?" pop-up is confirmed
  * @param {function} [onBack]
@@ -83,6 +84,7 @@ export default function HomeScreen({
   onGoToReports,
   onGoToSettings,
   onGoToWrapped,
+  onGoToYearWrapped,
   onGoToNotifications,
   onGoToProfile,
   onLogout,
@@ -447,6 +449,24 @@ export default function HomeScreen({
           <Image source={require('../../assets/proicons_trophy.png')} style={styles.quoteIcon} />
           <Text style={styles.quoteText}>{t('user.home.motivationalQuote')}</Text>
           <Text style={styles.chevronDark}>›</Text>
+        </TouchableOpacity>
+
+        {/* ---------------- YEAR WRAPPED ----------------
+            Entry point to the end-of-year stories (screens/user/yearWrapped),
+            placed right above "Ask for help". */}
+        <TouchableOpacity
+          style={[styles.card, styles.wrappedCard]}
+          onPress={onGoToYearWrapped}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.iconCircle, styles.iconCircleSmall]}>
+            <Image source={require('../../assets/basil_present-outline.png')} style={styles.wrappedIcon} />
+          </View>
+          <View style={styles.cardTextCol}>
+            <Text style={styles.helpText}>{t('user.home.yearWrappedTitle', { year: new Date().getFullYear() })}</Text>
+            <Text style={styles.wrappedSubtitle}>{t('user.home.yearWrappedSubtitle')}</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
 
         {/* ---------------- ASK FOR HELP ----------------
@@ -900,8 +920,22 @@ const styles = StyleSheet.create({
   },
 
   // ---------------- ASK FOR HELP ----------------
-  helpCard: {
+  wrappedCard: {
     marginTop: 16,
+  },
+  wrappedIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    tintColor: globals.colors.primary,
+  },
+  wrappedSubtitle: {
+    fontSize: 11,
+    color: globals.colors.textSecondary,
+    marginTop: 2,
+  },
+  helpCard: {
+    marginTop: 12,
   },
   helpIcon: {
     fontSize: 18,

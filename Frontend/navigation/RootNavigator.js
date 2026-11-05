@@ -31,6 +31,8 @@ import CameraScreen from '../screens/user/CameraScreen';
 import AchievementsGoalsScreen from '../screens/user/AchievementsGoalsScreen';
 import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
+import YearWrappedContainer from '../screens/user/yearWrapped/YearWrappedContainer';
+import * as gamificationApi from '../features/api/services/gamification.api';
 import GenerateQRScreen from '../screens/shared/GenerateQRScreen';
 import AdminTabsScreen from '../screens/admin/AdminTabsScreen';
 
@@ -81,6 +83,7 @@ export const ROUTES = {
   USER_ACHIEVEMENTS_GOALS: 'UserAchievementsGoals',
   USER_REPORTS: 'UserReports',
   USER_WRAPPED: 'UserWrapped',
+  USER_YEAR_WRAPPED: 'UserYearWrapped',
 };
 
 const Stack = createNativeStackNavigator();
@@ -436,6 +439,7 @@ export default function RootNavigator() {
             onGoToReports={() => navigation.navigate(ROUTES.USER_REPORTS)}
             onGoToSettings={() => navigation.navigate(ROUTES.USER_SETTINGS)}
             onGoToWrapped={() => navigation.navigate(ROUTES.USER_WRAPPED)}
+            onGoToYearWrapped={() => navigation.navigate(ROUTES.USER_YEAR_WRAPPED)}
             onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
             onGoToProfile={() => navigation.navigate(ROUTES.USER_PROFILE)}
             onLogout={async () => {
@@ -573,6 +577,16 @@ export default function RootNavigator() {
 
       <Stack.Screen name={ROUTES.USER_WRAPPED}>
         {({ navigation }) => <WrappedScreen onBack={goBack(navigation)} />}
+      </Stack.Screen>
+
+      {/* "Tu año en el gym": stories de fin de año con datos reales del backend. */}
+      <Stack.Screen name={ROUTES.USER_YEAR_WRAPPED} options={{ gestureEnabled: true }}>
+        {({ navigation }) => (
+          <YearWrappedContainer
+            fetchYearWrapped={gamificationApi.getYearWrapped}
+            onClose={goBack(navigation)}
+          />
+        )}
       </Stack.Screen>
 
       </Stack.Navigator>

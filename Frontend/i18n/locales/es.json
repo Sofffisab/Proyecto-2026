@@ -7,6 +7,8 @@
   },
   "user": {
     "home": {
+      "yearWrappedTitle": "Tu Wrapped {{year}}",
+      "yearWrappedSubtitle": "Mirá tu año en el gym",
       "durationMinutes": "{{count}} min",
       "exercisesCount": "{{count}} ejercicios"
     },

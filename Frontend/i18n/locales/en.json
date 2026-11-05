@@ -110,6 +110,8 @@
       }
     },
     "home": {
+      "yearWrappedTitle": "Your {{year}} Wrapped",
+      "yearWrappedSubtitle": "See your year at the gym",
       "title": "Your Profile",
       "subtitle": "Your summary for today",
       "pointsAccumulated": "Points accumulated",
