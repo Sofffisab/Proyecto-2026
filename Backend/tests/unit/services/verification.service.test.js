@@ -117,32 +117,6 @@ describe("VerificationService", () => {
     });
   });
 
-  describe("regenerateAllMachineQRCodes", () => {
-    it("carries each machine's outgoing token into previousQrToken", async () => {
-      prisma.machine.findMany.mockResolvedValue([
-        { id: "m1", qrToken: "token-1" },
-        { id: "m2", qrToken: "token-2" },
-      ]);
-      prisma.machine.update.mockResolvedValue({});
-
-      const result = await verificationService.regenerateAllMachineQRCodes();
-
-      expect(result).toEqual({ regenerated: 2 });
-      expect(prisma.machine.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "m1" },
-          data: expect.objectContaining({ previousQrToken: "token-1" }),
-        })
-      );
-      expect(prisma.machine.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "m2" },
-          data: expect.objectContaining({ previousQrToken: "token-2" }),
-        })
-      );
-    });
-  });
-
   describe("validateQRPayload", () => {
     it("rejects a malformed JSON string", () => {
       expect(() => verificationService.validateQRPayload("{not valid json")).toThrow(

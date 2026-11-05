@@ -5,7 +5,6 @@ import { requireCompleteProfile } from "../middlewares/profileCompletion.middlew
 import { authRateLimiter, apiRateLimiter } from "../middlewares/rateLimiter.js";
 import { cacheResponse } from "../middlewares/cache.middleware.js";
 import { runJobs } from "../jobs/index.js";
-import { rotateMachineQRCodes } from "../jobs/qr.job.js";
 
 import * as authController         from "../controllers/auth.controller.js";
 import * as userController         from "../controllers/user.controller.js";
@@ -53,19 +52,6 @@ const cronAuth = (req, res, next) => {
 };
 router.get("/cron/jobs", cronAuth, runJobs);
 router.post("/cron/jobs", cronAuth, runJobs);
-
-// Separate cron trigger because it runs on its own schedule (noon) instead
-// of the main nightly job batch — see vercel.json "crons".
-const qrRotateHandler = async (req, res, next) => {
-  try {
-    await rotateMachineQRCodes();
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-};
-router.get("/cron/qr-rotate", cronAuth, qrRotateHandler);
-router.post("/cron/qr-rotate", cronAuth, qrRotateHandler);
 
 // PUBLIC / AUTH ROUTES
 // NOTE: there is intentionally no public self-registration route. Accounts

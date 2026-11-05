@@ -58,33 +58,6 @@ export async function regenerateMachineQR(machineId) {
   return { machineId, token };
 }
 
-/** Daily rotation of all active machine QR tokens (entry/exit QRs don't need this). Safe to call more than once a day. */
-export async function regenerateAllMachineQRCodes() {
-  const machines = await prisma.machine.findMany({
-    where: { active: true },
-    select: { id: true, qrToken: true },
-  });
-
-  const now = new Date();
-  const validUntil = new Date(now.getTime() + QR_GRACE_WINDOW_MS);
-
-  let count = 0;
-  for (const machine of machines) {
-    await prisma.machine.update({
-      where: { id: machine.id },
-      data: {
-        qrToken: crypto.randomBytes(16).toString("hex"),
-        qrTokenUpdatedAt: now,
-        previousQrToken: machine.qrToken,
-        previousQrTokenValidUntil: validUntil,
-      },
-    });
-    count++;
-  }
-
-  return { regenerated: count };
-}
-
 /** Validates a QR payload (object or JSON string), throwing on any invalid case. Only USER-type payloads need a signature + TTL check. */
 export function validateQRPayload(rawPayload) {
   let parsed = rawPayload;

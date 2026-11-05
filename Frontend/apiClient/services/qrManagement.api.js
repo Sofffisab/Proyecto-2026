@@ -31,8 +31,8 @@ export function createMachine(name) {
 }
 
 // PATCH /qr/machines/:id/regenerate — ADMIN or TRAINER. Rotates a single
-// machine's QR token immediately (independent from the daily automatic
-// rotation cron, see Backend/src/jobs/qr.job.js).
+// machine's QR token immediately. There is no automatic/daily rotation:
+// QRs stay the same until an admin explicitly regenerates one.
 export function regenerateMachine(machineId) {
   return apiClient.patch(`/qr/machines/${machineId}/regenerate`);
 }

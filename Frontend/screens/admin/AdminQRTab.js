@@ -4,7 +4,7 @@
 //
 // Payloads match Backend/src/services/verification.service.js#processScan:
 //   entry/exit -> { type: 'ENTRY_EXIT' }                 (static, no token)
-//   machine    -> { type: 'MACHINE', machineId, qrToken } (token rotates)
+//   machine    -> { type: 'MACHINE', machineId, qrToken } (token is fixed; only changes if an admin presses Regenerar)
 
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TextInput, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
