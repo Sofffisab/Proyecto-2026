@@ -19,7 +19,11 @@ export const buildEntryExitPayload = () => JSON.stringify({ type: 'ENTRY_EXIT' }
 export const buildMachinePayload = (machineId, qrToken) =>
   JSON.stringify({ type: 'MACHINE', machineId, qrToken });
 
-export default function AdminQRTab({ onMachinesLoaded }) {
+// `canManage` (default true = unchanged ADMIN behaviour): when false (TRAINER,
+// who may regenerate a machine's QR but not create/deactivate machines — see
+// Backend/src/routes/index.js "QR MANAGEMENT ROUTES") the create-machine card
+// and the Deactivate button are hidden. Only the layout changes, no logic.
+export default function AdminQRTab({ onMachinesLoaded, canManage = true }) {
   const { t } = useTranslation();
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +90,7 @@ export default function AdminQRTab({ onMachinesLoaded }) {
       )}
 
       {/* ---------- Create machine ---------- */}
+      {canManage && (
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t('qrGeneration.createNewMachine')}</Text>
         <TextInput
@@ -101,6 +106,7 @@ export default function AdminQRTab({ onMachinesLoaded }) {
           disabled={busyId === 'create' || !newName.trim()}
         />
       </View>
+      )}
 
       {/* ---------- Machines list ---------- */}
       <Text style={styles.sectionTitle}>{t('admin.qr.machinesTitle')}</Text>
@@ -122,12 +128,14 @@ export default function AdminQRTab({ onMachinesLoaded }) {
                 disabled={busyId === m.id}
                 onPress={() => run(m.id, () => qrManagementApi.regenerateMachine(m.id), 'qrGeneration.regenerateSuccess', 'qrGeneration.regenerateError')}
               />
+              {canManage && (
               <Button
                 label={busyId === m.id ? t('qrGeneration.deactivating') : t('qrGeneration.deactivateButton')}
                 variant="danger"
                 disabled={busyId === m.id}
                 onPress={() => run(m.id, () => qrManagementApi.deactivateMachine(m.id), 'qrGeneration.deactivateSuccess', 'qrGeneration.deactivateError')}
               />
+              )}
             </View>
           </View>
         ))

@@ -33,8 +33,8 @@ import ReportsScreen from '../screens/user/ReportsScreen';
 import WrappedScreen from '../screens/user/WrappedScreen';
 import YearWrappedContainer from '../screens/user/yearWrapped/YearWrappedContainer';
 import * as gamificationApi from '../features/api/services/gamification.api';
-import GenerateQRScreen from '../screens/shared/GenerateQRScreen';
 import AdminTabsScreen from '../screens/admin/AdminTabsScreen';
+import TrainerTabsScreen from '../screens/trainer/TrainerTabsScreen';
 
 /*
  * Route names for the whole navigation tree.
@@ -220,11 +220,17 @@ export default function RootNavigator() {
             goToWelcome(navigation)();
           };
           // ADMIN: tabbed shell with the persistent footer (briefcase / home /
-          // QR camera / training / profile). TRAINER keeps the QR screen.
+          // QR camera / training / profile).
+          // TRAINER: its own tabbed shell with the fixed footer (calendar /
+          // home / QR / gym / profile) — static screens for now.
           return user?.role === 'ADMIN' ? (
             <AdminTabsScreen user={user} onLogout={handleStaffLogout} />
           ) : (
-            <GenerateQRScreen role={user?.role} onLogout={handleStaffLogout} />
+            <TrainerTabsScreen
+              user={user}
+              onLogout={handleStaffLogout}
+              onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            />
           );
         }}
       </Stack.Screen>

@@ -713,7 +713,8 @@
       "pendingHelpEmpty": "No one is waiting for help right now.",
       "notifications": "Notifications",
       "machineConflicts": "Machine conflicts",
-      "logout": "Log out / Switch account"
+      "logout": "Log out / Switch account",
+      "listHint": "Tap a person to see their data and help them."
     },
     "history": {
       "title": "History",
@@ -724,7 +725,9 @@
       "assistedOn": "Assisted on {{date}}",
       "machineLabel": "Machine: {{machine}}",
       "ratingLabel": "Rating: {{rating}}/5",
-      "noRating": "Not rated yet"
+      "noRating": "Not rated yet",
+      "subtitle": "Who you helped and when.",
+      "durationLabel": "Duration: {{minutes}} min"
     },
     "reports": {
       "personToReport": "Person to report",
@@ -748,7 +751,13 @@
       "reasonRequired": "Please select a reason category.",
       "sending": "Sending...",
       "sendError": "Could not send the report. Please try again.",
-      "sendSuccess": "Report sent for review."
+      "sendSuccess": "Report sent for review.",
+      "subtitle": "Pick who or what, say why and send it for review.",
+      "target": "Who or what are you reporting?",
+      "category_trainer": "Trainers",
+      "category_member": "People",
+      "category_machine": "Machines",
+      "reasonFalseClaim": "Says they're on a machine but isn't"
     },
     "help": {
       "title": "People at the gym",
@@ -763,7 +772,13 @@
       "completeHelp": "Mark help as completed",
       "completeSuccess": "Marked as completed.",
       "completeError": "Couldn't mark this as completed.",
-      "noActiveAssignment": "This member has no assistance assigned to you yet."
+      "noActiveAssignment": "This member has no assistance assigned to you yet.",
+      "markHelped": "Mark as helped",
+      "helpTitle": "Help",
+      "medicalTitle": "Medical topics",
+      "notesTitle": "My notes",
+      "publicNotesTitle": "Public notes",
+      "goHelp": "Go help {{name}}"
     },
     "routineRequests": {
       "title": "Routine requests",
@@ -778,7 +793,12 @@
       "accept": "Accept",
       "reject": "Reject",
       "complete": "Mark as delivered",
-      "actionError": "Couldn't complete that action."
+      "actionError": "Couldn't complete that action.",
+      "subtitle": "Accept or reject each request.",
+      "requestedOn": "Requested on {{date}}",
+      "goalLabel": "Goal: {{goal}}",
+      "levelLabel": "Level: {{level}}",
+      "daysLabel": "{{days}} days per week"
     },
     "popups": {
       "profileData": {
@@ -811,7 +831,45 @@
       "neitherPresent": "Neither present",
       "resolveSuccess": "Conflict resolved.",
       "resolveError": "Couldn't resolve this conflict.",
-      "back": "Back"
+      "back": "Back",
+      "subtitle": "Two people scanned the same machine."
+    },
+    "header": {
+      "logout": "Log out"
+    },
+    "tabs": {
+      "management": "Management",
+      "home": "Home",
+      "gym": "Gym",
+      "profile": "Profile",
+      "scanQR": "Scan QR"
+    },
+    "alert": {
+      "title": "{{name}} needs help",
+      "goHelp": "Go help",
+      "dismiss": "Dismiss"
+    },
+    "hub": {
+      "title": "Management",
+      "subtitle": "Everything you need to run the gym floor.",
+      "routinesSub": "Members asking you to build a routine",
+      "conflictsSub": "Check who is really on the machine",
+      "reportTitle": "Report",
+      "reportSub": "A person or a machine",
+      "qrTitle": "QR codes",
+      "qrSub": "Regenerate codes by hand"
+    },
+    "profile": {
+      "role": "Trainer",
+      "historySub": "Who you helped and when"
+    },
+    "gym": {
+      "title": "Gym status",
+      "subtitle": "How the gym looks right now.",
+      "peopleInGym": "In the gym",
+      "machinesInUse": "Machines in use",
+      "helpRequests": "Help requests",
+      "availabilityHint": "If you're busy, new help requests go to another trainer."
     }
   },
   "admin": {
@@ -837,6 +895,129 @@
       "user": "Member QR",
       "unknown": "Unrecognized QR code.",
       "again": "Scan another"
+    },
+    "nav": {
+      "management": "Management",
+      "home": "Home",
+      "gym": "Gym",
+      "profile": "Profile",
+      "scanQR": "Scan QR"
+    },
+    "header": {
+      "logout": "Log out",
+      "back": "Back"
+    },
+    "roles": {
+      "admin": "Administrator",
+      "trainer": "Trainer",
+      "user": "Member"
+    },
+    "hub": {
+      "title": "Management",
+      "subtitle": "Prizes, reports and QR codes",
+      "prizesTitle": "Prizes",
+      "prizesSub": "Stock, shipments and waitlist",
+      "reportsTitle": "Review reports",
+      "reportsSub": "Reports, reviews and suspicious behavior",
+      "qrTitle": "Generate new QR",
+      "qrSub": "Machines, entry and exit"
+    },
+    "home": {
+      "title": "Home",
+      "subtitle": "Administrator overview",
+      "notificationsTitle": "Notifications",
+      "notificationsSub": "See the latest from the gym",
+      "gymTitle": "View gym",
+      "gymSub": "Members and statistics",
+      "historyTitle": "History",
+      "historySub": "Record of everything that happens in the app"
+    },
+    "prizes": {
+      "title": "Prizes",
+      "subtitle": "Control stock and deliveries",
+      "currentLabel": "Prize being given out now",
+      "left": "{{count}} of {{total}} left",
+      "deliveryLabel": "Deliveries",
+      "deliveryActive": "Active",
+      "deliveryPaused": "Paused",
+      "historyNote": "Every change you make is kept in the history and can't be deleted.",
+      "stockTitle": "Stock",
+      "outOfStock": "Out of stock",
+      "addStock": "Add stock",
+      "edit": "Edit",
+      "shipmentsTitle": "Shipments in progress",
+      "shipmentsHint": "Once the gift arrives, the record moves to the history.",
+      "shipmentRow": "{{prize}} · sent on {{date}}",
+      "waitlistTitle": "Waitlist",
+      "waitlistHint": "They are sent the prize automatically as soon as there is stock.",
+      "waiting": "{{count}} waiting"
+    },
+    "reports": {
+      "title": "Review reports",
+      "subtitle": "Decide which reports stand",
+      "approvedTitle": "Approved reports",
+      "reportedBy": "Reported by {{name}} on {{date}}",
+      "keep": "Keep",
+      "remove": "Remove",
+      "reviewTitle": "Review requests",
+      "reviewHint": "Check whether a previous report was wrongly applied.",
+      "reviewOf": "Asks to review the report from {{date}}",
+      "wasWrong": "Was wrongly applied",
+      "wasRight": "Was correct",
+      "suspiciousTitle": "Suspicious behavior",
+      "suspiciousHint": "Users with too many reports received or made.",
+      "receivedMany": "Received {{count}} reports in {{days}} days",
+      "madeMany": "Made {{count}} reports in {{days}} days",
+      "tagReceived": "Received",
+      "tagMade": "Made",
+      "viewDetail": "View details"
+    },
+    "history": {
+      "title": "History",
+      "subtitle": "Everything that happens in the app's accounts",
+      "filterAll": "All",
+      "filterAdmins": "Admins",
+      "filterTrainers": "Trainers",
+      "filterUsers": "Members",
+      "privacyNote": "Anything a person marked as private is not shown."
+    },
+    "gym": {
+      "title": "View gym",
+      "subtitle": "Manage people and check the numbers",
+      "membersTitle": "Members",
+      "membersSub": "Create, activate and deactivate accounts",
+      "statsTitle": "Statistics",
+      "statsSub": "Machine usage, trainers and members"
+    },
+    "members": {
+      "title": "Members",
+      "subtitle": "Gym accounts",
+      "createTitle": "Create new session",
+      "emailLabel": "Person's email",
+      "emailPlaceholder": "Person's email",
+      "createHint": "We email them their account details so they can set a new password.",
+      "createButton": "Create session",
+      "sessionsTitle": "Sessions",
+      "since": "Since {{date}}",
+      "rating": "Rating {{rating}}",
+      "active": "Active",
+      "deactivated": "Deactivated",
+      "deactivate": "Deactivate account",
+      "activate": "Activate account"
+    },
+    "stats": {
+      "title": "Statistics",
+      "subtitle": "How the gym is doing",
+      "generalTitle": "Gym overview",
+      "machineUsage": "Machine usage",
+      "trainersTitle": "Trainers",
+      "avgRating": "Average rating",
+      "helps": "{{count}} assists",
+      "usersTitle": "Users",
+      "activated": "Activated",
+      "deactivated": "Deactivated",
+      "metGoals": "Meeting their goals",
+      "notMetGoals": "Not meeting them"
     }
   },
   "qrGeneration": {

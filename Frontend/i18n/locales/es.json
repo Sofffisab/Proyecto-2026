@@ -353,6 +353,237 @@
       "user": "QR de socio",
       "unknown": "Código QR no reconocido.",
       "again": "Escanear otro"
+    },
+    "nav": {
+      "management": "Gestión",
+      "home": "Inicio",
+      "gym": "Gym",
+      "profile": "Perfil",
+      "scanQR": "Escanear QR"
+    },
+    "header": {
+      "logout": "Cerrar sesión",
+      "back": "Volver"
+    },
+    "roles": {
+      "admin": "Administrador",
+      "trainer": "Entrenador",
+      "user": "Socio"
+    },
+    "hub": {
+      "title": "Gestión",
+      "subtitle": "Premios, denuncias y códigos QR",
+      "prizesTitle": "Premios",
+      "prizesSub": "Stock, envíos y lista de espera",
+      "reportsTitle": "Revisar denuncias",
+      "reportsSub": "Denuncias, revisiones y conductas sospechosas",
+      "qrTitle": "Generar nuevo QR",
+      "qrSub": "Máquinas, entrada y salida"
+    },
+    "home": {
+      "title": "Inicio",
+      "subtitle": "Resumen del administrador",
+      "notificationsTitle": "Notificaciones",
+      "notificationsSub": "Mirá lo último que pasó en el gimnasio",
+      "gymTitle": "Ver gym",
+      "gymSub": "Miembros y estadísticas",
+      "historyTitle": "Historial",
+      "historySub": "Registro de todo lo que pasa en la app"
+    },
+    "prizes": {
+      "title": "Premios",
+      "subtitle": "Controlá el stock y las entregas",
+      "currentLabel": "Premio que se está otorgando ahora",
+      "left": "Quedan {{count}} de {{total}}",
+      "deliveryLabel": "Entregas",
+      "deliveryActive": "Activas",
+      "deliveryPaused": "Frenadas",
+      "historyNote": "Todo cambio que hagas queda en el historial y no se puede borrar.",
+      "stockTitle": "Stock",
+      "outOfStock": "Sin stock",
+      "addStock": "Agregar stock",
+      "edit": "Editar",
+      "shipmentsTitle": "Envíos en curso",
+      "shipmentsHint": "Cuando el regalo llega, el registro pasa al historial.",
+      "shipmentRow": "{{prize}} · enviado el {{date}}",
+      "waitlistTitle": "Lista de espera",
+      "waitlistHint": "Se les envía automáticamente apenas haya stock.",
+      "waiting": "{{count}} en espera"
+    },
+    "reports": {
+      "title": "Revisar denuncias",
+      "subtitle": "Decidí qué denuncias se mantienen",
+      "approvedTitle": "Denuncias hechas y aprobadas",
+      "reportedBy": "Denunciado por {{name}} el {{date}}",
+      "keep": "Mantener",
+      "remove": "Eliminar",
+      "reviewTitle": "Peticiones de revisión",
+      "reviewHint": "Verificá si una denuncia anterior estuvo mal aplicada.",
+      "reviewOf": "Pide revisar la denuncia del {{date}}",
+      "wasWrong": "Estuvo mal aplicada",
+      "wasRight": "Estuvo bien",
+      "suspiciousTitle": "Comportamiento sospechoso",
+      "suspiciousHint": "Usuarios con demasiadas denuncias recibidas o hechas.",
+      "receivedMany": "Recibió {{count}} denuncias en {{days}} días",
+      "madeMany": "Hizo {{count}} denuncias en {{days}} días",
+      "tagReceived": "Recibidas",
+      "tagMade": "Hechas",
+      "viewDetail": "Ver detalle"
+    },
+    "history": {
+      "title": "Historial",
+      "subtitle": "Todo lo que pasa en las cuentas de la app",
+      "filterAll": "Todos",
+      "filterAdmins": "Admins",
+      "filterTrainers": "Entrenadores",
+      "filterUsers": "Socios",
+      "privacyNote": "Lo que cada persona marcó como privado no se muestra."
+    },
+    "gym": {
+      "title": "Ver gym",
+      "subtitle": "Gestioná a las personas y mirá los números",
+      "membersTitle": "Miembros",
+      "membersSub": "Crear, activar y desactivar cuentas",
+      "statsTitle": "Estadísticas",
+      "statsSub": "Uso de máquinas, entrenadores y socios"
+    },
+    "members": {
+      "title": "Miembros",
+      "subtitle": "Cuentas del gimnasio",
+      "createTitle": "Crear sesión nueva",
+      "emailLabel": "Email de la persona",
+      "emailPlaceholder": "Email de la persona",
+      "createHint": "Le enviamos un mail con los datos de la cuenta para que ingrese una nueva contraseña.",
+      "createButton": "Crear sesión",
+      "sessionsTitle": "Sesiones",
+      "since": "Desde {{date}}",
+      "rating": "Calificación {{rating}}",
+      "active": "Activa",
+      "deactivated": "Desactivada",
+      "deactivate": "Desactivar cuenta",
+      "activate": "Activar cuenta"
+    },
+    "stats": {
+      "title": "Estadísticas",
+      "subtitle": "Cómo viene funcionando el gimnasio",
+      "generalTitle": "Generales del gym",
+      "machineUsage": "Uso de máquinas",
+      "trainersTitle": "Entrenadores",
+      "avgRating": "Calificación promedio",
+      "helps": "{{count}} ayudas realizadas",
+      "usersTitle": "Usuarios",
+      "activated": "Activados",
+      "deactivated": "Desactivados",
+      "metGoals": "Cumplen sus objetivos",
+      "notMetGoals": "No los cumplen"
+    }
+  },
+  "trainer": {
+    "header": {
+      "logout": "Cerrar sesión"
+    },
+    "tabs": {
+      "management": "Gestión",
+      "home": "Inicio",
+      "gym": "Gym",
+      "profile": "Perfil",
+      "scanQR": "Escanear QR"
+    },
+    "home": {
+      "notifications": "Notificaciones",
+      "back": "Volver",
+      "listHint": "Tocá a una persona para ver sus datos y ayudarla.",
+      "availabilityTitle": "Disponibilidad",
+      "available": "Disponible",
+      "busy": "Ocupado"
+    },
+    "alert": {
+      "title": "{{name}} necesita ayuda",
+      "goHelp": "Ir a ayudar",
+      "dismiss": "Cerrar aviso"
+    },
+    "help": {
+      "title": "Personas en el gym",
+      "markHelped": "Marcar como ayudado",
+      "helpTitle": "Ayudar",
+      "medicalTitle": "Temas médicos",
+      "notesTitle": "Mis notas",
+      "publicNotesTitle": "Notas públicas",
+      "goHelp": "Ir a ayudar a {{name}}"
+    },
+    "popups": {
+      "profileData": {
+        "title": "Datos del socio",
+        "none": "Ninguno"
+      }
+    },
+    "hub": {
+      "title": "Gestión",
+      "subtitle": "Todo lo que necesitás para el día a día en el gimnasio.",
+      "routinesSub": "Socios que te piden armar una rutina",
+      "conflictsSub": "Verificá quién está realmente en la máquina",
+      "reportTitle": "Denunciar",
+      "reportSub": "A una persona o una máquina",
+      "qrTitle": "QRs",
+      "qrSub": "Regeneralos a mano"
+    },
+    "routineRequests": {
+      "title": "Solicitudes de rutina",
+      "subtitle": "Aceptá o rechazá cada pedido.",
+      "requestedOn": "Pedida el {{date}}",
+      "statusPending": "Pendiente",
+      "goalLabel": "Objetivo: {{goal}}",
+      "levelLabel": "Nivel: {{level}}",
+      "daysLabel": "{{days}} días por semana",
+      "accept": "Aceptar",
+      "reject": "Rechazar"
+    },
+    "machineConflicts": {
+      "title": "Conflictos de máquina",
+      "subtitle": "Dos personas escanearon la misma máquina.",
+      "detectedAt": "Detectado: {{date}}",
+      "firstUser": "Primer escaneo: {{name}}",
+      "secondUser": "Segundo escaneo: {{name}}",
+      "whoIsPresent": "¿Quién está realmente en la máquina?",
+      "bothPresent": "Ambos presentes",
+      "onlyFirst": "Solo el primero",
+      "onlySecond": "Solo el segundo",
+      "neitherPresent": "Ninguno"
+    },
+    "reports": {
+      "subtitle": "Elegí a quién o qué, contá el motivo y mandalo a revisión.",
+      "target": "¿A quién o qué querés denunciar?",
+      "category_trainer": "Entrenadores",
+      "category_member": "Personas",
+      "category_machine": "Máquinas",
+      "reason": "Motivo",
+      "reasonMachineDamage": "Máquina rota",
+      "reasonMisconduct": "Mala conducta",
+      "reasonFalseClaim": "Dice estar en una máquina y no está",
+      "reasonOther": "Otro",
+      "messagePlaceholder": "Agregá detalles (opcional)",
+      "send": "Enviar denuncia"
+    },
+    "history": {
+      "title": "Historial",
+      "subtitle": "A quién ayudaste y cuándo.",
+      "assistedOn": "Ayudaste el {{date}}",
+      "machineLabel": "Máquina: {{machine}}",
+      "durationLabel": "Duración: {{minutes}} min",
+      "ratingLabel": "Calificación: {{rating}}/5",
+      "noRating": "Sin calificar todavía"
+    },
+    "profile": {
+      "role": "Entrenador",
+      "historySub": "A quién ayudaste y cuándo"
+    },
+    "gym": {
+      "title": "Estado del gym",
+      "subtitle": "Cómo está el gimnasio en este momento.",
+      "peopleInGym": "En el gym",
+      "machinesInUse": "Máquinas en uso",
+      "helpRequests": "Pedidos de ayuda",
+      "availabilityHint": "Si estás ocupado, los nuevos pedidos de ayuda van a otro entrenador."
     }
   }
 }
