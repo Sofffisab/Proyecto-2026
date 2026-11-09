@@ -15,7 +15,18 @@ export const errorHandler = (error, req, res, next) => {
     logger.error("[Error]", error);
   } else {
     // In production, log minimal info (status and message without stack)
-    logger.error("[Error]", { statusCode, message: error.message });
+    // Server errors (5xx) also log the route, error name/code and stack so the
+    // real cause shows up in the Vercel logs; the client still gets a generic message.
+    logger.error("[Error]", {
+      statusCode,
+      message: error.message,
+      ...(statusCode >= 500 && {
+        route: `${req.method} ${req.originalUrl}`,
+        name: error.name,
+        code: error.code,
+        stack: error.stack,
+      }),
+    });
   }
 
   // Determine the response message
