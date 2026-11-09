@@ -74,6 +74,28 @@ async function parseResponse(response) {
   return body;
 }
 
+// True when the JWT's `exp` is in the past (or within 30s). Any parsing
+// problem counts as "not expired" and the normal 401 path handles it.
+function isExpired(token) {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const { exp } = JSON.parse(atob(part));
+    return typeof exp === 'number' && exp * 1000 < Date.now() + 30_000;
+  } catch {
+    return false;
+  }
+}
+
+// The refreshed token reaches React state a render later, so right after a
+// refresh getAccessToken() still returns the old one. Remember the new token,
+// but only use it while the state still holds the token it replaced (so a
+// different user logging in never inherits it).
+let renewed = null;
+function currentToken() {
+  const fromState = getAccessToken();
+  return renewed && renewed.replaces === fromState ? renewed.token : fromState;
+}
+
 // Refresh is in-flight de-duplication: if several requests 401 at once,
 // only one refresh call is made and the rest await it.
 let refreshPromise = null;
@@ -82,6 +104,7 @@ async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new ApiError('No refresh token available', 401);
 
+  const staleToken = getAccessToken();
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_BASE_URL}/auth/refresh-token`, {
       method: 'POST',
@@ -91,6 +114,7 @@ async function refreshAccessToken() {
       .then(parseResponse)
       .then((body) => {
         const { accessToken } = body.data;
+        renewed = { replaces: staleToken, token: accessToken };
         onTokensRefreshed({ accessToken });
         return accessToken;
       })
@@ -115,7 +139,16 @@ async function request(path, { method = 'GET', body, auth = true, isRetry = fals
   const headers = { 'Content-Type': 'application/json', 'Accept-Language': apiLanguage };
 
   if (auth) {
-    const token = getAccessToken();
+    let token = currentToken();
+    // The saved token is often already expired when the app opens. Renew it
+    // BEFORE sending, so we don't fire a request that is sure to come back 401.
+    if (token && isExpired(token) && getRefreshToken()) {
+      try {
+        token = await refreshAccessToken();
+      } catch {
+        // Fall through: the request below will 401 and the normal path logs out.
+      }
+    }
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 

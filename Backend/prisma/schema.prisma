@@ -207,8 +207,8 @@ model User {
   id                   String    @id @default(uuid())
   email                String    @unique
   passwordHash         String
-  firstName            String
-  lastName             String
+  firstName            String?
+  lastName             String?
   birthday             DateTime?
   gender               Gender?
   role                 Role      @default(USER)
