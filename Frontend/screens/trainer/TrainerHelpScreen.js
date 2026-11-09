@@ -61,7 +61,7 @@ export default function TrainerHelpScreen({ person }) {
   );
 
   if (!person) return null;
-  const name = data?.name ?? person.name;
+  const name = data?.name ?? person.name ?? '';
   const firstName = name.split(' ')[0];
   const none = t('trainer.popups.profileData.none');
 

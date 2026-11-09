@@ -6,8 +6,10 @@ import globals from '../../styles/globals';
  * Round teal avatar with the person's initials (the mockups draw it as a
  * plain teal circle).
  */
-export const getInitials = (name = '') =>
-  name
+// The default param only covers `undefined`; the Backend can send `null`
+// (a person with no first/last name), so coerce before splitting.
+export const getInitials = (name) =>
+  String(name ?? '')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
