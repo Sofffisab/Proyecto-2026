@@ -14,7 +14,7 @@
 //   (there is no self-registration endpoint — accounts are admin-created only)
 //   POST /auth/refresh-token, GET /users/me
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { configureApiClient, ApiError } from '../apiClient/client';
 import * as authApi from '../features/api/services/auth.api';
@@ -101,7 +101,12 @@ export function AuthProvider({ children }) {
 
   // Wire this context into the raw API client (see api/client.js for why:
   // avoids a circular import between the client and this context).
-  useEffect(() => {
+  //
+  // useLayoutEffect, NOT useEffect: children's useEffect (e.g. LanguageSync)
+  // run before the parent's, so with useEffect the first requests after login
+  // or session restore were sent with the previous (empty) token and came back
+  // 401. Layout effects all run before any passive effect.
+  useLayoutEffect(() => {
     configureApiClient({
       getAccessToken: () => accessToken,
       getRefreshToken: () => refreshTokenValue,
