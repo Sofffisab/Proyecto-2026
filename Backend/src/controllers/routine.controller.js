@@ -140,3 +140,33 @@ export async function getToday(req, res, next) {
     next(err);
   }
 }
+
+// PATCH /routines/requests/:id/propose  (TRAINER) — send the built routine to the member.
+export async function proposeRoutine(req, res, next) {
+  try {
+    const data = await routineService.proposeRoutine(req.params.id, req.user.id, req.validatedData);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /routines/proposals  (member) — routines trainers prepared, waiting for an answer.
+export async function getProposals(req, res, next) {
+  try {
+    const data = await routineService.getProposals(req.user.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /routines/requests/:id/respond  (member) — accept or decline the proposed routine.
+export async function respondToProposal(req, res, next) {
+  try {
+    const data = await routineService.respondToProposal(req.params.id, req.user.id, req.validatedData);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}

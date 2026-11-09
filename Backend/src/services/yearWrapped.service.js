@@ -31,6 +31,22 @@ const GOAL_TYPE_LABEL = {
 };
 
 const GOAL_ACTION_LABEL = { GAIN: "Subir", LOSE: "Bajar", MAINTAIN: "Mantener" };
+
+// English versions of the labels above, used when the member's app is in English.
+const GOAL_TYPE_LABEL_EN = {
+  WEIGHT: "Weight",
+  MUSCLE: "Muscle mass",
+  FAT: "Body fat",
+  PHYSICAL_HEALTH: "Physical health",
+  MENTAL_HEALTH: "Mental health",
+  STRENGTH: "Strength",
+  ENDURANCE: "Endurance",
+  COMMITMENT: "Consistency",
+  MOBILITY: "Mobility",
+  NONE: "Personal goal",
+  OTHER: "Personal goal",
+};
+const GOAL_ACTION_LABEL_EN = { GAIN: "Raise", LOSE: "Lower", MAINTAIN: "Keep" };
 const DIFFICULTY_WEIGHT = { HARD: 3, MEDIUM: 2, EASY: 1 };
 
 // ---------- helpers de fecha ----------
@@ -49,9 +65,10 @@ function localDateKey(date, tzOffsetMinutes) {
     .slice(0, 10);
 }
 
-function goalLabel(goal) {
-  const type = goal.subType || GOAL_TYPE_LABEL[goal.type] || "Meta personal";
-  const action = GOAL_ACTION_LABEL[goal.action] || "";
+function goalLabel(goal, language = "es") {
+  const en = language === "en";
+  const type = goal.subType || (en ? GOAL_TYPE_LABEL_EN : GOAL_TYPE_LABEL)[goal.type] || (en ? "Personal goal" : "Meta personal");
+  const action = (en ? GOAL_ACTION_LABEL_EN : GOAL_ACTION_LABEL)[goal.action] || "";
   const target = Number.isFinite(goal.targetValue)
     ? `${Number.isInteger(goal.targetValue) ? goal.targetValue : goal.targetValue.toFixed(1)}${goal.unit ? ` ${goal.unit}` : ""}`
     : "";
@@ -142,7 +159,7 @@ export async function fetchYearWrappedRaw(prisma, userId, year, { tzOffsetMinute
 
 // ---------- 2) agregación pura ----------
 
-export function buildYearWrapped(raw, { year, userId, tzOffsetMinutes = DEFAULT_TZ_OFFSET_MINUTES } = {}) {
+export function buildYearWrapped(raw, { year, userId, tzOffsetMinutes = DEFAULT_TZ_OFFSET_MINUTES, language = "es" } = {}) {
   const key = (d) => localDateKey(d, tzOffsetMinutes);
 
   // Puntos GANADOS: solo transacciones positivas (los descuentos/canjes no restan al "ganado").
@@ -202,7 +219,7 @@ export function buildYearWrapped(raw, { year, userId, tzOffsetMinutes = DEFAULT_
   const goalItems = raw.goals
     .map((g) => ({
       id: g.id,
-      label: goalLabel(g),
+      label: goalLabel(g, language),
       difficulty: g.difficulty,
       completedAt: g.completedAt ? new Date(g.completedAt).toISOString() : null,
     }))
@@ -227,7 +244,9 @@ export function buildYearWrapped(raw, { year, userId, tzOffsetMinutes = DEFAULT_
     distinctRoutines: routineKeys.size,
     gift: {
       percent: 50,
-      concept: "cuota de enero",
+      concept: language === "en" ? "January fee" : "cuota de enero",
+      // Stable code so the app can show it in whichever language it is using.
+      conceptCode: "JANUARY_FEE",
       validUntil: `${year + 1}-01-31`,
     },
   };

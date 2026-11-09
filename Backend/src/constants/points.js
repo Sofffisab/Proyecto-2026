@@ -69,6 +69,14 @@ export const COMPLAINT_PENALTY = {
   ALERT_THRESHOLD: 5,
 };
 
+// "Comportamiento sospechoso" list of the admin reports screen: somebody who
+// received / made at least this many reports inside the window.
+export const SUSPICIOUS_REPORTS = {
+  WINDOW_DAYS: 7,
+  RECEIVED_THRESHOLD: 3,
+  MADE_THRESHOLD: 5,
+};
+
 // Multiplier on POINTS.PROGRESS_UPDATE by goal difficulty (see GoalDifficulty enum).
 export const DIFFICULTY_MULTIPLIERS = {
   EASY: 0.5,
@@ -87,6 +95,7 @@ export default {
   DIFFICULTY_MULTIPLIERS,
   CONSISTENCY_BONUS_THRESHOLDS,
   COMPLAINT_PENALTY,
+  SUSPICIOUS_REPORTS,
   MACHINE_USAGE_DURATION_TIERS,
   MACHINE_USAGE_MAX,
   POINTS_HARD_CAP,

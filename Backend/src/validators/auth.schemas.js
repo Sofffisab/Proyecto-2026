@@ -8,8 +8,10 @@ import { z } from "zod";
 
 export const createUserByAdminSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
+  // Optional: admin-created accounts only need an email, the person fills in
+  // the rest from their own profile (see migration admin_created_user_optional_name).
+  firstName: z.string().trim().min(1).max(100).optional(),
+  lastName: z.string().trim().min(1).max(100).optional(),
   role: z.enum(["USER", "TRAINER", "ADMIN"]).optional(),
 });
 

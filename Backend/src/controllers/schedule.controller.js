@@ -4,7 +4,7 @@ import * as generatorService from "../services/routineGenerator.service.js";
 // GET /routines/general
 export async function getGeneralRoutines(req, res, next) {
   try {
-    const data = await scheduleService.listGeneralRoutines();
+    const data = await scheduleService.listGeneralRoutines(req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -14,7 +14,7 @@ export async function getGeneralRoutines(req, res, next) {
 // GET /routines/general/:id — one general routine WITH its exercises
 export async function getGeneralRoutineById(req, res, next) {
   try {
-    const data = await scheduleService.getGeneralRoutine(req.params.id);
+    const data = await scheduleService.getGeneralRoutine(req.params.id, req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

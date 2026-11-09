@@ -32,13 +32,13 @@ describe('Auth Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rejects missing fields', () => {
-      const invalid = {
-        email: 'test@example.com',
-        // missing firstName and lastName
-      };
+    it('accepts just an email: the person fills in their name later', () => {
+      const result = createUserByAdminSchema.safeParse({ email: 'test@example.com' });
+      expect(result.success).toBe(true);
+    });
 
-      const result = createUserByAdminSchema.safeParse(invalid);
+    it('rejects a missing email', () => {
+      const result = createUserByAdminSchema.safeParse({ firstName: 'Test', lastName: 'User' });
       expect(result.success).toBe(false);
     });
 

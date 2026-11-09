@@ -76,7 +76,7 @@ describe("yearWrapped.service#buildYearWrapped", () => {
   });
 
   it("incluye el regalo del 50% en la cuota de enero", () => {
-    expect(out.gift).toEqual({ percent: 50, concept: "cuota de enero", validUntil: "2027-01-31" });
+    expect(out.gift).toEqual({ percent: 50, concept: "cuota de enero", conceptCode: "JANUARY_FEE", validUntil: "2027-01-31" });
   });
 
   it("no rompe con un usuario sin actividad", () => {

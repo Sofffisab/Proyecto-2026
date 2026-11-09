@@ -122,41 +122,46 @@ export async function getDailyMachineUsageLog(userId) {
   return dailyLog;
 }
 
-// Trainer's detailed assistance history: student, machine, date, and rating per session.
+// Trainer's detailed assistance history: who they helped, when, on which
+// machine, for how long and how the member rated it.
 export async function getTrainerAssistanceHistory(trainerId) {
   const assistances = await prisma.assistance.findMany({
-    where: {
-      trainerId,
-      status: "COMPLETED",
-    },
+    where: { trainerId, status: "COMPLETED" },
     include: {
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-      machine: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+      user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      machine: { select: { id: true, name: true } },
     },
     orderBy: { completedAt: "desc" },
+    take: 200,
+  });
+  if (!assistances || assistances.length === 0) return [];
+
+  // The rating a member leaves in the exit pop-up comes after the help: take
+  // the first one this member gave this trainer from then on.
+  const ratings = await prisma.trainerRating.findMany({
+    where: { trainerId, userId: { in: [...new Set(assistances.map((a) => a.userId))] } },
+    orderBy: { createdAt: "asc" },
+    select: { userId: true, rating: true, createdAt: true },
   });
 
-  return assistances.map((assistance) => ({
-    assistanceId: assistance.id,
-    studentId: assistance.user.id,
-    studentName: `${assistance.user.firstName} ${assistance.user.lastName}`,
-    machineId: assistance.machine?.id ?? null,
-    machineName: assistance.machine?.name ?? null,
-    date: assistance.completedAt,
-    rating: assistance.trainerRating,
-    requestedAt: assistance.requestedAt,
-  }));
+  return assistances.map((a) => {
+    const rating = (ratings ?? []).find(
+      (r) => r.userId === a.userId && new Date(r.createdAt) >= new Date(a.completedAt ?? a.requestedAt)
+    );
+    const startedAt = a.assignedAt ?? a.requestedAt;
+    const minutes = a.completedAt ? Math.max(1, Math.round((new Date(a.completedAt) - new Date(startedAt)) / 60000)) : null;
+    return {
+      assistanceId: a.id,
+      studentId: a.user.id,
+      studentName: `${a.user.firstName ?? ""} ${a.user.lastName ?? ""}`.trim() || a.user.email,
+      machineId: a.machine?.id ?? null,
+      machineName: a.machine?.name ?? null,
+      date: a.completedAt,
+      minutes,
+      rating: rating?.rating ?? null,
+      requestedAt: a.requestedAt,
+    };
+  });
 }
 
 // Whether the user has an active (ACCEPTED, not yet completed) challenge —

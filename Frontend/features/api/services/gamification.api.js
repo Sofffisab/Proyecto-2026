@@ -70,7 +70,10 @@ export function getWrapped(year) {
 // GET /analytics/year-wrapped?year=YYYY — "Tu año en el gym" (stories de fin de año).
 // Backend/src/services/yearWrapped.service.js lo calcula en el momento con los datos
 // reales del usuario: puntos, amigos, logros, días de gym, metas, máquinas, día más
-// intenso y rutinas distintas.
-export function getYearWrapped(year) {
-  return apiClient.get(year ? `/analytics/year-wrapped?year=${encodeURIComponent(year)}` : '/analytics/year-wrapped');
+// intenso y rutinas distintas. `lang` ('es' | 'en') = idioma de la app, para las etiquetas de metas.
+export function getYearWrapped(year, lang) {
+  const params = [];
+  if (year) params.push(`year=${encodeURIComponent(year)}`);
+  if (lang) params.push(`lang=${encodeURIComponent(lang)}`);
+  return apiClient.get(`/analytics/year-wrapped${params.length ? `?${params.join('&')}` : ''}`);
 }

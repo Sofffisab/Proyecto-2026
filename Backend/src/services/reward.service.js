@@ -2,6 +2,8 @@ import { prisma } from "../config/index.js";
 import { createNotification, sendEmail } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 import { POINTS_HARD_CAP } from "../constants/points.js";
+import { AppError } from "../utils/errors.js";
+import { logActivity, ACTIVITY } from "./activityLog.service.js";
 
 // User-facing fields only: never expose stock or isMarketingItem
 const PUBLIC_REWARD_FIELDS = {
@@ -50,6 +52,7 @@ export async function createReward(data) {
       pointsCost: pointsCost ?? 0,
       active: active ?? true,
       stock: stock ?? 0,
+      totalStock: stock ?? 0,
       isMarketingItem: isMarketingItem ?? false,
     },
   });
@@ -60,9 +63,19 @@ export async function updateReward(id, data) {
   if (!reward) throw new Error("Reward not found");
 
   const { name, description, pointsCost, active, stock, isMarketingItem } = data;
+  // A higher stock is a restock: the "total ever stocked" grows with it.
+  const restocked = typeof stock === "number" && stock > reward.stock ? stock - reward.stock : 0;
   const updated = await prisma.reward.update({
     where: { id },
-    data: { name, description, pointsCost, active, stock, isMarketingItem },
+    data: {
+      name,
+      description,
+      pointsCost,
+      active,
+      stock,
+      isMarketingItem,
+      ...(restocked > 0 ? { totalStock: { increment: restocked } } : {}),
+    },
   });
 
   // Restocking may unblock users waiting in the pending-shipment queue (non-blocking)
@@ -86,6 +99,16 @@ export async function autoGrantRewards(userId) {
 
   if (totalPoints <= 0) return null;
 
+  // Deliveries paused by an admin: whoever qualifies waits in the queue and is
+  // served when deliveries resume (resumeDeliveries -> fulfillPendingGrants).
+  if (await areDeliveriesPaused()) {
+    const qualifies = await prisma.reward.findFirst({
+      where: { active: true, pointsCost: { lte: totalPoints } },
+    });
+    if (qualifies) await queuePendingGrant(userId, totalPoints);
+    return null;
+  }
+
   const eligibleRewards = await prisma.reward.findMany({
     where: { active: true, stock: { gt: 0 }, pointsCost: { lte: totalPoints } },
   });
@@ -106,7 +129,10 @@ export async function autoGrantRewards(userId) {
     return null;
   }
 
-  const reward = eligibleRewards[Math.floor(Math.random() * eligibleRewards.length)];
+  // The prize the admin marked as "being handed out now" goes first while it
+  // has stock; otherwise any eligible one, at random.
+  const reward =
+    eligibleRewards.find((r) => r.isCurrent) ?? eligibleRewards[Math.floor(Math.random() * eligibleRewards.length)];
 
   const redemption = await prisma.$transaction(async (tx) => {
     // Atomically claim one unit of stock; 0 rows updated means we lost the race
@@ -255,17 +281,31 @@ export async function fulfillPendingGrants() {
 }
 
 // Admin-facing: marks a shipped reward as physically received
-export async function deliverReward(redemptionId) {
-  const redemption = await prisma.rewardRedemption.findUnique({ where: { id: redemptionId } });
+export async function deliverReward(redemptionId, adminId = null) {
+  const redemption = await prisma.rewardRedemption.findUnique({
+    where: { id: redemptionId },
+    include: { reward: { select: { name: true } }, user: { select: { firstName: true, lastName: true, email: true } } },
+  });
   if (!redemption) throw new Error("Redemption not found");
   if (redemption.status !== "SHIPPED") {
     throw new Error(`Cannot deliver a redemption with status: ${redemption.status}`);
   }
 
-  return prisma.rewardRedemption.update({
+  const updated = await prisma.rewardRedemption.update({
     where: { id: redemptionId },
     data: { status: "DELIVERED", deliveredAt: new Date() },
   });
+
+  if (adminId) {
+    await logActivity({
+      actorId: adminId,
+      action: ACTIVITY.REWARD_DELIVERED,
+      entityType: "RewardRedemption",
+      entityId: redemptionId,
+      metadata: { prize: redemption.reward?.name ?? null, user: personName(redemption.user) },
+    });
+  }
+  return updated;
 }
 
 export async function getAllRedemptions() {
@@ -278,4 +318,151 @@ export async function getAllRedemptions() {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+
+// ── Admin "Premios" screen ───────────────────────────────────────────────
+
+const personName = (u) => {
+  if (!u) return null;
+  return `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || u.email || null;
+};
+
+export async function areDeliveriesPaused() {
+  const settings = await prisma.gymSettings?.findUnique?.({ where: { id: "main" } });
+  return Boolean(settings?.rewardDeliveriesPaused);
+}
+
+/** Everything the admin Premios screen shows, in one request. */
+export async function getAdminOverview() {
+  const [paused, rewards, shipments, waiting] = await Promise.all([
+    areDeliveriesPaused(),
+    prisma.reward.findMany({ orderBy: [{ isCurrent: "desc" }, { createdAt: "asc" }] }),
+    prisma.rewardRedemption.findMany({
+      where: { status: "SHIPPED" },
+      include: {
+        reward: { select: { name: true } },
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    getPendingGrants(),
+  ]);
+
+  return {
+    deliveriesPaused: paused,
+    rewards: (rewards ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? "",
+      pointsCost: r.pointsCost,
+      active: r.active,
+      stock: r.stock,
+      // Rows created before totalStock existed are backfilled by the migration.
+      total: Math.max(r.totalStock ?? 0, r.stock),
+      isCurrent: r.isCurrent,
+      isMarketingItem: r.isMarketingItem,
+    })),
+    shipments: (shipments ?? []).map((s) => ({
+      id: s.id,
+      user: personName(s.user),
+      prize: s.reward?.name ?? null,
+      shippedAt: s.createdAt,
+    })),
+    waitlist: (waiting ?? []).map((w) => ({
+      id: w.id,
+      user: personName(w.user),
+      points: w.pointsAtQueueTime,
+      since: w.createdAt,
+    })),
+  };
+}
+
+export async function createRewardByAdmin(adminId, data) {
+  const reward = await createReward(data);
+  await logActivity({
+    actorId: adminId,
+    action: ACTIVITY.REWARD_CREATED,
+    entityType: "Reward",
+    entityId: reward.id,
+    metadata: { prize: reward.name, stock: reward.stock },
+  });
+  return reward;
+}
+
+export async function updateRewardByAdmin(adminId, id, data) {
+  const before = await prisma.reward.findUnique({ where: { id } });
+  if (!before) throw new AppError("Reward not found", 404);
+  const updated = await updateReward(id, data);
+  await logActivity({
+    actorId: adminId,
+    action: ACTIVITY.REWARD_EDITED,
+    entityType: "Reward",
+    entityId: id,
+    metadata: { prize: updated.name, previousName: before.name },
+  });
+  return updated;
+}
+
+/** Adds units to a prize; people waiting for stock are served right away. */
+export async function addStock(adminId, id, amount) {
+  const reward = await prisma.reward.findUnique({ where: { id } });
+  if (!reward) throw new AppError("Reward not found", 404);
+
+  const updated = await prisma.reward.update({
+    where: { id },
+    data: { stock: { increment: amount }, totalStock: { increment: amount } },
+  });
+
+  await logActivity({
+    actorId: adminId,
+    action: ACTIVITY.REWARD_STOCK_ADDED,
+    entityType: "Reward",
+    entityId: id,
+    metadata: { prize: reward.name, amount },
+  });
+
+  fulfillPendingGrants().catch((err) => logger.error("[reward] Failed to fulfill pending grants after restock:", err.message));
+  return updated;
+}
+
+/** Marks the prize being handed out now (only one at a time). */
+export async function setCurrentReward(adminId, id) {
+  const reward = await prisma.reward.findUnique({ where: { id } });
+  if (!reward) throw new AppError("Reward not found", 404);
+
+  await prisma.$transaction([
+    prisma.reward.updateMany({ where: { isCurrent: true }, data: { isCurrent: false } }),
+    prisma.reward.update({ where: { id }, data: { isCurrent: true } }),
+  ]);
+
+  await logActivity({
+    actorId: adminId,
+    action: ACTIVITY.REWARD_CURRENT_SET,
+    entityType: "Reward",
+    entityId: id,
+    metadata: { prize: reward.name },
+  });
+  return { id, isCurrent: true };
+}
+
+/** Pause / resume every prize delivery. Resuming serves the waiting list. */
+export async function setDeliveriesPaused(adminId, paused) {
+  await prisma.gymSettings.upsert({
+    where: { id: "main" },
+    update: { rewardDeliveriesPaused: paused },
+    create: { id: "main", rewardDeliveriesPaused: paused },
+  });
+
+  await logActivity({
+    actorId: adminId,
+    action: paused ? ACTIVITY.REWARD_DELIVERIES_PAUSED : ACTIVITY.REWARD_DELIVERIES_RESUMED,
+    entityType: "GymSettings",
+    entityId: "main",
+  });
+
+  if (!paused) {
+    fulfillPendingGrants().catch((err) => logger.error("[reward] Failed to serve the waiting list on resume:", err.message));
+  }
+  return { deliveriesPaused: paused };
 }

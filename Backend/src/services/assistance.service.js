@@ -6,6 +6,9 @@ import { POINTS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
 import { sendTrainerAlert } from "./pushNotification.service.js";
 import { registrarEvento } from "./historial.service.js";
+import { AppError } from "../utils/errors.js";
+import { logActivity, ACTIVITY } from "./activityLog.service.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 
 export async function requestAssistance(userId) {
   // disableAssistance only blocks proactive outreach (see gym.service.js);
@@ -20,6 +23,8 @@ export async function requestAssistance(userId) {
     userId,
     requestedAt: assistance.requestedAt,
   });
+
+  signalStaff(TOPIC.HELP);
 
   // Push alert to whichever trainers are free right now for THIS specific
   // request (non-blocking; a push failure must never break the request).
@@ -162,15 +167,84 @@ export async function assignAssistance(assistanceId, trainerId) {
     throw new Error(`Cannot assign a request with status: ${assistance.status}`);
   }
 
+  // Where the member is right now (machine they are using), for the trainer's history.
+  const usage = await prisma.machineUsage.findFirst({
+    where: { userId: assistance.userId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+    select: { machineId: true },
+  });
+
   const updated = await prisma.assistance.update({
     where: { id: assistanceId },
-    data: { status: "ASSIGNED", trainerId, assignedAt: new Date() },
+    data: { status: "ASSIGNED", trainerId, assignedAt: new Date(), machineId: usage?.machineId ?? null },
   });
 
   await setTrainerAvailability(trainerId, "BUSY");
   await releaseAlertLock(assistanceId);
 
+  await logAssistanceStarted(trainerId, updated);
+  signalStaff(TOPIC.HELP);
+
   return updated;
+}
+
+async function logAssistanceStarted(trainerId, assistance) {
+  const member = await prisma.user.findUnique({
+    where: { id: assistance.userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  const name = `${member?.firstName ?? ""} ${member?.lastName ?? ""}`.trim() || member?.email || null;
+  await logActivity({
+    actorId: trainerId,
+    action: ACTIVITY.ASSISTANCE_STARTED,
+    entityType: "Assistance",
+    entityId: assistance.id,
+    metadata: { member: name },
+  });
+}
+
+/**
+ * "Ir a ayudar": the trainer walks up to someone who is in the gym. If the
+ * person pressed "Pedir ayuda" that request is assigned to the trainer;
+ * otherwise a help the trainer starts on their own is created already assigned.
+ */
+export async function startAssistance(trainerId, userId) {
+  const session = await prisma.gymSession.findFirst({ where: { userId, checkOutAt: null } });
+  if (!session) throw new AppError("This person is not in the gym right now", 404);
+
+  const open = await prisma.assistance.findFirst({
+    where: { userId, status: { in: ["PENDING", "ASSIGNED"] } },
+    orderBy: { requestedAt: "asc" },
+  });
+
+  if (open?.status === "ASSIGNED") {
+    if (open.trainerId === trainerId) return open; // already on it
+    throw new AppError("Another trainer is already helping this person", 409);
+  }
+  if (open?.status === "PENDING") {
+    try {
+      return await assignAssistance(open.id, trainerId);
+    } catch (err) {
+      throw new AppError(err.message, err.message.includes("busy") ? 409 : 400);
+    }
+  }
+
+  const trainer = await prisma.user.findUnique({ where: { id: trainerId }, select: { isActive: true, role: true } });
+  if (!trainer || trainer.role !== "TRAINER" || !trainer.isActive) throw new AppError("Only trainers can help members", 403);
+
+  const usage = await prisma.machineUsage.findFirst({
+    where: { userId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+    select: { machineId: true },
+  });
+
+  const created = await prisma.assistance.create({
+    data: { userId, trainerId, status: "ASSIGNED", assignedAt: new Date(), machineId: usage?.machineId ?? null },
+  });
+  await setTrainerAvailability(trainerId, "BUSY");
+  await logAssistanceStarted(trainerId, created);
+  signalStaff(TOPIC.HELP);
+  return created;
 }
 
 /** Sets a trainer's availability; used both automatically and via manual trainer-facing toggle. */
@@ -217,7 +291,14 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
 
   if (updated.trainerId) {
     await updateTrainerMetrics(updated.trainerId);
+    signalStaff(TOPIC.HELP);
     await setTrainerAvailability(updated.trainerId, "AVAILABLE");
+    await logActivity({
+      actorId: updated.trainerId,
+      action: ACTIVITY.ASSISTANCE_COMPLETED,
+      entityType: "Assistance",
+      entityId: updated.id,
+    });
   }
 
   // Both sides keep it in their personal history (trainer help for the student, student helped for the trainer).
@@ -280,6 +361,7 @@ export async function cancelAssistance(assistanceId, callerId) {
     await setTrainerAvailability(assistance.trainerId, "AVAILABLE");
     await releaseAlertLock(assistanceId);
   }
+  signalStaff(TOPIC.HELP);
 
   return updated;
 }

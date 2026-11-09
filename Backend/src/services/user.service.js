@@ -212,3 +212,15 @@ export async function upsertTrainerProfile(userId, specialtyOrData) {
 
 
 
+
+
+/** Remembers the language the person picked in Settings (used for texts the Backend writes). */
+export async function setLanguage(userId, language) {
+  await prisma.user.update({ where: { id: userId }, data: { language } });
+  try {
+    if (redis) await redis.del(`user:${userId}`);
+  } catch {
+    /* cache is best-effort */
+  }
+  return { language };
+}

@@ -11,6 +11,7 @@ import { AppError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 import { DENUNCIA_MESSAGES } from "../locales/es.js";
 import { rateTrainer } from "./gym.service.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 
 export const DENUNCIA_TYPES = ["TRAINER_MISCONDUCT", "TRAINER_FALSE_HELP", "MACHINE_BROKEN", "MEMBER_MISCONDUCT"];
 const TRAINER_TYPES = ["TRAINER_MISCONDUCT", "TRAINER_FALSE_HELP"];
@@ -170,6 +171,7 @@ export async function submitCheckoutFeedback(sessionId, userId, { dayRating, tra
     });
     if (existing) continue;
     created.push(await prisma.denuncia.create({ data }));
+    signalStaff(TOPIC.REPORTS);
   }
 
   if (created.length > 0) logger.info(`[denuncias] ${created.length} nueva(s) de ${userId} en la visita ${session.id}`);

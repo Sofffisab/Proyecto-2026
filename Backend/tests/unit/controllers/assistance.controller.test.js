@@ -47,7 +47,7 @@ describe("AssistanceController", () => {
   describe("assign", () => {
     it("assigns a trainer to an assistance request", async () => {
       req.params = { id: "assist-1" };
-      req.validatedData = { trainerId: "trainer-1" };
+      req.user = { id: "trainer-1", role: "TRAINER" };
       const mockData = { id: "assist-1", trainerId: "trainer-1", status: "ASSIGNED" };
       vi.spyOn(assistanceService, "assignAssistance").mockResolvedValue(mockData);
 

@@ -29,6 +29,8 @@ import * as socialController       from "../controllers/social.controller.js";
 import * as denunciaController     from "../controllers/denuncia.controller.js";
 import * as blockController        from "../controllers/block.controller.js";
 import * as yearWrappedController  from "../controllers/yearWrapped.controller.js";
+import * as adminController       from "../controllers/admin.controller.js";
+import * as realtimeController    from "../controllers/realtime.controller.js";
 
 import { validateSchema } from "../validators/schemas.js";
 import * as authSchemas     from "../validators/auth.schemas.js";
@@ -73,7 +75,7 @@ router.post("/auth/reset-password",  authRateLimiter, validateSchema(authSchemas
 const PROTECTED_PREFIXES = [
   "/auth", "/users", "/user", "/gym", "/progress", "/goals", "/routines", "/rewards",
   "/gamification", "/challenges", "/assistance", "/complaints", "/qr",
-  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/history", "/social", "/denuncias",
+  "/notifications", "/analytics", "/sync", "/notes", "/trainers", "/admin", "/staff", "/history", "/social", "/denuncias",
 ];
 router.use(PROTECTED_PREFIXES, authenticate);
 // Blocks members from the rest of the API until required profile data is
@@ -84,6 +86,26 @@ router.use(PROTECTED_PREFIXES, apiRateLimiter);
 router.post("/auth/logout", authController.logout);
 router.post("/auth/users",  authorize(["ADMIN"]), validateSchema(authSchemas.createUserByAdminSchema), authController.createUserByAdmin);
 
+// Live updates for the trainer / admin screens (Ably, subscribe-only)
+router.get("/staff/ably-token", authorize(["TRAINER", "ADMIN"]), realtimeController.getStaffAblyToken);
+
+// ADMIN SCREENS (Miembros, Estadísticas, Historial, Denuncias) — all ADMIN only
+router.get("/admin/members",                 authorize(["ADMIN"]), adminController.listMembers);
+router.post("/admin/members",                authorize(["ADMIN"]), validateSchema(authSchemas.createUserByAdminSchema), adminController.createMember);
+router.post("/admin/members/:id/resend-invite", authorize(["ADMIN"]), adminController.resendInvite);
+router.patch("/admin/members/:id/active",    authorize(["ADMIN"]), validateSchema(userSchemas.deactivateUserSchema), adminController.setMemberActive);
+router.get("/admin/stats",                   authorize(["ADMIN"]), adminController.getStats);
+router.get("/admin/history",                 authorize(["ADMIN"]), adminController.getHistory);
+router.get("/admin/reports",                 authorize(["ADMIN"]), adminController.listReports);
+router.get("/admin/reports/suspicious",      authorize(["ADMIN"]), adminController.getSuspicious);
+router.get("/admin/reports/user/:userId",    authorize(["ADMIN"]), adminController.getReportsOfUser);
+router.get("/admin/reports/review-requests", authorize(["ADMIN"]), adminController.listReviewRequests);
+router.patch("/admin/reports/review-requests/:id/resolve", authorize(["ADMIN"]), adminController.resolveReviewRequest);
+router.patch("/admin/reports/:kind/:id/accept",   authorize(["ADMIN"]), adminController.acceptReport);
+router.patch("/admin/reports/:kind/:id/reject",   authorize(["ADMIN"]), adminController.rejectReport);
+router.patch("/admin/reports/:kind/:id/escalate", authorize(["ADMIN"]), adminController.escalateReport);
+router.patch("/admin/reports/:kind/:id/revert",   authorize(["ADMIN"]), adminController.revertReport);
+
 // USERS ROUTES
 router.get("/users/me",             userController.getMe);
 // Authenticated alias for /users/me
@@ -91,6 +113,7 @@ router.get("/user/profile",         userController.getMe);
 router.put("/users/me",             validateSchema(userSchemas.updateProfileSchema), userController.updateMe);
 router.patch("/users/me/password",  validateSchema(userSchemas.changePasswordSchema), userController.changePassword);
 router.patch("/users/me/settings",  validateSchema(userSchemas.updateSettingsSchema), userController.updateNotificationPreferences);
+router.patch("/users/me/language",  validateSchema(userSchemas.languageSchema), userController.setLanguage);
 router.patch("/users/me/fcm-token", validateSchema(userSchemas.fcmTokenSchema), userController.updateFcmToken);
 router.patch("/users/me/deactivate", userController.deactivateSelf);
 // "Bloquear persona x" (Settings): the member types a name, there is no list to pick from.
@@ -115,6 +138,10 @@ router.post("/gym/checkin",         gymController.checkIn);
 router.post("/gym/checkout",        gymController.checkOut);
 router.get("/gym/occupancy/live",   cacheResponse(60), gymController.presentUsers);
 router.get("/gym/priority-assistance", authorize(["TRAINER", "ADMIN"]), gymController.priorityAssistanceList);
+// Trainer screens: numbers of the "Gym" tab, people inside (who asked for help) and one person's data.
+router.get("/gym/summary",          authorize(["TRAINER", "ADMIN"]), gymController.getTrainerSummary);
+router.get("/gym/people",           authorize(["TRAINER", "ADMIN"]), gymController.getPeopleInGym);
+router.get("/gym/people/:userId",   authorize(["TRAINER", "ADMIN"]), gymController.getPersonInGym);
 router.get("/gym/sessions",         gymController.getSessionHistory);
 router.get("/gym/sessions/:id",     gymController.getSessionById);
 router.post("/gym/sessions/:id/rate", validateSchema(progressSchemas.rateTrainerSchema), gymController.rateTrainer);
@@ -169,15 +196,19 @@ router.get("/routines/schedule/:date",       scheduleController.getScheduleDay);
 router.put("/routines/schedule/:date",       validateSchema(progressSchemas.saveScheduleDaySchema), scheduleController.saveScheduleDay);
 router.delete("/routines/schedule/:date",    scheduleController.deleteScheduleDay);
 router.post("/routines/ai/generate",         validateSchema(progressSchemas.generateAiRoutinesSchema), scheduleController.generateAiRoutines);
+router.get("/routines/proposals",           authorize(["USER"]), routineController.getProposals);
 router.get("/routines/:id",                 routineController.getById);
 router.put("/routines/:id",                 validateSchema(progressSchemas.updateRoutineSchema), routineController.update);
 router.delete("/routines/:id",              routineController.remove);
 
 router.post("/routines/requests",           validateSchema(userSchemas.requestRoutineSchema), routineController.requestRoutine);
 router.get("/routines/requests/all",        routineController.getRequests);
-router.patch("/routines/requests/:id/accept", routineController.acceptRequest);
-router.patch("/routines/requests/:id/reject", routineController.rejectRequest);
-router.patch("/routines/requests/:id/complete", routineController.completeRequest);
+router.patch("/routines/requests/:id/accept", authorize(["TRAINER"]), routineController.acceptRequest);
+router.patch("/routines/requests/:id/reject", authorize(["TRAINER"]), routineController.rejectRequest);
+router.patch("/routines/requests/:id/complete", authorize(["TRAINER"]), routineController.completeRequest);
+// The trainer sends the routine they built; the member previews and answers it.
+router.patch("/routines/requests/:id/propose", authorize(["TRAINER"]), validateSchema(progressSchemas.proposeRoutineSchema), routineController.proposeRoutine);
+router.post("/routines/requests/:id/respond",  authorize(["USER"]), validateSchema(progressSchemas.respondToProposalSchema), routineController.respondToProposal);
 router.patch("/routines/:id/day/:dayIndex", routineController.completeDay);
 
 // REWARDS ROUTES
@@ -194,6 +225,13 @@ router.get("/rewards/pending",              authorize(["ADMIN"]), rewardControll
 // Admin-only catalog management: includes stock and isMarketingItem, never
 // exposed on the public GET /rewards above.
 router.get("/rewards/admin",                authorize(["ADMIN"]), rewardController.getAllRewardsAdmin);
+// Admin "Premios" screen: everything in one request + its actions (all logged in the activity history).
+router.get("/rewards/admin/overview",       authorize(["ADMIN"]), rewardController.getAdminOverview);
+router.post("/rewards/admin",               authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createRewardByAdmin);
+router.patch("/rewards/admin/deliveries",   authorize(["ADMIN"]), validateSchema(progressSchemas.deliveriesPausedSchema), rewardController.setDeliveriesPaused);
+router.patch("/rewards/admin/:id",          authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateRewardByAdmin);
+router.post("/rewards/admin/:id/stock",     authorize(["ADMIN"]), validateSchema(progressSchemas.addStockSchema), rewardController.addStock);
+router.patch("/rewards/admin/:id/current",  authorize(["ADMIN"]), rewardController.setCurrentReward);
 router.post("/rewards",                     authorize(["ADMIN"]), validateSchema(progressSchemas.createRewardSchema), rewardController.createReward);
 router.patch("/rewards/:id",                authorize(["ADMIN"]), validateSchema(progressSchemas.updateRewardSchema), rewardController.updateReward);
 
@@ -233,7 +271,8 @@ router.post("/social/:id/feedback",      authorize(["USER"]), validateSchema(soc
 router.post("/assistance/request",          assistanceController.request);
 router.get("/assistance/active",            assistanceController.getPending);
 router.get("/assistance/history",           assistanceController.getHistory);
-router.patch("/assistance/:id/assign",      authorize(["TRAINER", "ADMIN"]), assistanceController.assign);
+router.post("/assistance/start",            authorize(["TRAINER"]), assistanceController.start);
+router.patch("/assistance/:id/assign",      authorize(["TRAINER"]), assistanceController.assign);
 router.patch("/assistance/:id/complete",    assistanceController.complete);
 router.patch("/assistance/:id/cancel",      assistanceController.cancel);
 router.patch("/assistance/trainer/availability", authorize(["TRAINER", "ADMIN"]), assistanceController.setAvailability);
@@ -243,6 +282,7 @@ router.post("/complaints",                  validateSchema(progressSchemas.creat
 // Trainer -> member reports (equipment damage, misconduct, etc.), separate
 // from the generic member-to-member complaint above.
 router.post("/complaints/trainer",          authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.createTrainerComplaintSchema), complaintController.createTrainerComplaint);
+router.post("/denuncias/machine",           authorize(["TRAINER", "ADMIN"]), validateSchema(progressSchemas.reportMachineSchema), adminController.reportMachine);
 router.get("/complaints/me",                complaintController.getMyComplaints);
 router.get("/complaints",                   authorize(["ADMIN"]), complaintController.getAdminComplaints);
 router.get("/complaints/:id",               complaintController.getById);
@@ -252,7 +292,7 @@ router.patch("/complaints/:id/reject",      authorize(["ADMIN"]), validateSchema
 // QR MANAGEMENT ROUTES
 router.get("/qr/me",      qrController.generateQR);
 router.post("/qr/scan",   validateSchema(progressSchemas.validateQRSchema), qrController.validateQR);
-router.get("/qr/gym-access", authorize(["ADMIN"]), qrController.getGymQRCodes);
+router.get("/qr/gym-access", authorize(["ADMIN", "TRAINER"]), qrController.getGymQRCodes);
 router.post("/qr/machines",  authorize(["ADMIN"]), validateSchema(progressSchemas.createMachineSchema), qrController.createMachine);
 router.patch("/qr/machines/:id/regenerate", authorize(["ADMIN", "TRAINER"]), qrController.regenerateMachine);
 router.delete("/qr/machines/:id",           authorize(["ADMIN"]), qrController.deactivateMachine);

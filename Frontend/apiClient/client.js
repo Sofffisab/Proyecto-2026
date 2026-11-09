@@ -25,6 +25,13 @@ let getRefreshToken = () => null;
 let onTokensRefreshed = () => {};
 let onSessionExpired = () => {};
 
+// Language the app is showing ('es' | 'en'). Sent as Accept-Language so the
+// Backend writes its error messages in the same language.
+let apiLanguage = 'es';
+export function setApiLanguage(language) {
+  apiLanguage = language === 'en' ? 'en' : 'es';
+}
+
 /**
  * Called once by AuthContext so this module can read/update tokens without
  * importing AuthContext directly (would create a circular import, since
@@ -78,7 +85,7 @@ async function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_BASE_URL}/auth/refresh-token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': apiLanguage },
       body: JSON.stringify({ refreshToken }),
     })
       .then(parseResponse)
@@ -105,7 +112,7 @@ async function refreshAccessToken() {
  * @param {boolean} [options.isRetry] - internal flag, don't refresh again
  */
 async function request(path, { method = 'GET', body, auth = true, isRetry = false } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', 'Accept-Language': apiLanguage };
 
   if (auth) {
     const token = getAccessToken();

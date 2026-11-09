@@ -376,6 +376,7 @@ describe("RewardService", () => {
           pointsCost: 0,
           active: true,
           stock: 0,
+          totalStock: 0,
           isMarketingItem: false,
         },
       });
@@ -400,6 +401,7 @@ describe("RewardService", () => {
           pointsCost: 500,
           active: false,
           stock: 10,
+          totalStock: 10,
           isMarketingItem: true,
         },
       });

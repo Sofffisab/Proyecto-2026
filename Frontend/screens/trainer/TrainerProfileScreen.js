@@ -8,6 +8,7 @@ import { useTranslation } from '../../i18n/I18nContext';
 import ScreenBody from '../../components/trainer/ScreenBody';
 import MenuCard from '../../components/trainer/MenuCard';
 import Avatar from '../../components/trainer/Avatar';
+import LanguageSelector from '../../components/common/LanguageSelector';
 import { ClipboardIcon } from '../../components/trainer/TrainerIcons';
 
 export default function TrainerProfileScreen({ user, onOpenHistory }) {
@@ -31,11 +32,14 @@ export default function TrainerProfileScreen({ user, onOpenHistory }) {
         subtitle={t('trainer.profile.historySub')}
         onPress={onOpenHistory}
       />
+
+      <LanguageSelector style={styles.language} />
     </ScreenBody>
   );
 }
 
 const styles = StyleSheet.create({
+  language: { marginTop: globals.spacing.lg },
   identity: { alignItems: 'center', marginBottom: globals.spacing.lg, marginTop: globals.spacing.sm },
   name: { marginTop: globals.spacing.md, fontSize: globals.fontSize.xl, fontWeight: '700', color: globals.colors.text },
   email: { marginTop: 2, fontSize: globals.fontSize.md, color: globals.colors.captionGrey },

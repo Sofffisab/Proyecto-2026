@@ -151,10 +151,14 @@ describe("HistoryService", () => {
           id: "assistance-1",
           user: { id: "user-1", firstName: "John", lastName: "Doe" },
           machine: { id: "machine-1", name: "Treadmill" },
-          completedAt: new Date("2026-01-01"),
-          trainerRating: 4,
-          requestedAt: new Date("2025-12-31"),
+          userId: "user-1",
+          assignedAt: new Date("2025-12-31T23:48:00Z"),
+          completedAt: new Date("2026-01-01T00:00:00Z"),
+          requestedAt: new Date("2025-12-31T23:45:00Z"),
         },
+      ]);
+      prisma.trainerRating.findMany.mockResolvedValue([
+        { userId: "user-1", rating: 4, createdAt: new Date("2026-01-01T00:20:00Z") },
       ]);
 
       const result = await historyService.getTrainerAssistanceHistory("trainer-1");
@@ -171,9 +175,10 @@ describe("HistoryService", () => {
           studentName: "John Doe",
           machineId: "machine-1",
           machineName: "Treadmill",
-          date: new Date("2026-01-01"),
+          date: new Date("2026-01-01T00:00:00Z"),
+          minutes: 12,
           rating: 4,
-          requestedAt: new Date("2025-12-31"),
+          requestedAt: new Date("2025-12-31T23:45:00Z"),
         },
       ]);
     });

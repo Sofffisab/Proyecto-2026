@@ -91,9 +91,10 @@ function toGeneralSummary(routine) {
 }
 
 /** List for the "Rutinas generales" screen (no exercise bodies, just counts). */
-export async function listGeneralRoutines() {
+export async function listGeneralRoutines(userId) {
   const routines = await prisma.generalRoutine.findMany({
-    where: { active: true },
+    // The gym's ready-made routines plus the ones a trainer built for this member.
+    where: { active: true, OR: [{ ownerUserId: null }, ...(userId ? [{ ownerUserId: userId }] : [])] },
     orderBy: [{ position: "asc" }, { title: "asc" }],
     include: { exercises: { select: { sets: true } } },
   });
@@ -101,9 +102,15 @@ export async function listGeneralRoutines() {
 }
 
 /** One general routine with its exercises (ordered), by id or slug. */
-export async function getGeneralRoutine(idOrSlug) {
+export async function getGeneralRoutine(idOrSlug, userId) {
   const routine = await prisma.generalRoutine.findFirst({
-    where: { active: true, OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+    where: {
+      active: true,
+      AND: [
+        { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+        { OR: [{ ownerUserId: null }, ...(userId ? [{ ownerUserId: userId }] : [])] },
+      ],
+    },
     include: {
       exercises: {
         orderBy: { position: "asc" },

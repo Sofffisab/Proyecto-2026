@@ -10,7 +10,9 @@ export async function getYearWrapped(req, res, next) {
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
       return res.status(400).json({ success: false, message: "Año inválido" });
     }
-    const data = await generateYearWrapped(prisma, req.user.id, year);
+    // The app sends the language it is displaying (?lang=en | es) so goal labels match it.
+    const language = req.query.lang === "en" ? "en" : "es";
+    const data = await generateYearWrapped(prisma, req.user.id, year, { language });
     res.json({ success: true, data });
   } catch (err) {
     next(err);

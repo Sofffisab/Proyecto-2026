@@ -11,8 +11,8 @@ export async function request(req, res, next) {
 
 export async function assign(req, res, next) {
   try {
-    const { trainerId } = req.validatedData;
-    const data = await assistanceService.assignAssistance(req.params.id, trainerId);
+    // The trainer who presses "Ir a ayudar" is the one assigned.
+    const data = await assistanceService.assignAssistance(req.params.id, req.user.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -66,6 +66,16 @@ export async function cancel(req, res, next) {
   try {
     const data = await assistanceService.cancelAssistance(req.params.id, req.user.id);
     res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /assistance/start  (TRAINER) — "Ir a ayudar" to someone inside the gym.
+export async function start(req, res, next) {
+  try {
+    const data = await assistanceService.startAssistance(req.user.id, req.body?.userId);
+    res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
   }

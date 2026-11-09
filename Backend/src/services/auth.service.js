@@ -15,9 +15,49 @@ function sanitizeUser(user) {
   return safe;
 }
 
+const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days to set the password
+
+// One-time "set your password" token. Only its hash is stored (same mechanism
+// as forgotPassword); the plain token only travels inside the emailed link.
+function buildInviteToken() {
+  const token = crypto.randomBytes(32).toString("hex");
+  return {
+    token,
+    hash: crypto.createHash("sha256").update(token).digest("hex"),
+    expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+  };
+}
+
+// Emails the person the link to set their password. Returns whether the mail
+// server accepted it, so the admin can tell when it failed and resend it
+// instead of leaving an account nobody can open.
+async function sendInviteEmail(user, token) {
+  const baseUrl = (process.env.FRONTEND_URL ?? "").replace(/\/+$/, "");
+  const setPasswordUrl = `${baseUrl}/reset-password?token=${token}`;
+  const name = user.firstName ? `, ${user.firstName}` : "";
+
+  // The person has not picked a language yet, so the mail is written in both.
+  const result = await sendEmail(
+    user.email,
+    "Tu cuenta de Gym App fue creada / Your Gym App account was created",
+    `<h1>¡Bienvenido/a${name}!</h1>
+     <p>Un administrador creó una cuenta para vos en Gym App.</p>
+     <p><strong>Email:</strong> ${user.email}</p>
+     <p>Ingresá una nueva contraseña para empezar (el link vale 7 días):</p>
+     <hr />
+     <h1>Welcome${name}!</h1>
+     <p>An administrator created an account for you in Gym App.</p>
+     <p>Choose a password to get started (the link is valid for 7 days):</p>
+     <p><a href="${setPasswordUrl}">${setPasswordUrl}</a></p>`
+  );
+
+  return Boolean(result?.success);
+}
+
 // Admin creates an account on behalf of a member/trainer: no password is
 // chosen by the admin. Generates an unusable placeholder hash and emails a
-// "set your password" link (same mechanism as forgotPassword).
+// "set your password" link. firstName and lastName are optional: the person
+// fills them in later from their own profile.
 export async function createUserByAdmin(data) {
   const { email, firstName, lastName, role = "USER" } = data;
 
@@ -26,35 +66,47 @@ export async function createUserByAdmin(data) {
 
   const randomPassword = crypto.randomBytes(24).toString("hex");
   const passwordHash = await bcrypt.hash(randomPassword, 10);
-
-  const setPasswordToken = crypto.randomBytes(32).toString("hex");
-  const setPasswordTokenHash = crypto.createHash("sha256").update(setPasswordToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days to set it up
+  const invite = buildInviteToken();
 
   const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
-      firstName,
-      lastName,
+      firstName: firstName ?? null,
+      lastName: lastName ?? null,
       role,
-      passwordResetToken: setPasswordTokenHash,
-      passwordResetExpires: expiresAt,
+      passwordResetToken: invite.hash,
+      passwordResetExpires: invite.expiresAt,
     },
   });
 
-  const setPasswordUrl = `${process.env.FRONTEND_URL}/reset-password?token=${setPasswordToken}`;
-  await sendEmail(
-    email,
-    "Your Gym App account was created",
-    `<h1>Welcome, ${firstName}!</h1>
-     <p>An administrator created an account for you at Gym App.</p>
-     <p><strong>Email:</strong> ${email}</p>
-     <p>Set your password to get started (link valid for 7 days):</p>
-     <a href="${setPasswordUrl}">${setPasswordUrl}</a>`
-  );
+  let emailSent = false;
+  try {
+    emailSent = await sendInviteEmail(user, invite.token);
+  } catch (err) {
+    logger.error(`[auth] Could not send the invite to ${email}: ${err.message}`);
+  }
 
-  return sanitizeUser(user);
+  return { ...sanitizeUser(user), emailSent };
+}
+
+// Sends the "set your password" mail again to an account that has not set one
+// yet (the first mail failed, got lost or expired).
+export async function resendInvite(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError("User not found", 404);
+  if (!user.passwordResetToken) {
+    throw new AppError("This account already has a password set", 400);
+  }
+
+  const invite = buildInviteToken();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordResetToken: invite.hash, passwordResetExpires: invite.expiresAt },
+  });
+
+  const emailSent = await sendInviteEmail(user, invite.token);
+  return { id: user.id, email: user.email, emailSent };
 }
 
 // Accepts the validated { email, password } object directly

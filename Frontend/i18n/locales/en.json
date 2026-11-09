@@ -8,7 +8,10 @@
     "no": "No",
     "staticList": "(Static list)",
     "cameraPermissionRequired": "Camera access is needed to scan QR codes.",
-    "grantCameraAccess": "Grant camera access"
+    "grantCameraAccess": "Grant camera access",
+    "retry": "Retry",
+    "loading": "Loading...",
+    "language": "Language"
   },
   "auth": {
     "login": {
@@ -63,7 +66,14 @@
       "errorFailed": "Couldn't reset your password. Check the code and try again",
       "successMessage": "Your password was reset successfully.",
       "goToLogin": "Go to login",
-      "back": "Back"
+      "back": "Back",
+      "codeConfirmedLabel": "Code",
+      "tokenPlaceholder": "Paste your code here"
+    },
+    "welcome": {
+      "titleDark": "Train better.\nOrganize your ",
+      "titleTeal": "progress.",
+      "login": "Log in"
     }
   },
   "user": {
@@ -261,7 +271,8 @@
         "remove": "Remove photo",
         "permissionDenied": "We need permission to access your photos.",
         "error": "We couldn't load that photo."
-      }
+      },
+      "yearShort": "Year"
     },
     "history": {
       "title": "History",
@@ -479,7 +490,20 @@
       "aiGenerate": "Generate preview",
       "aiPreview": "Preview",
       "aiPreviewBody": "This is how the app could build a routine from your habits and goals",
-      "aiSave": "Save routine"
+      "aiSave": "Save routine",
+      "requestStatus_PENDING": "Request sent. A trainer will pick it up soon.",
+      "requestStatus_ACCEPTED": "A trainer is building your routine.",
+      "requestStatus_PROPOSED": "Your routine is ready: you'll see it when you open the Home screen.",
+      "proposal": {
+        "title": "Your trainer prepared a routine",
+        "subtitleFrom": "{{name}} prepared this routine for you. Do you accept it?",
+        "subtitle": "This is the routine they prepared for you. Do you accept it?",
+        "summary": "{{count}} exercises · about {{minutes}} min",
+        "note": "If you accept, it's saved in your routines and added to today's routine.",
+        "accept": "Accept routine",
+        "decline": "No, thanks",
+        "error": "We couldn't save your answer. Please try again."
+      }
     },
     "achievementsGoals": {
       "title": "Achievements & Goals",
@@ -618,7 +642,11 @@
         "cancelledPoints": "You still get {{points}} points for accepting.",
         "expiredTitle": "Time's up",
         "expiredBody": "Nobody scanned in time, so there are no points this time.",
-        "error": "Something went wrong. Please try again."
+        "error": "Something went wrong. Please try again.",
+        "expired": "This challenge has expired. Please try again.",
+        "youScan": "Scan their QR",
+        "showYourQR": "Show your QR",
+        "accepted": "Challenge accepted!"
       },
       "rateTrainer": {
         "title": "Rate Trainer(s)",
@@ -694,6 +722,189 @@
       "available": "Available",
       "busy": "Busy",
       "back": "Back"
+    },
+    "wrappedScreen": {
+      "loading": "Building your year...",
+      "errorTitle": "We couldn't build your Wrapped",
+      "errorBody": "Check your connection and try again."
+    },
+    "wrappedSlides": {
+      "dayLong": "{{weekday}}, {{month}} {{day}}",
+      "days": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      },
+      "months": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+      },
+      "intro": {
+        "kicker": "YOUR {{year}}",
+        "headline": "Let's look back at your year in the gym.",
+        "headlineNamed": "{{name}}, let's look back at your year in the gym.",
+        "body": "With real data, no tricks. Tap to continue."
+      },
+      "gymDays": {
+        "kicker": "CONSISTENCY",
+        "unit": {
+          "one": "day at the gym",
+          "other": "days at the gym"
+        },
+        "headline": {
+          "none": "You didn't set foot in the gym this year.",
+          "few": "Few, but every one counts.",
+          "some": "That's {{pct}}% of the year.",
+          "many": "{{pct}}% of your days were training days.",
+          "live": "You practically live here."
+        },
+        "body": {
+          "none": "No worries: the best time to start is January.",
+          "few": "Consistency is built one day at a time. You already started.",
+          "some": "A habit is forming, and it shows.",
+          "many": "That's not luck, it's discipline.",
+          "live": "We could charge you rent. It's a compliment."
+        }
+      },
+      "points": {
+        "kicker": "POINTS EARNED",
+        "unit": {
+          "one": "point",
+          "other": "points"
+        },
+        "headline": {
+          "none": "You haven't earned points yet.",
+          "low": "A good start.",
+          "mid": "You racked up points without even trying.",
+          "high": "Your points total is loud."
+        },
+        "body": "Every check-in, routine and achievement added up. Here's the total for the year."
+      },
+      "friends": {
+        "kicker": "COMMUNITY",
+        "unit": {
+          "one": "new friend",
+          "other": "new friends"
+        },
+        "headline": {
+          "none": "You haven't made friends here yet.",
+          "one": "Just one, but a good one.",
+          "some": "The gym is social too.",
+          "many": "You're the heart of the gym."
+        },
+        "body": {
+          "none": "There are plenty of machines to share. Say hi.",
+          "some": "Training with someone means training longer.",
+          "many": "If anyone asks about you, we know why."
+        }
+      },
+      "achievements": {
+        "kicker": "ACHIEVEMENTS",
+        "unit": {
+          "one": "achievement unlocked",
+          "other": "achievements unlocked"
+        },
+        "headline": {
+          "none": "You haven't unlocked achievements yet.",
+          "few": "You already have your first medals.",
+          "some": "Your trophy case is filling up.",
+          "many": "Expert-level collector."
+        },
+        "body": "Each one marks something you couldn't do before."
+      },
+      "goals": {
+        "kicker": "GOALS REACHED",
+        "unit": {
+          "one": "goal reached",
+          "other": "goals reached"
+        },
+        "headline": {
+          "none": "No goal completed yet.",
+          "few": "Few, but hard-earned:",
+          "many": "There were {{count}}. These 3 get the applause:"
+        },
+        "body": "Big goals take time. Keep going: you're on your way."
+      },
+      "machines": {
+        "kicker": "MACHINES",
+        "unit": {
+          "one": "different machine",
+          "other": "different machines"
+        },
+        "use": {
+          "one": "use",
+          "other": "uses"
+        },
+        "headline": {
+          "none": "You haven't tried any machine yet.",
+          "few": "Loyal to your favorites.",
+          "some": "A gym explorer.",
+          "many": "You tried almost the whole floor."
+        },
+        "favorite": "Your favorite: {{name}}, with {{count}} {{uses}}.",
+        "barCaption": "of the {{total}} the gym has"
+      },
+      "intense": {
+        "kicker": "YOUR MOST INTENSE DAY",
+        "body": "That day you didn't just train: you left a mark.",
+        "minutes": "minutes",
+        "points": "points",
+        "machine": {
+          "one": "machine",
+          "other": "machines"
+        }
+      },
+      "routines": {
+        "kicker": "ROUTINES",
+        "unit": {
+          "one": "different routine",
+          "other": "different routines"
+        },
+        "headline": {
+          "none": "You haven't built a routine yet.",
+          "few": "You play it safe, and it works.",
+          "some": "Variety is also a plan.",
+          "many": "Your body never knows what's coming."
+        },
+        "body": "Changing the stimulus is part of progress."
+      },
+      "recap": {
+        "kicker": "YOUR {{year}} IN NUMBERS",
+        "headline": "A year, summed up.",
+        "gymDays": "gym days",
+        "points": "points",
+        "friends": "friends",
+        "achievements": "achievements",
+        "goals": "goals",
+        "machines": "machines"
+      },
+      "gift": {
+        "kicker": "BEFORE YOU GO",
+        "headline": "We have a gift for you...",
+        "coupon": "YOUR GIFT",
+        "inYour": "on your {{concept}}",
+        "validUntil": "Valid until {{date}}",
+        "claim": "Claim my gift",
+        "claimed": "Gift claimed!",
+        "exit": "Leave Wrapped",
+        "concepts": {
+          "JANUARY_FEE": "January fee"
+        }
+      }
     }
   },
   "trainer": {
@@ -727,7 +938,8 @@
       "ratingLabel": "Rating: {{rating}}/5",
       "noRating": "Not rated yet",
       "subtitle": "Who you helped and when.",
-      "durationLabel": "Duration: {{minutes}} min"
+      "durationLabel": "Duration: {{minutes}} min",
+      "noMachine": "Machine: none"
     },
     "reports": {
       "personToReport": "Person to report",
@@ -757,7 +969,10 @@
       "category_trainer": "Trainers",
       "category_member": "People",
       "category_machine": "Machines",
-      "reasonFalseClaim": "Says they're on a machine but isn't"
+      "reasonFalseClaim": "Says they're on a machine but isn't",
+      "none_trainer": "There are no other trainers.",
+      "none_member": "No one is currently in the gym.",
+      "none_machine": "There are no active machines."
     },
     "help": {
       "title": "People at the gym",
@@ -778,7 +993,9 @@
       "medicalTitle": "Medical topics",
       "notesTitle": "My notes",
       "publicNotesTitle": "Public notes",
-      "goHelp": "Go help {{name}}"
+      "goHelp": "Go help {{name}}",
+      "addNote": "Save note",
+      "takenByOther": "Another trainer is already helping this person."
     },
     "routineRequests": {
       "title": "Routine requests",
@@ -798,7 +1015,31 @@
       "requestedOn": "Requested on {{date}}",
       "goalLabel": "Goal: {{goal}}",
       "levelLabel": "Level: {{level}}",
-      "daysLabel": "{{days}} days per week"
+      "daysLabel": "Frequency: {{days}}",
+      "statusProposed": "Sent",
+      "notProvided": "not provided",
+      "medicalLabel": "Medical: {{items}}",
+      "build": "Build routine",
+      "waitingAnswer": "“{{name}}” was sent. Waiting for their answer.",
+      "defaultName": "Routine for {{name}}",
+      "nameRequired": "Give the routine a name.",
+      "pickOne": "Add at least one exercise.",
+      "invalidSetsReps": "Every exercise needs sets (1–20) and reps.",
+      "builderTitle": "Routine for {{name}}",
+      "builderSubtitle": "Pick the exercises and send it. They will be asked to accept it.",
+      "routineName": "Routine name",
+      "chosen": "Exercises ({{count}})",
+      "nothingChosen": "You haven't added any exercise yet.",
+      "remove": "Remove",
+      "sets": "Sets",
+      "reps": "Reps",
+      "addExercise": "Add exercises",
+      "searchPlaceholder": "Search exercise",
+      "add": "Add",
+      "noResults": "No exercises match.",
+      "sending": "Sending...",
+      "send": "Send routine",
+      "sentToMember": "Routine sent. They will be asked whether they accept it."
     },
     "popups": {
       "profileData": {
@@ -950,11 +1191,33 @@
       "shipmentRow": "{{prize}} · sent on {{date}}",
       "waitlistTitle": "Waitlist",
       "waitlistHint": "They are sent the prize automatically as soon as there is stock.",
-      "waiting": "{{count}} waiting"
+      "waiting": "{{count}} waiting",
+      "noCurrent": "No prize is marked as the one being given out.",
+      "invalidAmount": "Enter a whole number of 1 or more.",
+      "nameRequired": "Enter a name.",
+      "invalidCost": "Enter the points cost as a whole number.",
+      "newPrize": "New prize",
+      "noPrizes": "There are no prizes yet.",
+      "cost": "Costs {{points}} points",
+      "currentPill": "Current",
+      "inactive": "Inactive",
+      "makeCurrent": "Give out this one now",
+      "noShipments": "There are no shipments in progress.",
+      "markDelivered": "Mark as delivered",
+      "noWaitlist": "Nobody is waiting.",
+      "waitingRow": "{{points}} points · waiting since {{date}}",
+      "addStockTitle": "Add stock: {{prize}}",
+      "amountLabel": "Units to add",
+      "editTitle": "Edit prize",
+      "nameLabel": "Name",
+      "descriptionLabel": "Description",
+      "costLabel": "Cost in points",
+      "initialStockLabel": "Initial stock",
+      "activeLabel": "Active (can be given out)"
     },
     "reports": {
       "title": "Review reports",
-      "subtitle": "Decide which reports stand",
+      "subtitle": "Decide what happens with each report",
       "approvedTitle": "Approved reports",
       "reportedBy": "Reported by {{name}} on {{date}}",
       "keep": "Keep",
@@ -970,7 +1233,54 @@
       "madeMany": "Made {{count}} reports in {{days}} days",
       "tagReceived": "Received",
       "tagMade": "Made",
-      "viewDetail": "View details"
+      "viewDetail": "View details",
+      "tabPending": "Pending",
+      "tabEscalated": "Escalated",
+      "tabAccepted": "Accepted",
+      "tabReviews": "Reviews",
+      "tabSuspicious": "Suspicious",
+      "reasons": {
+        "MACHINE_DAMAGE": "Damaged a machine",
+        "MISCONDUCT": "Misconduct",
+        "RULE_VIOLATION": "Broke the rules",
+        "FALSE_CLAIM": "Says they're on a machine but isn't",
+        "OTHER": "Other",
+        "TRAINER_MISCONDUCT": "Trainer misconduct",
+        "TRAINER_FALSE_HELP": "Trainer said they helped but didn't",
+        "MACHINE_BROKEN": "Machine broken or not working",
+        "MEMBER_MISCONDUCT": "Member misconduct",
+        "AUTO_NO_HELP": "Member said nobody helped them",
+        "AUTO_MACHINE_CONFLICT": "Two people on the same machine and nobody verified it"
+      },
+      "acceptedPenalty": "Report accepted. {{points}} points were taken.",
+      "acceptedNoPenalty": "Report accepted. No points were taken this time (free strikes).",
+      "reverted": "Report removed. {{points}} points were given back.",
+      "empty_PENDING": "No reports are waiting for review.",
+      "empty_ESCALATED": "No escalated reports.",
+      "empty_ACCEPTED": "No accepted reports.",
+      "machineTag": "Machine",
+      "noPrevious": "No earlier reports against them.",
+      "previous": "Earlier reports: {{total}} ({{accepted}} accepted, {{rejected}} rejected)",
+      "showPrevious": "See earlier reports",
+      "hidePrevious": "Hide",
+      "state_PENDING": "Pending",
+      "state_ACCEPTED": "Accepted",
+      "state_REJECTED": "Rejected",
+      "state_ESCALATED": "Escalated",
+      "willTake": "Accepting takes {{points}} points (they have {{current}}).",
+      "willTakeNothing": "Accepting takes no points yet: they still have free strikes.",
+      "tookPoints": "Took {{points}} points.",
+      "accept": "Accept",
+      "reject": "Reject",
+      "escalate": "Escalate",
+      "escalatedHint": "Escalated reports are handled outside the app (talk to the person, deactivate the account...). You can still accept or reject them here.",
+      "emptyReviews": "No review requests.",
+      "reviewSent": "Asked for a review on {{date}}",
+      "noAcceptedReports": "They have no accepted reports.",
+      "theirAcceptedReports": "Their accepted reports",
+      "markReviewed": "Mark as reviewed",
+      "emptySuspicious": "Nobody stands out right now.",
+      "hideDetail": "Hide details"
     },
     "history": {
       "title": "History",
@@ -979,7 +1289,57 @@
       "filterAdmins": "Admins",
       "filterTrainers": "Trainers",
       "filterUsers": "Members",
-      "privacyNote": "Anything a person marked as private is not shown."
+      "privacyNote": "Anything a person marked as private is not shown.",
+      "empty": "Nothing has happened yet.",
+      "loading": "Loading...",
+      "loadMore": "Load more",
+      "resolutions": {
+        "BOTH_PRESENT": "both were there",
+        "ONLY_FIRST": "only the first was there",
+        "ONLY_SECOND": "only the second was there",
+        "NEITHER_PRESENT": "neither was there",
+        "UNVERIFIED": "not verified"
+      },
+      "targets": {
+        "person": "a person",
+        "machine": "a machine"
+      },
+      "actions": {
+        "UNKNOWN": "Activity: {{action}}",
+        "ACCOUNT_CREATED": "Created the account {{email}} ({{role}})",
+        "ACCOUNT_ACTIVATED": "Activated the account of {{name}}",
+        "ACCOUNT_DEACTIVATED": "Deactivated the account of {{name}}",
+        "INVITE_RESENT": "Resent the password email to {{email}}",
+        "REWARD_CREATED": "Created the prize “{{prize}}” with {{stock}} in stock",
+        "REWARD_EDITED": "Edited the prize “{{prize}}”",
+        "REWARD_STOCK_ADDED": "Added {{amount}} units of “{{prize}}” to the stock",
+        "REWARD_CURRENT_SET": "Set “{{prize}}” as the prize being given out",
+        "REWARD_DELIVERIES_PAUSED": "Paused prize deliveries",
+        "REWARD_DELIVERIES_RESUMED": "Resumed prize deliveries",
+        "REWARD_DELIVERED": "Marked “{{prize}}” as delivered to {{user}}",
+        "REPORT_ACCEPTED": "Accepted a report about {{subject}} (points taken: {{points}})",
+        "REPORT_REJECTED": "Rejected a report about {{subject}}",
+        "REPORT_ESCALATED": "Escalated a report about {{subject}}",
+        "REPORT_REVERTED": "Removed an accepted report about {{subject}} ({{points}} points returned)",
+        "REVIEW_REQUEST_RESOLVED": "Reviewed the request of {{user}}",
+        "TRAINER_REPORT_SENT": "Sent a report about {{target}}",
+        "MACHINE_CONFLICT_RESOLVED": "Verified the conflict on {{machine}}: {{resolution}}",
+        "MACHINE_CREATED": "Created the machine {{machine}}",
+        "MACHINE_QR_REGENERATED": "Regenerated the QR of {{machine}}",
+        "MACHINE_DEACTIVATED": "Deactivated the machine {{machine}}",
+        "ROUTINE_REQUEST_ACCEPTED": "Took the routine request of {{member}}",
+        "ROUTINE_REQUEST_REJECTED": "Rejected the routine request of {{member}}",
+        "ROUTINE_PROPOSED": "Sent the routine “{{routine}}” to {{member}} ({{exercises}} exercises)",
+        "ROUTINE_PROPOSAL_ACCEPTED": "Accepted the routine “{{routine}}” prepared by {{trainer}}",
+        "ROUTINE_PROPOSAL_DECLINED": "Declined the routine “{{routine}}” prepared by {{trainer}}",
+        "ASSISTANCE_STARTED": "Went to help {{member}}",
+        "ASSISTANCE_COMPLETED": "Finished helping a member",
+        "GYM_CHECK_IN": "Entered the gym",
+        "GYM_CHECK_OUT": "Left the gym ({{durationMinutes}} min)",
+        "MACHINE_USE": "Used {{machine}}",
+        "TRAINER_ASSISTANCE": "Helped {{other}}",
+        "SOCIAL_INTERACTION": "Met {{other}} in the gym"
+      }
     },
     "gym": {
       "title": "View gym",
@@ -1003,7 +1363,17 @@
       "active": "Active",
       "deactivated": "Deactivated",
       "deactivate": "Deactivate account",
-      "activate": "Activate account"
+      "activate": "Activate account",
+      "roleLabel": "Account type",
+      "firstNameOptional": "First name (optional)",
+      "lastNameOptional": "Last name (optional)",
+      "createdSent": "Account created. We emailed {{email}} a link to choose their password.",
+      "createdNoMail": "The account for {{email}} was created but the email could not be sent. Use “Resend email”.",
+      "creating": "Creating...",
+      "empty": "There are no accounts yet.",
+      "noRatings": "No ratings yet",
+      "invitePending": "Password not set yet",
+      "resendInvite": "Resend email"
     },
     "stats": {
       "title": "Statistics",
@@ -1017,7 +1387,10 @@
       "activated": "Activated",
       "deactivated": "Deactivated",
       "metGoals": "Meeting their goals",
-      "notMetGoals": "Not meeting them"
+      "notMetGoals": "Not meeting them",
+      "machineUsageHint": "Share of the {{visits}} visits of the last {{days}} days in which each machine was used.",
+      "noMachines": "There are no active machines.",
+      "noTrainers": "There are no active trainers."
     }
   },
   "qrGeneration": {

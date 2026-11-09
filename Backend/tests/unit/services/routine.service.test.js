@@ -175,39 +175,59 @@ describe("RoutineService", () => {
   });
 
   describe("getRoutineRequests", () => {
-    it("returns requests addressed to this trainer (or unassigned) when the caller is a TRAINER", async () => {
-      prisma.routineRequest.findMany.mockResolvedValue([{ id: "req-1" }]);
+    const memberRow = {
+      id: "req-1",
+      status: "PENDING",
+      trainerId: null,
+      createdAt: new Date("2026-11-01"),
+      user: {
+        id: "user-1",
+        firstName: "Ana",
+        lastName: "Paz",
+        email: "ana@gym.com",
+        objectives: ["GAIN_MUSCLE"],
+        trainingLevel: "BEGINNER",
+        weeklyTrainingDays: "THREE",
+        trainingType: "STRENGTH",
+        medicalConditions: ["Asma"],
+      },
+    };
 
-      await routineService.getRoutineRequests("trainer-1", "TRAINER");
+    it("returns open requests plus the ones this trainer is handling when the caller is a TRAINER", async () => {
+      prisma.routineRequest.findMany.mockResolvedValue([memberRow]);
 
-      expect(prisma.routineRequest.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { OR: [{ trainerId: "trainer-1" }, { trainerId: null }] },
-          include: { user: true },
-        })
-      );
+      const result = await routineService.getRoutineRequests("trainer-1", "TRAINER");
+
+      const call = prisma.routineRequest.findMany.mock.calls[0][0];
+      expect(call.where.OR).toContainEqual({ trainerId: null, status: "PENDING" });
+      expect(call.where.OR).toContainEqual({ trainerId: "trainer-1", status: { in: ["ACCEPTED", "PROPOSED"] } });
+      expect(result[0]).toMatchObject({
+        id: "req-1",
+        member: { name: "Ana Paz", level: "BEGINNER", weeklyTrainingDays: "THREE", medicalConditions: ["Asma"] },
+      });
     });
 
-    it("returns requests addressed to this trainer when the caller is an ADMIN", async () => {
+    it("never selects the whole user row (password hash, tokens...)", async () => {
       prisma.routineRequest.findMany.mockResolvedValue([]);
 
       await routineService.getRoutineRequests("admin-1", "ADMIN");
 
-      expect(prisma.routineRequest.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ include: { user: true } })
-      );
+      const { include } = prisma.routineRequest.findMany.mock.calls[0][0];
+      expect(include.user).not.toBe(true);
+      expect(include.user.select.passwordHash).toBeUndefined();
     });
 
     it("returns only the caller's own requests when the caller is a regular USER", async () => {
-      prisma.routineRequest.findMany.mockResolvedValue([{ id: "req-1" }]);
+      prisma.routineRequest.findMany.mockResolvedValue([
+        { id: "req-1", status: "PENDING", createdAt: new Date(), trainer: null },
+      ]);
 
-      await routineService.getRoutineRequests("user-1", "USER");
+      const result = await routineService.getRoutineRequests("user-1", "USER");
 
-      expect(prisma.routineRequest.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-        include: { trainer: true },
-        orderBy: { createdAt: "desc" },
-      });
+      expect(prisma.routineRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "user-1" }, orderBy: { createdAt: "desc" } })
+      );
+      expect(result).toEqual([expect.objectContaining({ id: "req-1", status: "PENDING", trainer: null })]);
     });
   });
 

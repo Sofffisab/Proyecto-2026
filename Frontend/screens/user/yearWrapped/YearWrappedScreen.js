@@ -17,12 +17,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Animated, Easing, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { palette, slideThemes } from './theme';
 import { buildSlides } from './slides';
+import { useTranslation } from '../../../i18n/I18nContext';
 import SlideView from './components/SlideView';
 
 const SLIDE_MS = 7000;
 
 export default function YearWrappedScreen({ data, loading = false, error = false, onRetry, onClose, onRedeem }) {
-  const slides = useMemo(() => (data ? buildSlides(data) : []), [data]);
+  const { t } = useTranslation();
+  const slides = useMemo(() => (data ? buildSlides(data, t) : []), [data, t]);
   const [index, setIndex] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
@@ -79,23 +81,23 @@ export default function YearWrappedScreen({ data, loading = false, error = false
     return (
       <View style={[styles.center, { backgroundColor: palette.ink }]}>
         <ActivityIndicator color={palette.mint} size="large" />
-        <Text style={styles.centerText}>Armando tu año...</Text>
+        <Text style={styles.centerText}>{t('user.wrappedScreen.loading')}</Text>
       </View>
     );
   }
   if (error || !data) {
     return (
       <View style={[styles.center, { backgroundColor: palette.ink }]}>
-        <Text style={styles.centerTitle}>No pudimos armar tu Wrapped</Text>
-        <Text style={styles.centerText}>Revisá tu conexión e intentá de nuevo.</Text>
+        <Text style={styles.centerTitle}>{t('user.wrappedScreen.errorTitle')}</Text>
+        <Text style={styles.centerText}>{t('user.wrappedScreen.errorBody')}</Text>
         {onRetry ? (
           <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
-            <Text style={styles.retryText}>Reintentar</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         ) : null}
         {onClose ? (
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.backLink}>Volver</Text>
+            <Text style={styles.backLink}>{t('common.back')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -139,7 +141,7 @@ export default function YearWrappedScreen({ data, loading = false, error = false
         <View style={styles.headerRow}>
           <Text style={[styles.brand, { color: theme.fg, pointerEvents: 'none' }]}>WRAPPED {data.year}</Text>
           {onClose ? (
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Cerrar">
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('common.close')}>
               <Text style={[styles.close, { color: theme.fg }]}>✕</Text>
             </TouchableOpacity>
           ) : null}

@@ -1,5 +1,6 @@
 // Admin profile (person tab) — mockup "Pantalla usuario admin": identity
-// block only (avatar, name, email and the "Administrador" badge).
+// block (avatar, name, email and the "Administrador" badge) plus the language
+// selector.
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -7,6 +8,7 @@ import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import ScreenBody from '../../components/trainer/ScreenBody';
 import Avatar from '../../components/trainer/Avatar';
+import LanguageSelector from '../../components/common/LanguageSelector';
 
 export default function AdminProfileScreen({ user }) {
   const { t } = useTranslation();
@@ -22,6 +24,8 @@ export default function AdminProfileScreen({ user }) {
           <Text style={styles.roleLabel}>{t('admin.profile.admin')}</Text>
         </View>
       </View>
+
+      <LanguageSelector />
     </ScreenBody>
   );
 }

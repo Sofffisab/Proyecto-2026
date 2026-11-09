@@ -242,6 +242,7 @@ export const createTrainerComplaintSchema = z.object({
     COMPLAINT_REASON_CODES.MACHINE_DAMAGE,
     COMPLAINT_REASON_CODES.MISCONDUCT,
     COMPLAINT_REASON_CODES.RULE_VIOLATION,
+    COMPLAINT_REASON_CODES.FALSE_CLAIM,
     COMPLAINT_REASON_CODES.OTHER,
   ]),
   message: z.string().trim().max(2000).optional(),
@@ -256,4 +257,30 @@ export const createMachineSchema = z.object({
 
 export const resolveMachineConflictSchema = z.object({
   resolution: z.enum(["BOTH_PRESENT", "NEITHER_PRESENT", "ONLY_FIRST", "ONLY_SECOND"]),
+});
+
+// Admin / trainer screens
+
+export const proposeRoutineSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  exercises: z.array(scheduleItemSchema).min(1).max(40),
+});
+
+export const respondToProposalSchema = z.object({
+  accept: z.boolean(),
+  // The member's local day ("YYYY-MM-DD") the routine is added to when accepted.
+  date: dateKeySchema.optional(),
+});
+
+export const addStockSchema = z.object({
+  amount: z.number().int().min(1).max(100000),
+});
+
+export const deliveriesPausedSchema = z.object({
+  paused: z.boolean(),
+});
+
+export const reportMachineSchema = z.object({
+  machineId: z.string().uuid(),
+  comment: z.string().trim().max(500).optional(),
 });

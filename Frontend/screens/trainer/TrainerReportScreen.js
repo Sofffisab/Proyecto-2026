@@ -1,33 +1,84 @@
 // "Denunciar": pick WHO or WHAT to report (a trainer, a person in the gym or
-// a machine), say why, and send. Selections are local state only — the send
-// button does nothing yet (it will map to the denuncia/complaint endpoints:
-// POST /complaints/trainer, see complaint.api).
+// a machine), say why, and send it for the admin to review.
+//  - trainer / person -> POST /complaints/trainer
+//  - machine          -> POST /denuncias/machine
+// Candidates: GET /trainers, GET /gym/people and GET /qr/gym-access.
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import ScreenBody from '../../components/trainer/ScreenBody';
 import { CheckIcon } from '../../components/trainer/TrainerIcons';
-import { PEOPLE_IN_GYM, REPORT_TRAINERS, REPORT_MACHINES } from './mockData';
+import { useAuth } from '../../context/AuthContext';
+import useLoad from '../../hooks/useLoad';
+import * as trainerApi from '../../apiClient/services/trainer.api';
+import StateView from '../../components/common/StateView';
+
+const fullName = (u) => `${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim() || u?.email || '–';
+
+async function loadCandidates() {
+  const [trainers, people, machines] = await Promise.all([
+    trainerApi.getTrainers(),
+    trainerApi.getPeopleInGym(),
+    trainerApi.getMachines(),
+  ]);
+  return {
+    trainer: (trainers.data ?? []).map((u) => ({ id: u.id, name: fullName(u) })),
+    member: (people.data ?? []).map((p) => ({ id: p.id, name: p.name })),
+    machine: (machines.data ?? []).map((m) => ({ id: m.id, name: m.name })),
+  };
+}
 
 const CATEGORIES = ['trainer', 'member', 'machine'];
-const REASONS = ['reasonMachineDamage', 'reasonMisconduct', 'reasonFalseClaim', 'reasonOther'];
+// Reason chips -> the codes the Backend validates (progress.schemas.js).
+// A machine has no reason categories: it is always "broken / damaged" plus the details.
+const REASONS = [
+  { key: 'reasonMachineDamage', code: 'MACHINE_DAMAGE' },
+  { key: 'reasonMisconduct', code: 'MISCONDUCT' },
+  { key: 'reasonFalseClaim', code: 'FALSE_CLAIM' },
+  { key: 'reasonOther', code: 'OTHER' },
+];
 
 export default function TrainerReportScreen() {
   const { t } = useTranslation();
+  const { user: me } = useAuth();
+  const { data: candidates, loading, error, reload } = useLoad(loadCandidates);
   const [category, setCategory] = useState('member');
   const [targetId, setTargetId] = useState(null);
   const [reason, setReason] = useState(null);
   const [details, setDetails] = useState('');
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState(null); // { type, text }
 
-  const options = {
-    trainer: REPORT_TRAINERS,
-    member: PEOPLE_IN_GYM.map(({ id, name }) => ({ id, name })),
-    machine: REPORT_MACHINES,
-  }[category];
+  // A trainer cannot report themselves.
+  const options = ((candidates ?? {})[category] ?? []).filter((o) => !(category === 'trainer' && o.id === me?.id));
+  const isMachine = category === 'machine';
+  const canSend = !!targetId && (isMachine || !!reason) && !sending;
 
-  const canSend = !!targetId && !!reason;
+  const send = useCallback(async () => {
+    setSending(true);
+    setMessage(null);
+    try {
+      if (isMachine) {
+        await trainerApi.reportMachine({ machineId: targetId, comment: details.trim() || undefined });
+      } else {
+        await trainerApi.reportPerson({
+          reportedUserId: targetId,
+          reason,
+          message: details.trim() || undefined,
+        });
+      }
+      setMessage({ type: 'ok', text: t('trainer.reports.sendSuccess') });
+      setTargetId(null);
+      setReason(null);
+      setDetails('');
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || t('trainer.reports.sendError') });
+    } finally {
+      setSending(false);
+    }
+  }, [isMachine, targetId, reason, details, t]);
 
   return (
     <ScreenBody title={t('trainer.hub.reportTitle')} subtitle={t('trainer.reports.subtitle')}>
@@ -53,6 +104,7 @@ export default function TrainerReportScreen() {
         })}
       </View>
 
+      <StateView loading={loading} error={error} onRetry={reload} empty={options.length === 0} emptyText={t(`trainer.reports.none_${category}`)}>
       <View style={styles.list}>
         {options.map((o, i) => {
           const on = o.id === targetId;
@@ -73,26 +125,27 @@ export default function TrainerReportScreen() {
           );
         })}
       </View>
+      </StateView>
 
       {/* ---- Why ---- */}
-      <Text style={styles.label}>{t('trainer.reports.reason')}</Text>
-      <View style={styles.chips}>
-        {REASONS.map((r) => {
-          const on = r === reason;
+      {!isMachine && <Text style={styles.label}>{t('trainer.reports.reason')}</Text>}
+      {!isMachine && <View style={styles.chips}>
+        {REASONS.map(({ key, code }) => {
+          const on = code === reason;
           return (
             <TouchableOpacity
-              key={r}
+              key={key}
               style={[styles.chip, on && styles.chipOn]}
-              onPress={() => setReason(r)}
+              onPress={() => setReason(code)}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
             >
-              <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{t(`trainer.reports.${r}`)}</Text>
+              <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{t(`trainer.reports.${key}`)}</Text>
             </TouchableOpacity>
           );
         })}
-      </View>
+      </View>}
 
       <TextInput
         style={styles.input}
@@ -104,13 +157,16 @@ export default function TrainerReportScreen() {
         textAlignVertical="top"
       />
 
+      {!!message && <Text style={[styles.message, message.type === 'error' && styles.messageError]}>{message.text}</Text>}
+
       <TouchableOpacity
         style={[styles.send, !canSend && styles.sendDisabled]}
         activeOpacity={0.85}
         disabled={!canSend}
+        onPress={send}
         accessibilityRole="button"
       >
-        <Text style={styles.sendLabel}>{t('trainer.reports.send')}</Text>
+        <Text style={styles.sendLabel}>{sending ? t('trainer.reports.sending') : t('trainer.reports.send')}</Text>
       </TouchableOpacity>
     </ScreenBody>
   );
@@ -195,5 +251,7 @@ const styles = StyleSheet.create({
     ...globals.shadow.button,
   },
   sendDisabled: { opacity: 0.45 },
+  message: { marginTop: globals.spacing.md, color: globals.colors.primary, fontSize: globals.fontSize.md },
+  messageError: { color: globals.colors.danger },
   sendLabel: { color: '#fff', fontSize: globals.fontSize.md, fontWeight: '700' },
 });

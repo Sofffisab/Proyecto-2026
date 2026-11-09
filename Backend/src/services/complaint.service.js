@@ -4,15 +4,25 @@ import { POINTS, COMPLAINT_PENALTY } from "../constants/points.js";
 import { createNotification } from "./communication.service.js";
 import { logger } from "../utils/logger.js";
 import { MESSAGES } from "../locales/es.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 
 // Penalty for this approval, given the count of APPROVED complaints
 // (incl. this one). 0 for free strikes, then +STEP per complaint, capped at MAX_PENALTY.
-function calculateComplaintPenalty(approvedCount) {
+export function calculateComplaintPenalty(approvedCount) {
   const strikesPastFree = approvedCount - COMPLAINT_PENALTY.FREE_STRIKES;
   if (strikesPastFree <= 0) return 0;
 
   const penalty = Math.min(strikesPastFree * COMPLAINT_PENALTY.STEP, COMPLAINT_PENALTY.MAX_PENALTY);
   return -penalty;
+}
+
+/** Strikes against a person: approved complaints + accepted denuncias. */
+export async function countAcceptedReportsAgainst(userId) {
+  const [complaints, denuncias] = await Promise.all([
+    prisma.complaint.count({ where: { reportedUserId: userId, status: "APPROVED" } }),
+    prisma.denuncia.count({ where: { reportedUserId: userId, status: "REVIEWED" } }),
+  ]);
+  return (complaints ?? 0) + (denuncias ?? 0);
 }
 
 export async function createComplaint(data) {
@@ -28,7 +38,7 @@ export async function createComplaint(data) {
     throw new Error("Reported user not found");
   }
 
-  return prisma.complaint.create({
+  const created = await prisma.complaint.create({
     data: {
       reporterId: data.reporterId,
       reportedUserId: data.reportedUserId,
@@ -37,6 +47,8 @@ export async function createComplaint(data) {
       status: "PENDING",
     },
   });
+  signalStaff(TOPIC.REPORTS);
+  return created;
 }
 
 // Auto-generated when a member marks "didn't help me" on the rate-trainer popup.
@@ -61,7 +73,7 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
     throw new Error("Reported user not found");
   }
 
-  return prisma.complaint.create({
+  const created = await prisma.complaint.create({
     data: {
       reporterId,
       reportedUserId,
@@ -72,6 +84,8 @@ export async function createAutoNoHelpComplaint({ reporterId, reportedUserId, gy
       source: "AUTO_NO_HELP",
     },
   });
+  signalStaff(TOPIC.REPORTS);
+  return created;
 }
 
 // Auto-generated when a MachineConflict times out unverified
@@ -87,7 +101,7 @@ export async function createAutoMachineConflictComplaint({ reporterId, reportedU
   });
   if (existing) return existing;
 
-  return prisma.complaint.create({
+  const created = await prisma.complaint.create({
     data: {
       reporterId,
       reportedUserId,
@@ -97,9 +111,11 @@ export async function createAutoMachineConflictComplaint({ reporterId, reportedU
       source: "AUTO_MACHINE_CONFLICT",
     },
   });
+  signalStaff(TOPIC.REPORTS);
+  return created;
 }
 
-// Trainer/Admin reporting a member; reported user must be a regular member
+// Trainer/Admin reporting a member or another trainer (never an admin)
 export async function createTrainerComplaint({ reporterId, reportedUserId, reason, message }) {
   if (reporterId === reportedUserId) {
     throw new Error("Cannot report yourself");
@@ -109,11 +125,11 @@ export async function createTrainerComplaint({ reporterId, reportedUserId, reaso
   if (!reportedUser) {
     throw new Error("Reported user not found");
   }
-  if (reportedUser.role !== "USER") {
-    throw new Error("Trainers can only report regular members through this endpoint");
+  if (reportedUser.role === "ADMIN") {
+    throw new Error("Administrators cannot be reported through this endpoint");
   }
 
-  return prisma.complaint.create({
+  const created = await prisma.complaint.create({
     data: {
       reporterId,
       reportedUserId,
@@ -123,6 +139,8 @@ export async function createTrainerComplaint({ reporterId, reportedUserId, reaso
       source: "TRAINER_REPORT",
     },
   });
+  signalStaff(TOPIC.REPORTS);
+  return created;
 }
 
 export async function getUserComplaints(userId) {
@@ -154,11 +172,16 @@ export async function approveComplaint(id, reviewerId) {
 
   // Progressive penalty: count how many complaints against this user are
   // now APPROVED (this one included, since we just updated it above).
-  const approvedCount = await prisma.complaint.count({
-    where: { reportedUserId: complaint.reportedUserId, status: "APPROVED" },
-  });
+  // Accepted denuncias (exit pop-up) count as strikes too, so a person does not
+  // get a fresh set of free strikes per kind of report.
+  const approvedCount = await countAcceptedReportsAgainst(complaint.reportedUserId);
 
   const penalty = calculateComplaintPenalty(approvedCount);
+
+  if (penalty !== 0) {
+    // Remember what was taken so an admin can undo it exactly.
+    await prisma.complaint.update({ where: { id }, data: { penaltyPoints: Math.abs(penalty) } });
+  }
 
   if (penalty === 0) {
     // Strikes #1 and #2: evaluated, but no points deducted yet.

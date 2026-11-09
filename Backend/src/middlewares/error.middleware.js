@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger.js";
+import { languageFromRequest, translateMessage } from "../locales/errors.js";
 export const notFoundHandler = (req, res) => {
   return res.status(404).json({
     success: false,
@@ -24,6 +25,9 @@ export const errorHandler = (error, req, res, next) => {
   if (statusCode >= 500) {
     message = "Internal server error";
   }
+
+  // The app tells us its language (Accept-Language) so the person reads the error in it.
+  message = translateMessage(message, languageFromRequest(req));
 
   return res.status(statusCode).json({
     success: false,

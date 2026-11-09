@@ -4,7 +4,7 @@ import globals from '../../styles/globals';
 
 /**
  * Round teal avatar with the person's initials (the mockups draw it as a
- * plain teal circle). Static placeholder until profile photos are wired.
+ * plain teal circle).
  */
 export const getInitials = (name = '') =>
   name

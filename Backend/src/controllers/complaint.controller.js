@@ -1,3 +1,4 @@
+import { logActivity, ACTIVITY } from "../services/activityLog.service.js";
 import * as complaintService from "../services/complaint.service.js";
 import { AppError } from "../utils/errors.js";
 
@@ -28,6 +29,13 @@ export async function createTrainerComplaint(req, res, next) {
       reportedUserId,
       reason,
       message,
+    });
+    await logActivity({
+      actorId: req.user.id,
+      action: ACTIVITY.TRAINER_REPORT_SENT,
+      entityType: "Complaint",
+      entityId: data?.id ?? null,
+      metadata: { target: "person" },
     });
     res.status(201).json({ success: true, data });
   } catch (err) {

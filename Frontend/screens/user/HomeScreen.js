@@ -6,6 +6,7 @@ import globals from '../../styles/globals';
 import QRScanner from '../../components/common/QRScanner';
 import BottomNav from '../../components/common/BottomNav';
 import CheckoutPopup from '../../components/user/CheckoutPopup';
+import RoutineProposalPopup from '../../components/user/RoutineProposalPopup';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSocial } from '../../social/SocialContext';
@@ -175,6 +176,21 @@ export default function HomeScreen({
     }
   }, []);
 
+  // Routines a trainer prepared for this member, waiting for their answer
+  // ("esta es la rutina que te prepararon, ¿la aceptás?").
+  const [proposals, setProposals] = useState([]);
+  const [proposalHidden, setProposalHidden] = useState(false);
+
+  const loadProposals = useCallback(async () => {
+    try {
+      const { data } = await routineApi.getRoutineProposals();
+      setProposals(data ?? []);
+      setProposalHidden(false);
+    } catch {
+      // Best-effort — if it fails the proposal simply shows up next time.
+    }
+  }, []);
+
   const loadWeekActivity = useCallback(async () => {
     try {
       const { data } = await historyApi.getDailyMachineUsageLog();
@@ -203,9 +219,10 @@ export default function HomeScreen({
       loadUnreadCount();
       loadTodayRoutines();
       loadWeekActivity();
+      loadProposals();
       // Best-effort silent retry of anything queued while offline.
       flushQueue();
-    }, [loadPoints, loadUnreadCount, loadTodayRoutines, loadWeekActivity])
+    }, [loadPoints, loadUnreadCount, loadTodayRoutines, loadWeekActivity, loadProposals])
   );
 
   // QR scan flow — real camera via expo-camera (see QRScanner component).
@@ -550,6 +567,17 @@ export default function HomeScreen({
           </View>
         </View>
       </Modal>
+
+      {proposals.length > 0 && !proposalHidden && (
+        <RoutineProposalPopup
+          proposal={proposals[0]}
+          onLater={() => setProposalHidden(true)}
+          onAnswered={(accepted) => {
+            setProposals((list) => list.slice(1));
+            if (accepted) loadTodayRoutines();
+          }}
+        />
+      )}
 
       {checkoutSessionId && (
         <CheckoutPopup sessionId={checkoutSessionId} onClose={() => setCheckoutSessionId(null)} />

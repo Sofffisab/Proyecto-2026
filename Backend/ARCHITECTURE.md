@@ -197,3 +197,22 @@ Visible only to:
 * owner
 * trainers
 * administrators
+
+---
+
+## Admin / trainer screens
+
+* **Live updates (Ably).** `realtime/ably.js` exposes one channel, `staff:live`, that only trainers and admins can
+  *subscribe* to (`GET /staff/ably-token`). Services call `signalStaff(topic)` (`realtime/staffSignal.js`) when
+  something changes (`help`, `people`, `conflicts`, `routines`, `reports`). The message carries no personal data: the
+  apps answer by re-reading their own list. Without `ABLY_API_KEY` nothing is published and the apps fall back to a slow
+  refresh. The app side is `Frontend/realtime/staffRealtime.js` + `Frontend/hooks/useLiveLoad.js`.
+* **Activity log.** `ActivityLog` (insert-only) records what admins/trainers do; the admin "Historial" merges it with the
+  members' `HistorialEvento` rows (members who withdrew analytics consent are left out).
+* **Reports.** `report.service.js` reviews `Complaint` and `Denuncia` together (accept = progressive penalty,
+  reject, escalate, remove). Strikes are shared by both kinds.
+* **Routine proposals.** `RoutineRequest` goes PENDING -> ACCEPTED (trainer took it) -> PROPOSED (sent) ->
+  COMPLETED (member accepted: saved as a per-account `GeneralRoutine` + added to that day) / DECLINED.
+* **Language.** The app sends `Accept-Language: es|en`; `locales/errors.js` translates error messages and
+  `locales/notifications.js` writes the notifications of these features in the language stored in `User.language`
+  (`PATCH /users/me/language`).

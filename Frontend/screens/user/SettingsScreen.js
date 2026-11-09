@@ -16,6 +16,7 @@ import Button from '../../components/common/Button';
 import { useTranslation } from '../../i18n/I18nContext';
 import { pickProfilePhoto } from '../../utils/imagePicker';
 import * as userApi from '../../features/api/services/user.api';
+import LanguageSelector from '../../components/common/LanguageSelector';
 
 /**
  * Edit Profile / Settings & customization Screen (User) - spec section 7.
@@ -369,7 +370,7 @@ function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth
             </TouchableOpacity>
             <TextInput
               style={[styles.input, styles.dateInput, styles.dateInputYear]}
-              placeholder="AAAA"
+              placeholder={t('user.settings.yearPlaceholder')}
               placeholderTextColor={globals.colors.textMuted}
               value={year}
               onChangeText={onChangeYear}
@@ -412,7 +413,7 @@ function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth
             <View style={styles.inputWithCheckRow}>
               <TextInput
                 style={[styles.input, styles.inputFlex]}
-                placeholder="Año"
+                placeholder={t('user.settings.yearShort')}
                 placeholderTextColor={globals.colors.textMuted}
                 value={year}
                 onChangeText={onChangeYear}
@@ -821,6 +822,9 @@ export default function SettingsScreen({
         />
       </View>
 
+      {/* Language */}
+      <LanguageSelector style={styles.languageBlock} />
+
       {/* Preferences */}
       <Text style={styles.sectionTitle}>{t('user.settings.preferencesTitle')}</Text>
       <View style={styles.card}>
@@ -1149,6 +1153,10 @@ const styles = StyleSheet.create({
   },
   rowIconGlyph: {
     fontSize: globals.fontSize.md,
+  },
+  languageBlock: {
+    paddingHorizontal: globals.spacing.md,
+    marginTop: globals.spacing.lg,
   },
   sectionTitle: {
     fontSize: globals.fontSize.lg,

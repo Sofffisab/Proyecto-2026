@@ -88,11 +88,19 @@ enum AssistanceStatus {
   CANCELLED
 }
 
+// PENDING   -> the member asked for a routine
+// ACCEPTED  -> a trainer took the request and is building the routine
+// PROPOSED  -> the trainer sent the finished routine; waiting for the member's answer
+// COMPLETED -> the member accepted it (saved to their routines + today's schedule)
+// DECLINED  -> the member did not accept the proposed routine
+// REJECTED  -> the trainer turned the request down
 enum RoutineRequestStatus {
   PENDING
   ACCEPTED
+  PROPOSED
   REJECTED
   COMPLETED
+  DECLINED
 }
 
 enum SocialChallengeStatus {
@@ -117,6 +125,7 @@ enum ComplaintStatus {
   PENDING
   APPROVED
   REJECTED
+  ESCALATED  // Passed to a higher level: handled outside the app (talk in person, deactivate the account...)
 }
 
 enum ComplaintSource {
@@ -147,10 +156,13 @@ enum DenunciaType {
   MEMBER_MISCONDUCT   // Another member behaved badly
 }
 
+// REVIEWED = the admin accepted the denuncia, DISMISSED = rejected,
+// ESCALATED = passed to a higher level (handled outside the app).
 enum DenunciaStatus {
   PENDING
   REVIEWED
   DISMISSED
+  ESCALATED
 }
 
 // Kinds of rows in the personal history ("Historial") table.
@@ -268,6 +280,11 @@ model User {
   blocksReceived       UserBlock[]         @relation("UserBlockBlocked")
   historial            HistorialEvento[]   @relation("HistorialOwner")
   historialAsOther     HistorialEvento[]   @relation("HistorialOther")
+  // App language chosen in Settings ("es" | "en"): used for the texts the Backend
+  // itself writes (notifications). Everything shown by the screens is translated in the app.
+  language             String              @default("es")
+  activityLogs         ActivityLog[]       @relation("ActivityActor")
+  ownGeneralRoutines   GeneralRoutine[]    @relation("GeneralRoutineOwner")
 
   @@index([email])
   @@index([role])
@@ -379,6 +396,7 @@ model Machine {
   usages           MachineUsage[]
   conflicts        MachineConflict[]
   denuncias        Denuncia[]
+  assistances      Assistance[]
 
   @@index([active])
 }
@@ -438,9 +456,14 @@ model Assistance {
   requestedAt DateTime         @default(now())
   assignedAt  DateTime?
   completedAt DateTime?
+  cancelledAt DateTime?
+  // Machine the member was on when the trainer went to help (null when they
+  // were not on any machine or tracking is off). Shown in the trainer's history.
+  machineId   String?
 
   user        User  @relation("AssistanceUser",    fields: [userId],    references: [id], onDelete: Cascade)
   trainer     User? @relation("AssistanceTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  machine     Machine? @relation(fields: [machineId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([trainerId])
@@ -500,6 +523,14 @@ model RoutineRequest {
   trainerId String?
   status    RoutineRequestStatus @default(PENDING)
   createdAt DateTime             @default(now())
+  // The routine the trainer built for this member, kept until the member
+  // answers: [{ exerciseId, sets, reps }] (built-in catalog exercises only).
+  proposedName      String?
+  proposedExercises Json?
+  proposedAt        DateTime?
+  respondedAt       DateTime?
+  // The per-account routine created when the member accepted the proposal.
+  generalRoutineId  String?
 
   user      User  @relation("RoutineRequestUser",    fields: [userId],    references: [id], onDelete: Cascade)
   trainer   User? @relation("RoutineRequestTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
@@ -562,12 +593,18 @@ model GeneralRoutine {
   level         ExperienceLevel?
   position      Int      @default(0) // Display order
   active        Boolean  @default(true)
+  // null = the gym's ready-made routine, visible to every member. Set = a
+  // routine a trainer built for one member, only listed in that account.
+  ownerUserId        String?
+  createdByTrainerId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  owner         User? @relation("GeneralRoutineOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   exercises     GeneralRoutineExercise[]
 
   @@index([active])
+  @@index([ownerUserId])
 }
 
 model GeneralRoutineExercise {
@@ -723,6 +760,12 @@ model Reward {
   // stock (see reward.service.js#autoGrantRewards), so users never see or
   // choose stock levels ahead of time.
   stock            Int     @default(0)
+  // Units ever put in stock (initial + every restock). Lets the admin screen
+  // show "quedan X de Y".
+  totalStock       Int     @default(0)
+  // The prize the gym is handing out right now (at most one). Automatic grants
+  // prefer it while it has stock (see reward.service.js#autoGrantRewards).
+  isCurrent        Boolean @default(false)
   // Marketing/merchandising prize (sponsored brand items, e.g. towels) as
   // opposed to a purely gym-funded reward. Admin-only classification, used
   // for reporting/reordering — not shown to users.
@@ -825,6 +868,9 @@ model Complaint {
   reviewedBy     String?
   reviewedAt     DateTime?
   resolution     String?         // Auto-close message or admin note on resolution
+  // Points taken from the reported person when this complaint was approved
+  // (positive number; 0/null = none). Lets an admin undo the penalty exactly.
+  penaltyPoints  Int?
   createdAt      DateTime        @default(now())
 
   reporter       User        @relation("ComplaintReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
@@ -849,6 +895,10 @@ model Denuncia {
   machineId      String?
   comment        String?
   status         DenunciaStatus @default(PENDING)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  // Points taken from the reported person when it was accepted (see Complaint.penaltyPoints).
+  penaltyPoints  Int?
   createdAt      DateTime       @default(now())
 
   reporter       User        @relation("DenunciaReporter", fields: [reporterId],     references: [id], onDelete: Cascade)
@@ -942,4 +992,33 @@ model Wrapped {
   @@index([userId])
   @@index([year])
   @@unique([userId, year])
+}
+
+// Global switches of the gym, single row (id = "main").
+model GymSettings {
+  id                     String   @id @default("main")
+  // While true, no prize is shipped: people who reach the points wait in the
+  // RewardPendingGrant queue and are served when deliveries resume.
+  rewardDeliveriesPaused Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
+}
+
+// Audit trail of what admins and trainers do in the app (prize stock, accounts
+// created/deactivated, reports reviewed, conflicts verified, routines built...).
+// Rows are only ever inserted: there is no update or delete anywhere.
+model ActivityLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String   // e.g. "REWARD_STOCK_ADDED", "REPORT_ACCEPTED"
+  entityType String?
+  entityId   String?
+  // Small display snapshot (names, amounts) so the log keeps reading well later.
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([action])
 }

@@ -7,10 +7,9 @@ import { HandIcon, CloseIcon } from './TrainerIcons';
 /**
  * "X necesita ayuda" alert (mockup: green box on "Pantalla ayudar").
  *
- * Meant to fire when a member presses "Pedir Ayuda" (see
- * assistance.api#requestAssistance on the member side) and to take the
- * trainer to the "Ayudar" screen. Static for now: the home screen always
- * shows it for the sample member.
+ * Shown by the trainer's home screen for the member who has been waiting the
+ * longest after pressing "Pedir Ayuda" (see assistance.api#requestAssistance
+ * on the member side); "Ir a ayudar" takes the trainer to the "Ayudar" screen.
  *
  * @param {string}   name
  * @param {function} [onGoHelp]  - "Ir a ayudar"

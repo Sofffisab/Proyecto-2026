@@ -3,14 +3,72 @@
     "cancel": "Cancelar",
     "save": "Guardar",
     "close": "Cerrar",
-    "grantCameraAccess": "Permitir acceso a la cámara"
+    "grantCameraAccess": "Permitir acceso a la cámara",
+    "retry": "Reintentar",
+    "loading": "Cargando...",
+    "back": "Volver",
+    "yes": "Sí",
+    "no": "No",
+    "staticList": "(Lista fija)",
+    "cameraPermissionRequired": "Se necesita acceso a la cámara para escanear códigos QR.",
+    "language": "Idioma"
   },
   "user": {
     "home": {
       "yearWrappedTitle": "Tu Wrapped {{year}}",
       "yearWrappedSubtitle": "Mirá tu año en el gym",
       "durationMinutes": "{{count}} min",
-      "exercisesCount": "{{count}} ejercicios"
+      "exercisesCount": "{{count}} ejercicios",
+      "title": "Tu perfil",
+      "subtitle": "Tu resumen de hoy",
+      "pointsAccumulated": "Puntos acumulados",
+      "pointsLoading": "Cargando...",
+      "scanQR": "Escanear QR (cámara)",
+      "scanning": "Procesando escaneo...",
+      "scanSuccess": "Escaneo procesado correctamente.",
+      "scanError": "No pudimos procesar el escaneo. Intentá de nuevo.",
+      "history": "Historial",
+      "routines": "Rutinas",
+      "achievementsGoals": "Logros y objetivos",
+      "reports": "Denuncias",
+      "pedirAyuda": "Pedir ayuda",
+      "pedirAyudaLoading": "Pidiendo ayuda...",
+      "helpRequested": "Avisamos a un entrenador y ya va para allá.",
+      "helpError": "No pudimos pedir ayuda. Intentá de nuevo.",
+      "settings": "Ajustes y personalización",
+      "wrapped": "Resumen del año",
+      "logout": "Cerrar sesión / Cambiar de cuenta",
+      "back": "Volver",
+      "member": "Socio",
+      "trainingsCompleted": "Entrenamientos\ncompletados",
+      "currentStreak": "Racha actual\n(entrenamientos)",
+      "achievementsObtained": "Logros\nobtenidos",
+      "totalPoints": "Puntos\ntotales",
+      "currentPlan": "Plan actual",
+      "personalData": "Datos personales",
+      "profession": "Profesión",
+      "notSpecified": "Sin especificar",
+      "currentGoal": "Objetivo actual",
+      "achievements": "Logros",
+      "testSocialInteraction": "Para pruebas: pop-up de interacción social",
+      "testRateTrainer": "Para pruebas: pop-up de calificar entrenador(es)",
+      "checkInSuccessTitle": "¡Bienvenido!",
+      "checkInSuccessBody": "Tu llegada se registró correctamente.",
+      "notifications": "Notificaciones",
+      "logoutConfirmTitle": "¿Cerrar sesión?",
+      "logoutConfirmMessage": "¿Seguro que querés cerrar sesión o cambiar de cuenta?",
+      "greeting": "¡Hola, {{name}}! 👋",
+      "greetingSubtitle": "Listo para seguir superando tus límites hoy.",
+      "todayLabel": "Hoy",
+      "startTraining": "Empezar a entrenar",
+      "nextTrainingLabel": "Próximo entrenamiento",
+      "viewFullSchedule": "Ver cronograma completo",
+      "trainingsCompletedThisWeek": "{{done}} de {{total}} entrenamientos completados",
+      "keepGoing": "Seguí así, vas por buen camino.",
+      "pointsShort": "pts",
+      "motivationalQuote": "La disciplina de hoy es el resultado de mañana.",
+      "noRoutineTitle": "Todavía no tenés rutina",
+      "quickAccess": "Accesos rápidos"
     },
     "routines": {
       "scheduleTitle": "Tu cronograma",
@@ -19,7 +77,11 @@
       "options": {
         "myRoutines": "mis rutinas",
         "generalRoutines": "rutinas generales",
-        "noRoutine": "no seguir rutina"
+        "noRoutine": "no seguir rutina",
+        "preMade": "Armadas",
+        "custom": "Personalizada",
+        "recommended": "Recomendada por la app",
+        "none": "No seguir una rutina"
       },
       "nextTrainingLabel": "Próximo entrenamiento",
       "todayDate": "{{weekday}} {{day}} de {{month}}",
@@ -162,7 +224,39 @@
       "aiGenerate": "Generar vista previa",
       "aiPreview": "Vista previa",
       "aiPreviewBody": "Así podría armarte una rutina según tus hábitos y objetivos",
-      "aiSave": "Guardar rutina"
+      "aiSave": "Guardar rutina",
+      "requestStatus_PENDING": "Pedido enviado. Un entrenador lo va a tomar pronto.",
+      "requestStatus_ACCEPTED": "Un entrenador está armando tu rutina.",
+      "requestStatus_PROPOSED": "Tu rutina está lista: la vas a ver al abrir la pantalla de inicio.",
+      "proposal": {
+        "title": "Tu entrenador te preparó una rutina",
+        "subtitleFrom": "{{name}} te preparó esta rutina. ¿La aceptás?",
+        "subtitle": "Esta es la rutina que te prepararon, ¿la aceptás?",
+        "summary": "{{count}} ejercicios · unos {{minutes}} min",
+        "note": "Si la aceptás, se guarda en tus rutinas y se agrega a la rutina de hoy.",
+        "accept": "Aceptar rutina",
+        "decline": "No, gracias",
+        "error": "No pudimos guardar tu respuesta. Probá de nuevo."
+      },
+      "title": "Selector de rutinas",
+      "freeRoutineName": "Rutina libre",
+      "savedTitle": "Tus rutinas guardadas",
+      "savedEmpty": "Todavía no guardaste rutinas.",
+      "suggestionTitle": "Recomendada por la app",
+      "suggestionUnavailable": "Todavía no hay suficiente historial de entrenamientos para sugerirte una rutina.",
+      "suggestionAccept": "Aceptar sugerencia",
+      "suggestionReject": "Ahora no",
+      "suggestionAccepted": "Sugerencia guardada en tus rutinas.",
+      "suggestionRejected": "Sugerencia descartada.",
+      "displayMode": "Modo de visualización",
+      "stepByStepGuide": "Guía paso a paso",
+      "readOnYourOwn": "Leer por mi cuenta",
+      "selectRoutineFirst": "Primero elegí una rutina arriba.",
+      "requestFromTrainer": "Pedir una rutina a un entrenador",
+      "requestSent": "Pedido enviado. Un entrenador va a armar tu rutina pronto.",
+      "requestError": "No pudimos enviar el pedido. Intentá de nuevo.",
+      "viewRoutine": "Ver rutina",
+      "chooseTitle": "Elegí tu rutina"
     },
     "settings": {
       "noSocial": "No aceptar interacciones sociales",
@@ -183,7 +277,85 @@
         "remove": "Quitar foto",
         "permissionDenied": "Necesitamos permiso para acceder a tus fotos.",
         "error": "No pudimos cargar esa foto."
-      }
+      },
+      "title": "Ajustes",
+      "subtitle": "Datos de la sesión y personalización",
+      "editProfileTitle": "Editar perfil",
+      "mail": "Email",
+      "emailInvalid": "Información incorrecta",
+      "name": "Nombre",
+      "firstNamePlaceholder": "Nombre",
+      "lastNamePlaceholder": "Apellido",
+      "gender": "Sexo",
+      "genders": {
+        "MALE": "Masculino",
+        "FEMALE": "Femenino",
+        "OTHER": "Otro",
+        "PREFER_NOT_TO_SAY": "Prefiero no decirlo"
+      },
+      "trainingLevel": "Nivel de experiencia",
+      "mainGoal": "Objetivo principal",
+      "addGoalPrompt": "¿Qué objetivo querés agregar?",
+      "addGoalPlaceholder": "Escribí tu objetivo acá...",
+      "medicalConditions": "Lesiones / condiciones",
+      "conditionPresets": {
+        "injuries": "Lesiones",
+        "heartCondition": "Condición cardíaca",
+        "asthma": "Asma",
+        "diabetes": "Diabetes",
+        "none": "Ninguna"
+      },
+      "addConditionPrompt": "¿Qué condición querés agregar?",
+      "addConditionPlaceholder": "Escribí acá...",
+      "conditionsHint": "Elegí al menos una opción o agregá la tuya.",
+      "dateOfBirth": "Fecha de nacimiento",
+      "dateOfBirthPlaceholder": "AAAA-MM-DD",
+      "dayPlaceholder": "DD",
+      "monthPlaceholder": "MM",
+      "yearPlaceholder": "AAAA",
+      "months": {
+        "january": "Enero",
+        "february": "Febrero",
+        "march": "Marzo",
+        "april": "Abril",
+        "may": "Mayo",
+        "june": "Junio",
+        "july": "Julio",
+        "august": "Agosto",
+        "september": "Septiembre",
+        "october": "Octubre",
+        "november": "Noviembre",
+        "december": "Diciembre"
+      },
+      "currentAge": "Edad actual: {{age}}",
+      "exactAddress": "Dirección exacta",
+      "inputPlaceholder": "Ingresá {{field}}...",
+      "preferencesTitle": "Preferencias",
+      "noTrainerHelp": "No recibir ayuda de entrenadores",
+      "noMachineApp": "No usar la app para las máquinas (solo para entrada/salida)",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "back": "Volver",
+      "logoutButton": "Cerrar sesión",
+      "errorSaving": "No pudimos guardar tus datos. Revisá los campos e intentá de nuevo.",
+      "requiredNotice": "Es tu primera vez acá: completá todos los campos antes de continuar.",
+      "invalidDate": "Ingresá la fecha de nacimiento como AAAA-MM-DD.",
+      "qrTitle": "Mi QR de socio",
+      "qrSubtitle": "Mostrá este código en recepción si alguien del staff necesita buscar tu cuenta.",
+      "changePassword": {
+        "title": "Contraseña",
+        "rowLabel": "Cambiar contraseña",
+        "currentPasswordPlaceholder": "Contraseña actual",
+        "newPasswordPlaceholder": "Contraseña nueva",
+        "confirmPasswordPlaceholder": "Confirmá la contraseña nueva",
+        "submit": "Actualizar contraseña",
+        "errorFillAll": "Completá todos los campos",
+        "errorTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "errorMismatch": "Las contraseñas no coinciden",
+        "errorFailed": "No pudimos actualizar tu contraseña. Revisá la actual e intentá de nuevo",
+        "successMessage": "Tu contraseña se actualizó correctamente."
+      },
+      "yearShort": "Año"
     },
     "popups": {
       "socialInteraction": {
@@ -244,7 +416,11 @@
         "cancelledPoints": "Igual te llevás {{points}} puntos por aceptar.",
         "expiredTitle": "Se acabó el tiempo",
         "expiredBody": "Nadie escaneó a tiempo, así que esta vez no hay puntos.",
-        "error": "Algo salió mal. Probá de nuevo."
+        "error": "Algo salió mal. Probá de nuevo.",
+        "expired": "Este desafío venció. Intentá de nuevo.",
+        "youScan": "Escaneá su QR",
+        "showYourQR": "Mostrá tu QR",
+        "accepted": "¡Desafío aceptado!"
       },
       "checkout": {
         "title": "¿Cómo estuvo tu día?",
@@ -270,6 +446,20 @@
         "optional": "(Opcional)",
         "rateTrainer": "Calificá su ayuda",
         "back": "Volver"
+      },
+      "rateTrainer": {
+        "title": "Calificá a los entrenadores",
+        "rate": "Calificar",
+        "reportNotHelped": "No me ayudó / Denunciar",
+        "close": "Cerrar",
+        "selectTrainer": "Elegí un entrenador",
+        "selectRating": "Elegí una calificación",
+        "commentPlaceholder": "Agregá un comentario (opcional)",
+        "submit": "Enviar",
+        "submitting": "Enviando...",
+        "error": "No pudimos enviarlo. Intentá de nuevo.",
+        "success": "¡Gracias por tu opinión!",
+        "markNotHelped": "No me ayudó"
       }
     },
     "history": {
@@ -287,7 +477,33 @@
         "TRAINER_ASSISTANCE": "Te ayudó {{name}}",
         "TRAINER_ASSISTANCE_GIVEN": "Ayudaste a {{name}}",
         "SOCIAL_INTERACTION": "Hiciste un amigo: {{name}}"
-      }
+      },
+      "loadError": "No se pudieron cargar algunas secciones del historial.",
+      "sessionsTitle": "Visitas al gym",
+      "sessionsEmpty": "Todavía no hay visitas al gym.",
+      "arrivedAt": "Llegada",
+      "leftAt": "Salida",
+      "stillCheckedIn": "Sigue en el gym",
+      "autoClosed": "(cerrada automáticamente)",
+      "machineUsageTitle": "Máquinas usadas por día",
+      "machineUsageEmpty": "Todavía no hay uso de máquinas registrado.",
+      "machinesUsedCount": "{{count}} máquina(s), {{minutes}} min en total",
+      "interactionsTitle": "Interacciones sociales y con entrenadores",
+      "interactionsEmpty": "Todavía no hay interacciones.",
+      "trainerInteraction": "Te ayudó {{name}}",
+      "socialInteraction": "Desafío social con {{name}}",
+      "achievementsTitle": "Logros",
+      "achievementsEmpty": "Todavía no desbloqueaste logros.",
+      "rewardsTitle": "Premios recibidos",
+      "rewardsEmpty": "Todavía no tenés premios.",
+      "pointsTitle": "Registro de puntos",
+      "pointsEmpty": "Todavía no hay movimientos de puntos.",
+      "reportsTitle": "Denuncias realizadas",
+      "reportsEmpty": "No hiciste denuncias.",
+      "back": "Volver",
+      "sessionDetailTitle": "Detalle de la visita",
+      "sessionDetailError": "No pudimos cargar el detalle de esta visita.",
+      "sessionDuration": "Duración: {{minutes}} min"
     },
     "achievementsGoals": {
       "title": "Logros y metas",
@@ -328,6 +544,304 @@
       },
       "weeklyProgress": "{{current}} de {{target}} visitas esta semana",
       "goalsHint": "Tu progreso se mide con tus visitas semanales al gimnasio."
+    },
+    "onboarding": {
+      "mainGoal": "Objetivo principal",
+      "currentLevel": "Nivel actual",
+      "daysPerWeek": "¿Cuántos días por semana entrenás?",
+      "trainingType": "¿Qué tipo de entrenamiento buscás?",
+      "helper": "Esto nos ayuda a personalizar tu plan.",
+      "continue": "Continuar",
+      "back": "Volver",
+      "logout": "Cerrar sesión",
+      "success": {
+        "title": "¡Todo listo!",
+        "subtitle": "Ya podés empezar a organizar tu entrenamiento y alcanzar tus objetivos.",
+        "cta": "Ir a mi plan"
+      },
+      "saving": "Guardando...",
+      "errorSaving": "No pudimos guardar tus respuestas. Intentá de nuevo.",
+      "goals": {
+        "LOSE_WEIGHT": "Bajar de peso",
+        "GAIN_MUSCLE": "Ganar músculo",
+        "IMPROVE_HEALTH": "Mejorar la salud",
+        "INCREASE_ENDURANCE": "Aumentar la resistencia"
+      },
+      "levels": {
+        "BEGINNER": "Principiante",
+        "INTERMEDIATE": "Intermedio",
+        "ADVANCED": "Avanzado"
+      },
+      "days": {
+        "ONE_TO_TWO": "1-2 días",
+        "THREE": "3 días",
+        "FOUR": "4 días",
+        "FIVE": "5 días",
+        "SIX": "6 días",
+        "SEVEN": "7 días"
+      },
+      "trainingTypes": {
+        "STRENGTH": "Fuerza",
+        "CARDIO": "Cardio",
+        "FUNCTIONAL": "Funcional",
+        "MIXED": "Mixto"
+      }
+    },
+    "reports": {
+      "target": "A quién o qué denunciar",
+      "categoryTrainer": "Entrenador",
+      "categoryMember": "Persona en el gym",
+      "categoryApp": "Elemento de la app (puntos, logros, etc.)",
+      "selectTarget": "Elegí a quién denunciar",
+      "selectPerson": "Elegí una persona",
+      "loadError": "No se pudieron cargar algunos datos.",
+      "reason": "Motivo",
+      "reasonPlaceholder": "¿Por qué?",
+      "reasonRequired": "Ingresá un motivo.",
+      "targetRequired": "Elegí a quién denunciar.",
+      "send": "Enviar",
+      "sending": "Enviando...",
+      "sendError": "No pudimos enviar la denuncia. Intentá de nuevo.",
+      "sendSuccess": "Denuncia enviada para su revisión.",
+      "back": "Volver",
+      "noTrainers": "No hay entrenadores disponibles.",
+      "noMembers": "No hay nadie en el gym ahora."
+    },
+    "wrapped": {
+      "title": "Resumen del año",
+      "subtitle": "Tu {{year}} en resumen",
+      "back": "Volver",
+      "loadError": "No pudimos cargar tu resumen.",
+      "loading": "Armando tu año...",
+      "totalSessions": "Visitas al gym",
+      "totalMinutes": "Minutos entrenados",
+      "totalPoints": "Puntos ganados",
+      "assistancesReceived": "Veces que un entrenador te ayudó",
+      "peopleMetCount": "Personas que conociste",
+      "topMachinesTitle": "Tus máquinas favoritas",
+      "topMachinesEmpty": "Todavía no hay uso de máquinas registrado.",
+      "topTrainersTitle": "Los entrenadores que más te ayudaron",
+      "topTrainersEmpty": "Todavía no hay ayudas de entrenadores registradas.",
+      "previousYear": "Año anterior",
+      "nextYear": "Año siguiente"
+    },
+    "analytics": {
+      "title": "Mis estadísticas",
+      "loadError": "No se pudieron cargar algunos datos.",
+      "summaryTitle": "Resumen",
+      "totalSessions": "Total: {{count}} visitas ({{minutes}} min)",
+      "weeklySessions": "Esta semana: {{count}} visitas ({{minutes}} min)",
+      "monthlySessions": "Este mes: {{count}} visitas ({{minutes}} min)",
+      "goalProgress": "Objetivo semanal: {{actual}} / {{target}} días",
+      "noGoal": "No tenés un objetivo semanal de entrenamiento.",
+      "machineUsageTitle": "Uso de máquinas",
+      "machineUsageEmpty": "Todavía no hay uso de máquinas registrado.",
+      "machineUsageCount": "{{count}} usos",
+      "patternsTitle": "Patrones",
+      "consistencyScore": "Índice de constancia: {{score}}",
+      "avgSessionsPerWeek": "Promedio de visitas por semana: {{count}}",
+      "frequentDaysTitle": "Días más frecuentes",
+      "dayShare": "{{percent}}% de tus visitas",
+      "topMachinesTitle": "Máquinas más usadas",
+      "noData": "Todavía no hay suficientes datos.",
+      "refresh": "Actualizar",
+      "back": "Volver"
+    },
+    "trainers": {
+      "title": "Entrenadores",
+      "loadError": "No pudimos cargar la lista de entrenadores.",
+      "empty": "No hay entrenadores disponibles por ahora.",
+      "none": "Sin datos",
+      "specialties": "Especialidades",
+      "rating": "Calificación",
+      "ratingValue": "{{rating}} / 5 ({{count}} calificaciones)",
+      "availability": "Disponibilidad",
+      "available": "Disponible",
+      "busy": "Ocupado",
+      "back": "Volver"
+    },
+    "wrappedScreen": {
+      "loading": "Armando tu año...",
+      "errorTitle": "No pudimos armar tu Resumen",
+      "errorBody": "Revisá tu conexión e intentá de nuevo."
+    },
+    "wrappedSlides": {
+      "dayLong": "{{weekday}} {{day}} de {{month}}",
+      "days": {
+        "sunday": "domingo",
+        "monday": "lunes",
+        "tuesday": "martes",
+        "wednesday": "miércoles",
+        "thursday": "jueves",
+        "friday": "viernes",
+        "saturday": "sábado"
+      },
+      "months": {
+        "january": "enero",
+        "february": "febrero",
+        "march": "marzo",
+        "april": "abril",
+        "may": "mayo",
+        "june": "junio",
+        "july": "julio",
+        "august": "agosto",
+        "september": "septiembre",
+        "october": "octubre",
+        "november": "noviembre",
+        "december": "diciembre"
+      },
+      "intro": {
+        "kicker": "TU {{year}}",
+        "headline": "Repasemos tu año en el gym.",
+        "headlineNamed": "{{name}}, repasemos tu año en el gym.",
+        "body": "Con datos reales, sin trampa. Tocá para avanzar."
+      },
+      "gymDays": {
+        "kicker": "CONSTANCIA",
+        "unit": {
+          "one": "día en el gym",
+          "other": "días en el gym"
+        },
+        "headline": {
+          "none": "Este año no pisaste el gym.",
+          "few": "Pocos, pero cada uno cuenta.",
+          "some": "Eso es el {{pct}}% del año.",
+          "many": "El {{pct}}% de tus días fueron de entrenamiento.",
+          "live": "Prácticamente vivís acá."
+        },
+        "body": {
+          "none": "No pasa nada: el mejor momento para arrancar es enero.",
+          "few": "La constancia se construye de a uno. Vos ya empezaste.",
+          "some": "Hay un hábito formándose, y se nota.",
+          "many": "Eso no es suerte, es disciplina.",
+          "live": "Podríamos cobrarte alquiler. Es un halago."
+        }
+      },
+      "points": {
+        "kicker": "PUNTOS GANADOS",
+        "unit": {
+          "one": "punto",
+          "other": "puntos"
+        },
+        "headline": {
+          "none": "Todavía no sumaste puntos.",
+          "low": "Un buen arranque.",
+          "mid": "Sumaste puntos como quien no quiere la cosa.",
+          "high": "Tu cuenta de puntos hace ruido."
+        },
+        "body": "Cada check-in, cada rutina y cada logro sumó. Acá está el total del año."
+      },
+      "friends": {
+        "kicker": "COMUNIDAD",
+        "unit": {
+          "one": "amigo nuevo",
+          "other": "amigos nuevos"
+        },
+        "headline": {
+          "none": "Todavía no sumaste amigos acá.",
+          "one": "Uno solo, pero de los buenos.",
+          "some": "El gym también es social.",
+          "many": "Sos el alma del gimnasio."
+        },
+        "body": {
+          "none": "Hay muchas máquinas para compartir. Animate a decir hola.",
+          "some": "Entrenar acompañado es entrenar más tiempo.",
+          "many": "Si alguien pregunta por vos, ya sabemos por qué."
+        }
+      },
+      "achievements": {
+        "kicker": "LOGROS",
+        "unit": {
+          "one": "logro desbloqueado",
+          "other": "logros desbloqueados"
+        },
+        "headline": {
+          "none": "Todavía no desbloqueaste logros.",
+          "few": "Ya tenés tus primeras medallas.",
+          "some": "Tu vitrina se está llenando.",
+          "many": "Coleccionista nivel experto."
+        },
+        "body": "Cada uno marca algo que antes no podías hacer."
+      },
+      "goals": {
+        "kicker": "METAS ALCANZADAS",
+        "unit": {
+          "one": "meta cumplida",
+          "other": "metas cumplidas"
+        },
+        "headline": {
+          "none": "Ninguna meta cerrada todavía.",
+          "few": "Pocas, pero ganadas a pulmón:",
+          "many": "Fueron {{count}}. Estas 3 se llevan el aplauso:"
+        },
+        "body": "Las metas grandes llevan tiempo. Seguí: ya estás en camino."
+      },
+      "machines": {
+        "kicker": "MÁQUINAS",
+        "unit": {
+          "one": "máquina distinta",
+          "other": "máquinas distintas"
+        },
+        "use": {
+          "one": "uso",
+          "other": "usos"
+        },
+        "headline": {
+          "none": "Todavía no probaste ninguna máquina.",
+          "few": "Fiel a tus favoritas.",
+          "some": "Un explorador del gimnasio.",
+          "many": "Probaste casi todo el salón."
+        },
+        "favorite": "Tu preferida: {{name}}, con {{count}} {{uses}}.",
+        "barCaption": "de {{total}} que tiene el gimnasio"
+      },
+      "intense": {
+        "kicker": "TU DÍA MÁS INTENSO",
+        "body": "Ese día no fuiste a entrenar: fuiste a dejar huella.",
+        "minutes": "minutos",
+        "points": "puntos",
+        "machine": {
+          "one": "máquina",
+          "other": "máquinas"
+        }
+      },
+      "routines": {
+        "kicker": "RUTINAS",
+        "unit": {
+          "one": "rutina distinta",
+          "other": "rutinas distintas"
+        },
+        "headline": {
+          "none": "Todavía no armaste una rutina.",
+          "few": "Vas por lo seguro, y funciona.",
+          "some": "Variar también es un plan.",
+          "many": "Tu cuerpo nunca sabe qué viene."
+        },
+        "body": "Cambiar de estímulo es parte de progresar."
+      },
+      "recap": {
+        "kicker": "TU {{year}} EN NÚMEROS",
+        "headline": "Un año, resumido.",
+        "gymDays": "días de gym",
+        "points": "puntos",
+        "friends": "amigos",
+        "achievements": "logros",
+        "goals": "metas",
+        "machines": "máquinas"
+      },
+      "gift": {
+        "kicker": "ANTES DE IRTE",
+        "headline": "Tenemos un regalo para vos...",
+        "coupon": "TU REGALO",
+        "inYour": "en tu {{concept}}",
+        "validUntil": "Válido hasta el {{date}}",
+        "claim": "Reclamar mi regalo",
+        "claimed": "¡Regalo reclamado!",
+        "exit": "Salir del Resumen",
+        "concepts": {
+          "JANUARY_FEE": "cuota de enero"
+        }
+      }
     }
   },
   "admin": {
@@ -408,11 +922,33 @@
       "shipmentRow": "{{prize}} · enviado el {{date}}",
       "waitlistTitle": "Lista de espera",
       "waitlistHint": "Se les envía automáticamente apenas haya stock.",
-      "waiting": "{{count}} en espera"
+      "waiting": "{{count}} en espera",
+      "noCurrent": "No hay ningún premio marcado como el que se entrega ahora.",
+      "invalidAmount": "Ingresá un número entero de 1 o más.",
+      "nameRequired": "Ingresá un nombre.",
+      "invalidCost": "Ingresá el costo en puntos como número entero.",
+      "newPrize": "Nuevo premio",
+      "noPrizes": "Todavía no hay premios.",
+      "cost": "Cuesta {{points}} puntos",
+      "currentPill": "Actual",
+      "inactive": "Inactivo",
+      "makeCurrent": "Entregar este ahora",
+      "noShipments": "No hay envíos en curso.",
+      "markDelivered": "Marcar como entregado",
+      "noWaitlist": "Nadie está esperando.",
+      "waitingRow": "{{points}} puntos · espera desde el {{date}}",
+      "addStockTitle": "Agregar stock: {{prize}}",
+      "amountLabel": "Unidades a agregar",
+      "editTitle": "Editar premio",
+      "nameLabel": "Nombre",
+      "descriptionLabel": "Descripción",
+      "costLabel": "Costo en puntos",
+      "initialStockLabel": "Stock inicial",
+      "activeLabel": "Activo (se puede entregar)"
     },
     "reports": {
       "title": "Revisar denuncias",
-      "subtitle": "Decidí qué denuncias se mantienen",
+      "subtitle": "Decidí qué pasa con cada denuncia",
       "approvedTitle": "Denuncias hechas y aprobadas",
       "reportedBy": "Denunciado por {{name}} el {{date}}",
       "keep": "Mantener",
@@ -428,7 +964,54 @@
       "madeMany": "Hizo {{count}} denuncias en {{days}} días",
       "tagReceived": "Recibidas",
       "tagMade": "Hechas",
-      "viewDetail": "Ver detalle"
+      "viewDetail": "Ver detalle",
+      "tabPending": "Pendientes",
+      "tabEscalated": "Escaladas",
+      "tabAccepted": "Aceptadas",
+      "tabReviews": "Revisiones",
+      "tabSuspicious": "Sospechosos",
+      "reasons": {
+        "MACHINE_DAMAGE": "Rompió una máquina",
+        "MISCONDUCT": "Mal comportamiento",
+        "RULE_VIOLATION": "Incumplió las normas",
+        "FALSE_CLAIM": "Dice estar en una máquina y no está",
+        "OTHER": "Otro",
+        "TRAINER_MISCONDUCT": "Mal comportamiento de un entrenador",
+        "TRAINER_FALSE_HELP": "Un entrenador dijo que ayudó y no lo hizo",
+        "MACHINE_BROKEN": "Máquina rota o que no funciona",
+        "MEMBER_MISCONDUCT": "Mal comportamiento de un socio",
+        "AUTO_NO_HELP": "El socio dijo que no lo ayudaron",
+        "AUTO_MACHINE_CONFLICT": "Dos personas en la misma máquina y nadie lo verificó"
+      },
+      "acceptedPenalty": "Denuncia aceptada. Se restaron {{points}} puntos.",
+      "acceptedNoPenalty": "Denuncia aceptada. Esta vez no se restaron puntos (todavía tiene avisos gratis).",
+      "reverted": "Denuncia eliminada. Se devolvieron {{points}} puntos.",
+      "empty_PENDING": "No hay denuncias esperando revisión.",
+      "empty_ESCALATED": "No hay denuncias escaladas.",
+      "empty_ACCEPTED": "No hay denuncias aceptadas.",
+      "machineTag": "Máquina",
+      "noPrevious": "No tiene denuncias anteriores.",
+      "previous": "Denuncias anteriores: {{total}} ({{accepted}} aceptadas, {{rejected}} rechazadas)",
+      "showPrevious": "Ver denuncias anteriores",
+      "hidePrevious": "Ocultar",
+      "state_PENDING": "Pendiente",
+      "state_ACCEPTED": "Aceptada",
+      "state_REJECTED": "Rechazada",
+      "state_ESCALATED": "Escalada",
+      "willTake": "Aceptarla resta {{points}} puntos (tiene {{current}}).",
+      "willTakeNothing": "Aceptarla todavía no resta puntos: le quedan avisos gratis.",
+      "tookPoints": "Se restaron {{points}} puntos.",
+      "accept": "Aceptar",
+      "reject": "Rechazar",
+      "escalate": "Pasar a mayor grado",
+      "escalatedHint": "Las denuncias escaladas se resuelven fuera de la app (hablar con la persona, desactivar la cuenta...). Igual podés aceptarlas o rechazarlas desde acá.",
+      "emptyReviews": "No hay pedidos de revisión.",
+      "reviewSent": "Pidió una revisión el {{date}}",
+      "noAcceptedReports": "No tiene denuncias aceptadas.",
+      "theirAcceptedReports": "Sus denuncias aceptadas",
+      "markReviewed": "Marcar como revisado",
+      "emptySuspicious": "Nadie se destaca por ahora.",
+      "hideDetail": "Ocultar detalle"
     },
     "history": {
       "title": "Historial",
@@ -437,7 +1020,57 @@
       "filterAdmins": "Admins",
       "filterTrainers": "Entrenadores",
       "filterUsers": "Socios",
-      "privacyNote": "Lo que cada persona marcó como privado no se muestra."
+      "privacyNote": "Lo que cada persona marcó como privado no se muestra.",
+      "empty": "Todavía no pasó nada.",
+      "loading": "Cargando...",
+      "loadMore": "Ver más",
+      "resolutions": {
+        "BOTH_PRESENT": "estaban los dos",
+        "ONLY_FIRST": "solo estaba el primero",
+        "ONLY_SECOND": "solo estaba el segundo",
+        "NEITHER_PRESENT": "no estaba ninguno",
+        "UNVERIFIED": "sin verificar"
+      },
+      "targets": {
+        "person": "una persona",
+        "machine": "una máquina"
+      },
+      "actions": {
+        "UNKNOWN": "Actividad: {{action}}",
+        "ACCOUNT_CREATED": "Creó la cuenta {{email}} ({{role}})",
+        "ACCOUNT_ACTIVATED": "Activó la cuenta de {{name}}",
+        "ACCOUNT_DEACTIVATED": "Desactivó la cuenta de {{name}}",
+        "INVITE_RESENT": "Reenvió el mail de contraseña a {{email}}",
+        "REWARD_CREATED": "Creó el premio “{{prize}}” con {{stock}} de stock",
+        "REWARD_EDITED": "Editó el premio “{{prize}}”",
+        "REWARD_STOCK_ADDED": "Agregó {{amount}} unidades de “{{prize}}” al stock",
+        "REWARD_CURRENT_SET": "Marcó “{{prize}}” como el premio que se entrega ahora",
+        "REWARD_DELIVERIES_PAUSED": "Pausó la entrega de premios",
+        "REWARD_DELIVERIES_RESUMED": "Reanudó la entrega de premios",
+        "REWARD_DELIVERED": "Marcó “{{prize}}” como entregado a {{user}}",
+        "REPORT_ACCEPTED": "Aceptó una denuncia sobre {{subject}} (puntos restados: {{points}})",
+        "REPORT_REJECTED": "Rechazó una denuncia sobre {{subject}}",
+        "REPORT_ESCALATED": "Escaló una denuncia sobre {{subject}}",
+        "REPORT_REVERTED": "Eliminó una denuncia aceptada sobre {{subject}} ({{points}} puntos devueltos)",
+        "REVIEW_REQUEST_RESOLVED": "Revisó el pedido de {{user}}",
+        "TRAINER_REPORT_SENT": "Envió una denuncia sobre {{target}}",
+        "MACHINE_CONFLICT_RESOLVED": "Verificó el conflicto en {{machine}}: {{resolution}}",
+        "MACHINE_CREATED": "Creó la máquina {{machine}}",
+        "MACHINE_QR_REGENERATED": "Regeneró el QR de {{machine}}",
+        "MACHINE_DEACTIVATED": "Desactivó la máquina {{machine}}",
+        "ROUTINE_REQUEST_ACCEPTED": "Tomó el pedido de rutina de {{member}}",
+        "ROUTINE_REQUEST_REJECTED": "Rechazó el pedido de rutina de {{member}}",
+        "ROUTINE_PROPOSED": "Le envió la rutina “{{routine}}” a {{member}} ({{exercises}} ejercicios)",
+        "ROUTINE_PROPOSAL_ACCEPTED": "Aceptó la rutina “{{routine}}” armada por {{trainer}}",
+        "ROUTINE_PROPOSAL_DECLINED": "No aceptó la rutina “{{routine}}” armada por {{trainer}}",
+        "ASSISTANCE_STARTED": "Fue a ayudar a {{member}}",
+        "ASSISTANCE_COMPLETED": "Terminó de ayudar a un socio",
+        "GYM_CHECK_IN": "Entró al gym",
+        "GYM_CHECK_OUT": "Salió del gym ({{durationMinutes}} min)",
+        "MACHINE_USE": "Usó {{machine}}",
+        "TRAINER_ASSISTANCE": "Ayudó a {{other}}",
+        "SOCIAL_INTERACTION": "Se encontró con {{other}} en el gym"
+      }
     },
     "gym": {
       "title": "Ver gym",
@@ -461,7 +1094,17 @@
       "active": "Activa",
       "deactivated": "Desactivada",
       "deactivate": "Desactivar cuenta",
-      "activate": "Activar cuenta"
+      "activate": "Activar cuenta",
+      "roleLabel": "Tipo de cuenta",
+      "firstNameOptional": "Nombre (opcional)",
+      "lastNameOptional": "Apellido (opcional)",
+      "createdSent": "Cuenta creada. Le enviamos a {{email}} un link para elegir su contraseña.",
+      "createdNoMail": "La cuenta de {{email}} se creó pero no se pudo enviar el mail. Usá “Reenviar mail”.",
+      "creating": "Creando...",
+      "empty": "Todavía no hay cuentas.",
+      "noRatings": "Sin calificaciones todavía",
+      "invitePending": "Aún no eligió contraseña",
+      "resendInvite": "Reenviar mail"
     },
     "stats": {
       "title": "Estadísticas",
@@ -475,7 +1118,10 @@
       "activated": "Activados",
       "deactivated": "Desactivados",
       "metGoals": "Cumplen sus objetivos",
-      "notMetGoals": "No los cumplen"
+      "notMetGoals": "No los cumplen",
+      "machineUsageHint": "Porcentaje de las {{visits}} visitas de los últimos {{days}} días en las que se usó cada máquina.",
+      "noMachines": "No hay máquinas activas.",
+      "noTrainers": "No hay entrenadores activos."
     }
   },
   "trainer": {
@@ -495,7 +1141,18 @@
       "listHint": "Tocá a una persona para ver sus datos y ayudarla.",
       "availabilityTitle": "Disponibilidad",
       "available": "Disponible",
-      "busy": "Ocupado"
+      "busy": "Ocupado",
+      "generateQR": "Generar nuevo QR",
+      "history": "Historial",
+      "reports": "Denuncias",
+      "help": "Ayuda",
+      "routineRequests": "Pedidos de rutina",
+      "loadError": "No se pudieron cargar algunos datos.",
+      "pendingHelpTitle": "Pedidos de ayuda pendientes",
+      "pendingHelpCount": "{{count}} esperando",
+      "pendingHelpEmpty": "Nadie está esperando ayuda ahora.",
+      "machineConflicts": "Conflictos de máquina",
+      "logout": "Cerrar sesión / Cambiar de cuenta"
     },
     "alert": {
       "title": "{{name}} necesita ayuda",
@@ -509,12 +1166,37 @@
       "medicalTitle": "Temas médicos",
       "notesTitle": "Mis notas",
       "publicNotesTitle": "Notas públicas",
-      "goHelp": "Ir a ayudar a {{name}}"
+      "goHelp": "Ir a ayudar a {{name}}",
+      "addNote": "Guardar nota",
+      "takenByOther": "Otro entrenador ya está ayudando a esta persona.",
+      "clickableProfile": "(Nombre y foto de perfil: tocables)",
+      "selectUser": "Elegí un usuario",
+      "back": "Volver",
+      "loadError": "No pudimos cargar la lista.",
+      "empty": "No hay nadie en el gym ahora.",
+      "noPendingRequest": "Este socio no tiene un pedido de ayuda pendiente.",
+      "assigned": "Quedaste asignado/a para ayudar a este socio.",
+      "assignError": "No pudimos asignarte este pedido.",
+      "completeHelp": "Marcar ayuda como completada",
+      "completeSuccess": "Marcada como completada.",
+      "completeError": "No pudimos marcarla como completada.",
+      "noActiveAssignment": "Este socio todavía no tiene una ayuda asignada a vos."
     },
     "popups": {
       "profileData": {
         "title": "Datos del socio",
-        "none": "Ninguno"
+        "none": "Ninguno",
+        "medicalConditions": "Condiciones médicas: -",
+        "notes": "Notas: -",
+        "publicNotes": "Notas públicas: -",
+        "close": "Cerrar",
+        "loadError": "No pudimos cargar las notas.",
+        "saveError": "No pudimos guardarlo.",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "cancel": "Cancelar",
+        "newNotePlaceholder": "Agregá una nota...",
+        "makePublic": "Visible para otros entrenadores"
       }
     },
     "hub": {
@@ -534,9 +1216,42 @@
       "statusPending": "Pendiente",
       "goalLabel": "Objetivo: {{goal}}",
       "levelLabel": "Nivel: {{level}}",
-      "daysLabel": "{{days}} días por semana",
+      "daysLabel": "Frecuencia: {{days}}",
       "accept": "Aceptar",
-      "reject": "Rechazar"
+      "reject": "Rechazar",
+      "statusProposed": "Enviada",
+      "notProvided": "sin datos",
+      "medicalLabel": "Salud: {{items}}",
+      "build": "Armar rutina",
+      "waitingAnswer": "Se envió “{{name}}”. Esperando su respuesta.",
+      "defaultName": "Rutina para {{name}}",
+      "nameRequired": "Ponele un nombre a la rutina.",
+      "pickOne": "Agregá al menos un ejercicio.",
+      "invalidSetsReps": "Cada ejercicio necesita series (1–20) y repeticiones.",
+      "builderTitle": "Rutina para {{name}}",
+      "builderSubtitle": "Elegí los ejercicios y enviala. Le van a preguntar si la acepta.",
+      "routineName": "Nombre de la rutina",
+      "chosen": "Ejercicios ({{count}})",
+      "nothingChosen": "Todavía no agregaste ningún ejercicio.",
+      "remove": "Quitar",
+      "sets": "Series",
+      "reps": "Repeticiones",
+      "addExercise": "Agregar ejercicios",
+      "searchPlaceholder": "Buscar ejercicio",
+      "add": "Agregar",
+      "noResults": "Ningún ejercicio coincide.",
+      "sending": "Enviando...",
+      "send": "Enviar rutina",
+      "sentToMember": "Rutina enviada. Le van a preguntar si la acepta.",
+      "back": "Volver",
+      "loadError": "No pudimos cargar los pedidos de rutina.",
+      "empty": "No hay pedidos de rutina ahora.",
+      "requestedBy": "Pedida por {{name}}",
+      "statusAccepted": "Aceptada",
+      "statusRejected": "Rechazada",
+      "statusCompleted": "Completada",
+      "complete": "Marcar como entregada",
+      "actionError": "No pudimos completar esa acción."
     },
     "machineConflicts": {
       "title": "Conflictos de máquina",
@@ -548,7 +1263,12 @@
       "bothPresent": "Ambos presentes",
       "onlyFirst": "Solo el primero",
       "onlySecond": "Solo el segundo",
-      "neitherPresent": "Ninguno"
+      "neitherPresent": "Ninguno",
+      "loadError": "No pudimos cargar los conflictos pendientes.",
+      "empty": "No hay conflictos de máquina pendientes de verificación.",
+      "resolveSuccess": "Conflicto resuelto.",
+      "resolveError": "No pudimos resolver este conflicto.",
+      "back": "Volver"
     },
     "reports": {
       "subtitle": "Elegí a quién o qué, contá el motivo y mandalo a revisión.",
@@ -562,7 +1282,26 @@
       "reasonFalseClaim": "Dice estar en una máquina y no está",
       "reasonOther": "Otro",
       "messagePlaceholder": "Agregá detalles (opcional)",
-      "send": "Enviar denuncia"
+      "send": "Enviar denuncia",
+      "none_trainer": "No hay otros entrenadores.",
+      "none_member": "No hay nadie en el gym ahora.",
+      "none_machine": "No hay máquinas activas.",
+      "personToReport": "Persona a denunciar",
+      "selectPerson": "Elegí una persona",
+      "reasonPlaceholder": "¿Por qué?",
+      "back": "Volver",
+      "loadError": "No se pudieron cargar algunos datos.",
+      "categoryTrainer": "Entrenador",
+      "categoryMember": "Persona en el gym",
+      "noTrainers": "No hay entrenadores disponibles.",
+      "noMembers": "No hay nadie en el gym ahora.",
+      "reasonCodeLabel": "Categoría del motivo",
+      "reasonRuleViolation": "Incumplimiento de normas",
+      "targetRequired": "Elegí a quién denunciar.",
+      "reasonRequired": "Elegí una categoría de motivo.",
+      "sending": "Enviando...",
+      "sendError": "No pudimos enviar la denuncia. Intentá de nuevo.",
+      "sendSuccess": "Denuncia enviada para su revisión."
     },
     "history": {
       "title": "Historial",
@@ -571,7 +1310,12 @@
       "machineLabel": "Máquina: {{machine}}",
       "durationLabel": "Duración: {{minutes}} min",
       "ratingLabel": "Calificación: {{rating}}/5",
-      "noRating": "Sin calificar todavía"
+      "noRating": "Sin calificar todavía",
+      "noMachine": "Máquina: ninguna",
+      "staticLog": "(Registro de actividad fijo)",
+      "back": "Volver",
+      "loadError": "No pudimos cargar tu historial.",
+      "empty": "Todavía no ayudaste a nadie."
     },
     "profile": {
       "role": "Entrenador",
@@ -585,5 +1329,114 @@
       "helpRequests": "Pedidos de ayuda",
       "availabilityHint": "Si estás ocupado, los nuevos pedidos de ayuda van a otro entrenador."
     }
+  },
+  "auth": {
+    "login": {
+      "appName": "GymBros",
+      "title": "Iniciar sesión",
+      "subtitle": "Qué bueno verte de nuevo 👋",
+      "emailLabel": "Email",
+      "passwordLabel": "Contraseña",
+      "emailPlaceholder": "ejemplo@gmail.com",
+      "passwordPlaceholder": "Contraseña",
+      "loginButton": "Ingresar",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "back": "Volver",
+      "errorFillFields": "Completá todos los campos",
+      "errorLoginFailed": "No se pudo iniciar sesión"
+    },
+    "forgotPassword": {
+      "title": "Recuperar contraseña",
+      "subtitle": "Ingresá tu email y te enviaremos un código de verificación.",
+      "emailLabel": "Email",
+      "emailPlaceholder": "ejemplo@gmail.com",
+      "submit": "Enviar link",
+      "errorFillEmail": "Ingresá tu email",
+      "errorFailed": "No pudimos enviar el mail de recuperación",
+      "checkEmailTitle": "¡Revisá tu email!",
+      "checkEmailSubtitle": "Enviamos un código de verificación a",
+      "checkEmailInstructions": "Abrí tu email e ingresá el código de abajo para continuar.",
+      "codeLabel": "Código de verificación",
+      "codePlaceholder": "Ingresá el código",
+      "errorFillCode": "Ingresá el código",
+      "errorInvalidCode": "Ese código es inválido o ya venció",
+      "verifyCode": "Verificar código",
+      "resendCode": "Reenviar código",
+      "resendCodeIn": "Reenviar código ({{seconds}}s)",
+      "changeEmail": "Cambiar email",
+      "enterToken": "Ya tengo mi código",
+      "backToLogin": "Volver a iniciar sesión",
+      "back": "Volver",
+      "openMailApp": "Abrir email"
+    },
+    "resetPassword": {
+      "title": "Restablecer contraseña",
+      "subtitle": "Elegí una contraseña nueva para tu cuenta.",
+      "newPasswordLabel": "Contraseña nueva",
+      "newPasswordPlaceholder": "Contraseña nueva",
+      "confirmPasswordLabel": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Confirmá la contraseña nueva",
+      "submit": "Restablecer contraseña",
+      "errorFillAll": "Completá todos los campos",
+      "errorTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "errorMismatch": "Las contraseñas no coinciden",
+      "errorFailed": "No pudimos restablecer tu contraseña. Revisá el código e intentá de nuevo",
+      "successMessage": "Tu contraseña se restableció correctamente.",
+      "goToLogin": "Ir a iniciar sesión",
+      "back": "Volver",
+      "codeConfirmedLabel": "Código",
+      "tokenPlaceholder": "Pegá tu código acá"
+    },
+    "welcome": {
+      "titleDark": "Entrená mejor.\nOrganizá tu ",
+      "titleTeal": "progreso.",
+      "login": "Iniciar sesión"
+    }
+  },
+  "qrGeneration": {
+    "title": "Generar nuevo QR",
+    "subtitle": "Elegí si es para una máquina, la entrada o la salida.",
+    "typeMachine": "Máquina",
+    "typeEntryExit": "Entrada / Salida",
+    "entryExitTitle": "QR de entrada / salida",
+    "entryExitExplanation": "Este es el QR de la puerta del gym. Nunca cambia, así que no hay nada para regenerar. El mismo código sirve para los dos: un socio que no está registrado entra (check-in) al escanearlo, y uno que ya está adentro sale (check-out).",
+    "entryExitQrLabel": "QR de entrada / salida",
+    "entryExitQrHint": "Escanealo una vez para entrar (check-in) y otra para salir (check-out). Imprimilo o mostralo en una pantalla en la puerta.",
+    "createNewMachine": "Crear una máquina nueva",
+    "machineNamePlaceholder": "Nombre de la máquina (ej. Cinta 3)",
+    "createButton": "Crear máquina",
+    "creating": "Creando...",
+    "createSuccess": "Máquina creada. Su QR está listo abajo.",
+    "createError": "No pudimos crear la máquina. Intentá de nuevo.",
+    "selectMachine": "Elegí una máquina",
+    "noMachines": "Todavía no hay máquinas activas.",
+    "regenerateButton": "Regenerar QR",
+    "regenerating": "Regenerando...",
+    "regenerateSuccess": "QR regenerado. El código anterior deja de funcionar después de un breve período de gracia.",
+    "regenerateError": "No pudimos regenerar este QR. Intentá de nuevo.",
+    "deactivateButton": "Desactivar",
+    "deactivating": "Desactivando...",
+    "deactivateSuccess": "Máquina desactivada.",
+    "deactivateError": "No pudimos desactivar esta máquina. Intentá de nuevo.",
+    "trainerManualIdLabel": "ID de la máquina",
+    "trainerManualIdHint": "Los entrenadores no tienen acceso a la lista completa de máquinas: ingresá el ID de la máquina que tenés al lado.",
+    "machineIdPlaceholder": "ID de la máquina",
+    "qrReady": "QR listo",
+    "qrReadyFor": "QR listo para {{name}}",
+    "qrPrintHint": "Imprimí o mostrá este código en la máquina."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "back": "Volver",
+    "loadError": "No pudimos cargar las notificaciones.",
+    "empty": "Todavía no tenés notificaciones.",
+    "markAllRead": "Marcar todas como leídas",
+    "delete": "Eliminar"
+  },
+  "pushNotifications": {
+    "helpRequestTitle": "Alguien necesita ayuda",
+    "helpRequestBody": "{{name}} necesita ayuda",
+    "helpRequestBodyGeneric": "Un socio necesita ayuda",
+    "helpRequestAccept": "Ir a ayudar"
   }
 }

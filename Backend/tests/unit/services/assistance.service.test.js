@@ -253,12 +253,13 @@ describe('AssistanceService', () => {
       prisma.assistance.findUnique.mockResolvedValue({ id: 'a1', status: 'PENDING' });
       prisma.assistance.update.mockResolvedValue({ id: 'a1', status: 'ASSIGNED', trainerId: 't1' });
       prisma.trainerProfile.upsert.mockResolvedValue({});
+      prisma.machineUsage.findFirst.mockResolvedValue({ machineId: 'm1' });
 
       const result = await assistanceService.assignAssistance('a1', 't1');
 
       expect(prisma.assistance.update).toHaveBeenCalledWith({
         where: { id: 'a1' },
-        data: { status: 'ASSIGNED', trainerId: 't1', assignedAt: expect.any(Date) },
+        data: { status: 'ASSIGNED', trainerId: 't1', assignedAt: expect.any(Date), machineId: 'm1' },
       });
       expect(prisma.trainerProfile.upsert).toHaveBeenCalledWith(
         expect.objectContaining({

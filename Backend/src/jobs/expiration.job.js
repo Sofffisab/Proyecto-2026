@@ -1,5 +1,6 @@
 import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 import { dispatchPendingAssistance } from "../services/assistance.service.js";
 
 // How long a gym session can stay open before the system closes it
@@ -44,6 +45,7 @@ async function autoCheckoutStaleGymSessions() {
     });
   }
 
+  signalStaff(TOPIC.PEOPLE);
   logger.info(`[expiration.job] Auto-checked-out ${stale.length} stale gym session(s).`);
 }
 

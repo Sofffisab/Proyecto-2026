@@ -150,3 +150,50 @@ export async function getLobbyMemberIds() {
     return null;
   }
 }
+
+
+// ── Staff live updates (trainer / admin screens) ────────────────────────────
+//
+// One shared channel, "staff:live". Every message is only a SIGNAL ("something
+// changed": a help was requested, a conflict appeared...) with no personal data
+// in it; the apps answer by re-reading what they show from the API. That keeps
+// the number of requests low however many people press "Pedir ayuda": the
+// server publishes ONE message and the trainers refresh, instead of every
+// trainer's phone polling every few seconds.
+//
+// Staff tokens can only SUBSCRIBE: nobody can publish on it from a phone.
+
+export const STAFF_CHANNEL = "staff:live";
+
+export const STAFF_EVENTS = {
+  HELP: "help",             // someone asked for help / it was taken / finished / expired
+  PEOPLE: "people",         // someone entered or left the gym
+  CONFLICTS: "conflicts",   // a machine conflict appeared or was verified
+  ROUTINES: "routines",     // a routine request appeared or changed
+  REPORTS: "reports",       // a report was filed or reviewed
+};
+
+/** Ably TokenRequest for a trainer/admin, or null when Ably is not configured. */
+export async function createStaffTokenRequest(userId) {
+  if (!ably) return null;
+  try {
+    return await ably.auth.createTokenRequest({
+      clientId: userId,
+      ttl: SOCIAL_TOKEN_TTL_MS,
+      capability: JSON.stringify({ [STAFF_CHANNEL]: ["subscribe"] }),
+    });
+  } catch (err) {
+    logger.error(`[ably] Could not create a staff token request: ${err.message}`);
+    return null;
+  }
+}
+
+/** Tells every trainer/admin app that `topic` changed. Never throws. */
+export async function emitStaffSignal(topic, data = {}) {
+  if (!ably) return;
+  try {
+    await ably.channels.get(STAFF_CHANNEL).publish(topic, data);
+  } catch (err) {
+    logger.error(`[ably] Staff signal "${topic}" failed: ${err.message}`);
+  }
+}

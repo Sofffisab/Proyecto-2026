@@ -1,8 +1,10 @@
 import { prisma } from "../config/index.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 import { createNotification } from "./communication.service.js";
 import { addPoints } from "./gamification.service.js";
 import { POINTS, MACHINE_CONFLICT_VERIFICATION_WINDOW_MS } from "../constants/points.js";
 import { logger } from "../utils/logger.js";
+import { logActivity, ACTIVITY } from "./activityLog.service.js";
 import { MESSAGES } from "../locales/es.js";
 
 /** Raises a MachineConflict for two overlapping usages on the same machine and notifies all trainers. Idempotent per machine. */
@@ -21,6 +23,8 @@ export async function flagMachineConflict({ machineId, firstUsage, secondUsage }
       secondUsageId: secondUsage.id,
     },
   });
+
+  signalStaff(TOPIC.CONFLICTS);
 
   try {
     const machine = await prisma.machine.findUnique({ where: { id: machineId } });
@@ -105,10 +109,21 @@ export async function resolveConflict(conflictId, trainerId, resolution) {
     data: { resolvedAt: new Date(), resolvedBy: trainerId, resolution },
   });
 
+  const machine = await prisma.machine.findUnique({ where: { id: conflict.machineId }, select: { name: true } });
+  await logActivity({
+    actorId: trainerId,
+    action: ACTIVITY.MACHINE_CONFLICT_RESOLVED,
+    entityType: "MachineConflict",
+    entityId: conflictId,
+    metadata: { machine: machine?.name ?? null, resolution },
+  });
+
   // Small bonus for the trainer who helped keep order
   addPoints(trainerId, POINTS.TRAINER_ORDER_BONUS, "Verified a machine-usage conflict").catch((err) =>
     logger.error("[machineConflict] Failed to award trainer order bonus:", err.message)
   );
+
+  signalStaff(TOPIC.CONFLICTS);
 
   return updated;
 }

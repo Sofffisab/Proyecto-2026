@@ -207,3 +207,13 @@ export async function upsertTrainerProfile(req, res, next) {
     next(err);
   }
 }
+
+// PATCH /users/me/language
+export async function setLanguage(req, res, next) {
+  try {
+    const data = await userService.setLanguage(req.user.id, req.validatedData.language);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}

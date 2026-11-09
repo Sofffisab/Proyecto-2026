@@ -10,9 +10,9 @@
 //   gym (dumbbell)        -> (no sub-screens)
 // Tapping a footer tab always returns to that tab's root screen.
 //
-// Everything on these screens is static (see ./mockData.js) except the QR
-// screen, which reuses the existing AdminQRTab (without its admin-only
-// create/deactivate actions).
+// Every screen loads its data from the Backend (see
+// apiClient/services/trainer.api.js). The QR screen reuses AdminQRTab (without
+// its admin-only create/deactivate actions).
 
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';

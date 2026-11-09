@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { useTranslation } from '../i18n/I18nContext';
  
 /**
  * Pantalla de bienvenida.
@@ -20,12 +21,13 @@ import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
  *   (normalmente navega hacia LoginScreen).
  */
 export default function WelcomeScreen({ onIniciarSesion }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <View style={styles.textBlock}>
         <Text style={styles.title}>
-          <Text style={styles.titleDark}>Entrena mejor.{'\n'}Organiza tu </Text>
-          <Text style={styles.titleTeal}>progreso.</Text>
+          <Text style={styles.titleDark}>{t('auth.welcome.titleDark')}</Text>
+          <Text style={styles.titleTeal}>{t('auth.welcome.titleTeal')}</Text>
         </Text>
         <View style={styles.underline} />
       </View>
@@ -46,7 +48,7 @@ export default function WelcomeScreen({ onIniciarSesion }) {
         style={({ pressed }) => [styles.boton, pressed && styles.pressed]}
         onPress={onIniciarSesion}
       >
-        <Text style={styles.botonTexto}>Iniciar sesión</Text>
+        <Text style={styles.botonTexto}>{t('auth.welcome.login')}</Text>
       </Pressable>
     </View>
   );

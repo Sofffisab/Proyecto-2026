@@ -53,6 +53,10 @@ export const updateRoleSchema = z.object({
   role: z.enum(["USER", "TRAINER", "ADMIN"]),
 });
 
+export const languageSchema = z.object({
+  language: z.enum(["es", "en"]),
+});
+
 export const deactivateUserSchema = z.object({
   isActive: z.boolean(),
 });

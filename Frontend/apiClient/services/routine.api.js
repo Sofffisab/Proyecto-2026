@@ -113,6 +113,20 @@ export function completeRoutineRequest(requestId) {
   return apiClient.patch(`/routines/requests/${requestId}/complete`);
 }
 
+// GET /routines/proposals — routines a trainer built for this member that wait
+// for their answer. data: [{ id, name, trainer: {id,name}, estimatedMinutes,
+// exercises: [{ exerciseId, sets, reps, exercise }] }]
+export function getRoutineProposals() {
+  return apiClient.get('/routines/proposals');
+}
+
+// POST /routines/requests/:id/respond — accept (saves it in the member's
+// routines and adds it to the routine of `date`, their local "YYYY-MM-DD") or
+// decline the routine a trainer prepared.
+export function respondToRoutineProposal(requestId, accept, date) {
+  return apiClient.post(`/routines/requests/${requestId}/respond`, accept ? { accept: true, date } : { accept: false });
+}
+
 // ---------------------------------------------------------------------------
 // Exercise catalog, general routines, weekly schedule and personalized AI
 // (Backend: services/exercise.service.js, schedule.service.js,

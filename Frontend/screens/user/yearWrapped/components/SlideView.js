@@ -3,6 +3,7 @@ import { Animated, Easing, Platform, StyleSheet, Text, TouchableOpacity, View } 
 import { palette, shadow, slideThemes } from '../theme';
 import AnimatedNumber, { formatNumber } from './AnimatedNumber';
 import FadeUp from './FadeUp';
+import { useTranslation } from '../../../../i18n/I18nContext';
 
 const NONE = { pointerEvents: 'none' };
 
@@ -80,7 +81,8 @@ function formatValidUntil(iso) {
   return `${Number(d)}/${Number(m)}/${y}`;
 }
 
-function GiftExtra({ percent, concept, validUntil, onRedeem, onClose, theme }) {
+function GiftExtra({ percent, concept, conceptCode, validUntil, onRedeem, onClose, theme }) {
+  const { t } = useTranslation();
   const pop = useRef(new Animated.Value(0)).current;
   const [redeemed, setRedeemed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -115,11 +117,11 @@ function GiftExtra({ percent, concept, validUntil, onRedeem, onClose, theme }) {
           { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] },
         ]}
       >
-        <Text style={styles.couponKicker}>TU REGALO</Text>
+        <Text style={styles.couponKicker}>{t('user.wrappedSlides.gift.coupon')}</Text>
         <Text style={styles.couponPercent}>{percent}% OFF</Text>
         <View style={styles.couponDivider} />
-        <Text style={styles.couponConcept}>en tu {concept}</Text>
-        {until ? <Text style={styles.couponUntil}>Válido hasta el {until}</Text> : null}
+        <Text style={styles.couponConcept}>{t('user.wrappedSlides.gift.inYour', { concept: conceptCode ? t(`user.wrappedSlides.gift.concepts.${conceptCode}`) : concept })}</Text>
+        {until ? <Text style={styles.couponUntil}>{t('user.wrappedSlides.gift.validUntil', { date: until })}</Text> : null}
       </Animated.View>
 
       <Animated.View style={[styles.giftButtonWrap, { opacity: pop, pointerEvents: 'auto' }]}>
@@ -129,11 +131,11 @@ function GiftExtra({ percent, concept, validUntil, onRedeem, onClose, theme }) {
           disabled={redeemed}
           style={[styles.giftButton, shadow.button, redeemed && { opacity: 0.7 }]}
         >
-          <Text style={styles.giftButtonText}>{redeemed ? '¡Regalo reclamado!' : 'Reclamar mi regalo'}</Text>
+          <Text style={styles.giftButtonText}>{redeemed ? t('user.wrappedSlides.gift.claimed') : t('user.wrappedSlides.gift.claim')}</Text>
         </TouchableOpacity>
         {onClose ? (
           <TouchableOpacity onPress={onClose} style={styles.exitLink} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
-            <Text style={[styles.exitLinkText, { color: theme.muted }]}>Salir del Wrapped</Text>
+            <Text style={[styles.exitLinkText, { color: theme.muted }]}>{t('user.wrappedSlides.gift.exit')}</Text>
           </TouchableOpacity>
         ) : null}
       </Animated.View>

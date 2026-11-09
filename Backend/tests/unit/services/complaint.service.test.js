@@ -379,16 +379,29 @@ describe('ComplaintService', () => {
       });
     });
 
-    it('rejects reporting a non-member (e.g. another trainer)', async () => {
+    it('lets a trainer report another trainer', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'trainer-2', role: 'TRAINER' });
+      prisma.complaint.create.mockResolvedValue({ id: 'complaint-3', source: 'TRAINER_REPORT' });
+
+      await complaintService.createTrainerComplaint({
+        reporterId: 'trainer-1',
+        reportedUserId: 'trainer-2',
+        reason: 'MISCONDUCT',
+      });
+
+      expect(prisma.complaint.create).toHaveBeenCalled();
+    });
+
+    it('rejects reporting an administrator', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'admin-1', role: 'ADMIN' });
 
       await expect(
         complaintService.createTrainerComplaint({
           reporterId: 'trainer-1',
-          reportedUserId: 'trainer-2',
+          reportedUserId: 'admin-1',
           reason: 'MISCONDUCT',
         })
-      ).rejects.toThrow('Trainers can only report regular members through this endpoint');
+      ).rejects.toThrow('Administrators cannot be reported through this endpoint');
       expect(prisma.complaint.create).not.toHaveBeenCalled();
     });
 

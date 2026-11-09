@@ -63,7 +63,7 @@ describe("RewardController", () => {
 
     await rewardController.updateRedemptionStatus(req, res, next);
 
-    expect(rewardService.deliverReward).toHaveBeenCalledWith("redemption-1");
+    expect(rewardService.deliverReward).toHaveBeenCalledWith("redemption-1", expect.anything());
     expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUpdated });
   });
 
@@ -202,7 +202,7 @@ describe("RewardController", () => {
 
       await rewardController.deliver(req, res, next);
 
-      expect(rewardService.deliverReward).toHaveBeenCalledWith("redemption-1");
+      expect(rewardService.deliverReward).toHaveBeenCalledWith("redemption-1", expect.anything());
       expect(res.json).toHaveBeenCalledWith({ success: true, data: mockUpdated });
     });
 

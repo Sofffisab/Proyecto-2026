@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useTranslation } from '../i18n/I18nContext';
 import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -94,6 +95,19 @@ const Stack = createNativeStackNavigator();
 // session was restored on launch, the stack starts directly on the role's
 // Home screen (see initialRouteName below) and Welcome was never pushed,
 // so popToTop() would just stay there instead of reaching Welcome.
+// Web deep link: the email an admin triggers when creating an account (and the
+// forgot-password one) points to `<FRONTEND_URL>/reset-password?token=...`.
+// Without this the browser would open the app on Welcome and ignore the token.
+// Only that one path is linked; every other screen keeps navigating in memory.
+const LINKING = {
+  prefixes: [],
+  config: {
+    screens: {
+      [ROUTES.RESET_PASSWORD]: 'reset-password',
+    },
+  },
+};
+
 const goToWelcome = (navigation) => () => {
   navigation.reset({ index: 0, routes: [{ name: ROUTES.WELCOME }] });
 };
@@ -114,6 +128,9 @@ function getHomeRouteForUser(user) {
 
 export default function RootNavigator() {
   const { isReady, isAuthenticated, user, login, logout, forgotPassword, verifyResetCode, resetPassword, changePassword, updateProfile, updateSettings } = useAuth();
+  const { language } = useTranslation();
+  // Stable identity: the Wrapped container reloads whenever this function changes.
+  const fetchYearWrapped = useCallback((year) => gamificationApi.getYearWrapped(year, language), [language]);
 
   // While a persisted session is being restored from AsyncStorage, avoid
   // flashing the Login screen — show a lightweight loader instead.
@@ -131,7 +148,7 @@ export default function RootNavigator() {
   const initialRouteName = isAuthenticated ? getHomeRouteForUser(user) : ROUTES.WELCOME;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={LINKING}>
       <Stack.Navigator
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}
@@ -199,8 +216,10 @@ export default function RootNavigator() {
               // so an invalid/expired code only surfaces as an error here.
               await resetPassword({ token, newPassword });
             }}
-            onDone={() => navigation.popToTop()}
-            onBack={goBack(navigation)}
+            // Opened from the emailed link there is nothing behind this screen,
+            // so go to Login explicitly instead of popping a stack of one.
+            onDone={() => navigation.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] })}
+            onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] }))}
           />
         )}
       </Stack.Screen>
@@ -222,9 +241,13 @@ export default function RootNavigator() {
           // ADMIN: tabbed shell with the persistent footer (briefcase / home /
           // QR camera / training / profile).
           // TRAINER: its own tabbed shell with the fixed footer (calendar /
-          // home / QR / gym / profile) — static screens for now.
+          // home / QR / gym / profile).
           return user?.role === 'ADMIN' ? (
-            <AdminTabsScreen user={user} onLogout={handleStaffLogout} />
+            <AdminTabsScreen
+              user={user}
+              onLogout={handleStaffLogout}
+              onGoToNotifications={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            />
           ) : (
             <TrainerTabsScreen
               user={user}
@@ -589,7 +612,7 @@ export default function RootNavigator() {
       <Stack.Screen name={ROUTES.USER_YEAR_WRAPPED} options={{ gestureEnabled: true }}>
         {({ navigation }) => (
           <YearWrappedContainer
-            fetchYearWrapped={gamificationApi.getYearWrapped}
+            fetchYearWrapped={fetchYearWrapped}
             onClose={goBack(navigation)}
           />
         )}

@@ -1,6 +1,7 @@
 import * as verificationService from "../services/verification.service.js";
 import { prisma } from "../config/index.js";
 import crypto from "crypto";
+import { logActivity, ACTIVITY } from "../services/activityLog.service.js";
 
 // Generate the authenticated user's personal QR
 export async function generateQR(req, res, next) {
@@ -43,6 +44,7 @@ export async function regenerateMachine(req, res, next) {
       return res.status(404).json({ success: false, message: "Machine not found" });
     }
     const result = await verificationService.regenerateMachineQR(machine.id);
+    await logActivity({ actorId: req.user.id, action: ACTIVITY.MACHINE_QR_REGENERATED, entityType: "Machine", entityId: machine.id, metadata: { machine: machine.name } });
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -60,6 +62,7 @@ export async function deactivateMachine(req, res, next) {
       where: { id: machine.id },
       data: { active: false },
     });
+    await logActivity({ actorId: req.user.id, action: ACTIVITY.MACHINE_DEACTIVATED, entityType: "Machine", entityId: machine.id, metadata: { machine: machine.name } });
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -74,6 +77,7 @@ export async function createMachine(req, res, next) {
     const machine = await prisma.machine.create({
       data: { name, qrToken },
     });
+    await logActivity({ actorId: req.user.id, action: ACTIVITY.MACHINE_CREATED, entityType: "Machine", entityId: machine.id, metadata: { machine: name } });
 
     res.status(201).json({ success: true, data: machine });
   } catch (err) {

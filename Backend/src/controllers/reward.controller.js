@@ -84,7 +84,7 @@ export async function getPendingGrants(req, res, next) {
 // to updateRedemptionStatus with status=DELIVERED but without the body check.
 export async function deliver(req, res, next) {
   try {
-    const data = await rewardService.deliverReward(req.params.id);
+    const data = await rewardService.deliverReward(req.params.id, req.user?.id);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -105,7 +105,62 @@ export async function updateRedemptionStatus(req, res, next) {
       });
     }
 
-    const data = await rewardService.deliverReward(id);
+    const data = await rewardService.deliverReward(id, req.user?.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+// ── Admin "Premios" screen ──────────────────────────────────────────────
+
+export async function getAdminOverview(req, res, next) {
+  try {
+    res.json({ success: true, data: await rewardService.getAdminOverview() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createRewardByAdmin(req, res, next) {
+  try {
+    const data = await rewardService.createRewardByAdmin(req.user.id, req.validatedData);
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateRewardByAdmin(req, res, next) {
+  try {
+    const data = await rewardService.updateRewardByAdmin(req.user.id, req.params.id, req.validatedData);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addStock(req, res, next) {
+  try {
+    const data = await rewardService.addStock(req.user.id, req.params.id, req.validatedData.amount);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setCurrentReward(req, res, next) {
+  try {
+    res.json({ success: true, data: await rewardService.setCurrentReward(req.user.id, req.params.id) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setDeliveriesPaused(req, res, next) {
+  try {
+    const data = await rewardService.setDeliveriesPaused(req.user.id, req.validatedData.paused);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

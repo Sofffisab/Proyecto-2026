@@ -1,17 +1,15 @@
 // Frontend/screens/user/yearWrapped/YearWrappedContainer.js
-// Conecta la pantalla con el backend (GET /wrapped/year?year=YYYY).
-// Se usa desde RootNavigator con gamification.api#getYearWrapped (o `useMock` para ver datos de ejemplo).
+// Connects the screen with the backend (GET /wrapped/year?year=YYYY).
+// Used from RootNavigator with gamification.api#getYearWrapped.
 import React, { useCallback, useEffect, useState } from 'react';
 import YearWrappedScreen from './YearWrappedScreen';
-import { mockWrapped } from './mockData';
 
-export default function YearWrappedContainer({ year = new Date().getFullYear(), fetchYearWrapped, useMock = false, onClose, onRedeem }) {
-  const [data, setData] = useState(useMock ? mockWrapped : null);
-  const [loading, setLoading] = useState(!useMock);
+export default function YearWrappedContainer({ year = new Date().getFullYear(), fetchYearWrapped, onClose, onRedeem }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
-    if (useMock) return;
     setLoading(true);
     setError(false);
     try {
@@ -22,7 +20,7 @@ export default function YearWrappedContainer({ year = new Date().getFullYear(), 
     } finally {
       setLoading(false);
     }
-  }, [useMock, fetchYearWrapped, year]);
+  }, [fetchYearWrapped, year]);
 
   useEffect(() => {
     load();

@@ -109,15 +109,11 @@ describe('Auth E2E', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('rejects a missing required field', async () => {
+    it('rejects a missing email', async () => {
       const response = await request(server)
         .post('/auth/users')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          email: `incomplete-${Date.now()}@example.com`,
-          firstName: 'Test',
-          // lastName intentionally omitted
-        });
+        .send({ firstName: 'Test', lastName: 'User' });
 
       expect(response.status).toBe(422);
       expect(response.body.success).toBe(false);

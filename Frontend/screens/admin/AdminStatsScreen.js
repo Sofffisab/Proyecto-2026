@@ -2,7 +2,7 @@
 //  - General: machine usage percentages
 //  - Trainers: average rating, among other data
 //  - Users: deactivated / activated, met their goals or not
-// Static (see mockData.js).
+// All numbers come from GET /admin/stats (last 30 days for machine usage).
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -12,7 +12,11 @@ import ScreenBody from '../../components/trainer/ScreenBody';
 import Card from '../../components/admin/Card';
 import SectionTitle from '../../components/admin/SectionTitle';
 import { StarIcon } from '../../components/admin/AdminIcons';
-import { STATS } from './mockData';
+import useLoad from '../../hooks/useLoad';
+import * as adminApi from '../../apiClient/services/admin.api';
+import StateView from '../../components/common/StateView';
+
+const loadStats = async () => (await adminApi.getStats()).data;
 
 function Tile({ value, label }) {
   return (
@@ -25,14 +29,29 @@ function Tile({ value, label }) {
 
 export default function AdminStatsScreen() {
   const { t } = useTranslation();
-  const { machineUsage, trainers, trainersAverage, users } = STATS;
+  const { data: stats, loading, error, reload } = useLoad(loadStats);
 
   return (
     <ScreenBody title={t('admin.stats.title')} subtitle={t('admin.stats.subtitle')}>
+      <StateView loading={loading} error={error} onRetry={reload}>
+        {stats && <StatsBody stats={stats} />}
+      </StateView>
+    </ScreenBody>
+  );
+}
+
+function StatsBody({ stats }) {
+  const { t } = useTranslation();
+  const { machineUsage, trainers, trainersAverage, users } = stats;
+
+  return (
+    <>
       {/* ---- General ---- */}
       <SectionTitle>{t('admin.stats.generalTitle')}</SectionTitle>
       <Card>
         <Text style={styles.cardTitle}>{t('admin.stats.machineUsage')}</Text>
+        <Text style={styles.caption}>{t('admin.stats.machineUsageHint', { days: stats.windowDays, visits: stats.visits })}</Text>
+        {machineUsage.length === 0 && <Text style={styles.caption}>{t('admin.stats.noMachines')}</Text>}
         {machineUsage.map((m) => (
           <View key={m.id} style={styles.barRow}>
             <View style={styles.barHead}>
@@ -51,9 +70,10 @@ export default function AdminStatsScreen() {
       <Card>
         <View style={styles.avgRow}>
           <StarIcon color={globals.colors.primary} size={26} />
-          <Text style={styles.avgValue}>{trainersAverage}</Text>
+          <Text style={styles.avgValue}>{trainersAverage ?? '–'}</Text>
           <Text style={styles.avgLabel}>{t('admin.stats.avgRating')}</Text>
         </View>
+        {trainers.length === 0 && <Text style={styles.caption}>{t('admin.stats.noTrainers')}</Text>}
         {trainers.map((tr) => (
           <View key={tr.id} style={styles.trainerRow}>
             <View style={styles.trainerTexts}>
@@ -61,7 +81,7 @@ export default function AdminStatsScreen() {
               <Text style={styles.caption}>{t('admin.stats.helps', { count: tr.helps })}</Text>
             </View>
             <StarIcon color={globals.colors.primary} size={16} />
-            <Text style={styles.trainerRating}>{tr.rating}</Text>
+            <Text style={styles.trainerRating}>{tr.rating ?? '–'}</Text>
           </View>
         ))}
       </Card>
@@ -76,7 +96,7 @@ export default function AdminStatsScreen() {
         <Tile value={users.metGoals} label={t('admin.stats.metGoals')} />
         <Tile value={users.notMetGoals} label={t('admin.stats.notMetGoals')} />
       </View>
-    </ScreenBody>
+    </>
   );
 }
 

@@ -1,32 +1,37 @@
 // Frontend/screens/user/yearWrapped/slides.js
-// Convierte el payload del backend en la lista de diapositivas + textos.
-// Función PURA (sin React): acá vive todo el "tono" (divertido pero serio).
+// Turns the backend payload into the list of slides + texts.
+// PURE function (no React): the whole "tone" (fun but serious) lives here.
+// Every text comes from the i18n files (user.wrappedSlides.*) through `t`, so
+// the Wrapped follows the language chosen in Settings.
 //
-// Forma de cada slide:
+// Shape of each slide:
 //   { id, theme, kicker, big?, unit?, headline, body?, extra? }
 //   extra: { type: 'list' | 'bar' | 'stats' | 'gift', ... }
 
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const K = 'user.wrappedSlides';
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const MONTH_KEYS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 
-export const plural = (n, uno, varios) => (n === 1 ? uno : varios);
-
-/** "2026-08-14" -> "jueves 14 de agosto" (sin Intl, sin zonas horarias). */
-export function formatDayLong(isoDate) {
+/** "2026-08-14" -> "jueves 14 de agosto" / "Thursday, August 14" (no Intl, no time zones). */
+export function formatDayLong(isoDate, t) {
   const [y, m, d] = isoDate.split('-').map(Number);
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return `${DIAS[dow]} ${d} de ${MESES[m - 1]}`;
+  return t(`${K}.dayLong`, {
+    weekday: t(`${K}.days.${DAY_KEYS[dow]}`),
+    day: d,
+    month: t(`${K}.months.${MONTH_KEYS[m - 1]}`),
+  });
 }
 
-const pick = (n, tiers) => tiers.find(([max]) => n <= max)[1];
-
-/** Si hay 3 metas o menos se muestran todas; si hay más, solo 3 (ya vienen ordenadas por dificultad). */
+/** If there are 3 goals or fewer all are shown; otherwise only 3 (already sorted by difficulty). */
 export function pickGoalsToShow(goals) {
   const items = goals?.items ?? [];
   return items.length <= 3 ? items : items.slice(0, 3);
 }
 
-export function buildSlides(data) {
+const pick = (n, tiers) => tiers.find(([max]) => n <= max)[1];
+
+export function buildSlides(data, t) {
   const {
     year,
     firstName,
@@ -40,8 +45,12 @@ export function buildSlides(data) {
     topMachine = null,
     mostIntenseDay = null,
     distinctRoutines = 0,
-    gift = { percent: 50, concept: 'cuota de enero' },
+    gift = { percent: 50, concept: '' },
   } = data;
+
+  // "1 día" / "2 días": `${K}.<key>.one` / `.other`
+  const unit = (n, key) => t(`${K}.${key}.${n === 1 ? 'one' : 'other'}`);
+  const tier = (n, key, tiers) => t(`${K}.${key}.${pick(n, tiers)}`);
 
   const slides = [];
 
@@ -49,185 +58,149 @@ export function buildSlides(data) {
   slides.push({
     id: 'intro',
     theme: 'night',
-    kicker: `TU ${year}`,
-    headline: firstName ? `${firstName}, repasemos tu año en el gym.` : 'Repasemos tu año en el gym.',
-    body: 'Con datos reales, sin trampa. Tocá para avanzar.',
+    kicker: t(`${K}.intro.kicker`, { year }),
+    headline: firstName ? t(`${K}.intro.headlineNamed`, { name: firstName }) : t(`${K}.intro.headline`),
+    body: t(`${K}.intro.body`),
     extra: { type: 'intro' },
   });
 
-  // 2 — Días de gym
+  // 2 — Gym days
   const pct = Math.round((gymDays / 365) * 100);
+  const dayTiers = [[0, 'none'], [29, 'few'], [99, 'some'], [199, 'many'], [Infinity, 'live']];
   slides.push({
     id: 'gymDays',
     theme: 'teal',
-    kicker: 'CONSTANCIA',
+    kicker: t(`${K}.gymDays.kicker`),
     big: gymDays,
-    unit: plural(gymDays, 'día en el gym', 'días en el gym'),
-    headline: pick(gymDays, [
-      [0, 'Este año no pisaste el gym.'],
-      [29, 'Pocos, pero cada uno cuenta.'],
-      [99, `Eso es el ${pct}% del año.`],
-      [199, `El ${pct}% de tus días fueron de entrenamiento.`],
-      [Infinity, 'Prácticamente vivís acá.'],
-    ]),
-    body: pick(gymDays, [
-      [0, 'No pasa nada: el mejor momento para arrancar es enero.'],
-      [29, 'La constancia se construye de a uno. Vos ya empezaste.'],
-      [99, 'Hay un hábito formándose, y se nota.'],
-      [199, 'Eso no es suerte, es disciplina.'],
-      [Infinity, 'Podríamos cobrarte alquiler. Es un halago.'],
-    ]),
+    unit: unit(gymDays, 'gymDays.unit'),
+    headline: t(`${K}.gymDays.headline.${pick(gymDays, dayTiers)}`, { pct }),
+    body: t(`${K}.gymDays.body.${pick(gymDays, dayTiers)}`),
   });
 
-  // 3 — Puntos
+  // 3 — Points
   slides.push({
     id: 'points',
     theme: 'mint',
-    kicker: 'PUNTOS GANADOS',
+    kicker: t(`${K}.points.kicker`),
     big: totalPoints,
-    unit: plural(totalPoints, 'punto', 'puntos'),
-    headline: pick(totalPoints, [
-      [0, 'Todavía no sumaste puntos.'],
-      [999, 'Un buen arranque.'],
-      [9999, 'Sumaste puntos como quien no quiere la cosa.'],
-      [Infinity, 'Tu cuenta de puntos hace ruido.'],
-    ]),
-    body: 'Cada check-in, cada rutina y cada logro sumó. Acá está el total del año.',
+    unit: unit(totalPoints, 'points.unit'),
+    headline: tier(totalPoints, 'points.headline', [[0, 'none'], [999, 'low'], [9999, 'mid'], [Infinity, 'high']]),
+    body: t(`${K}.points.body`),
   });
 
-  // 4 — Amigos
+  // 4 — Friends
   slides.push({
     id: 'friends',
     theme: 'paper',
-    kicker: 'COMUNIDAD',
+    kicker: t(`${K}.friends.kicker`),
     big: friendsMade,
-    unit: plural(friendsMade, 'amigo nuevo', 'amigos nuevos'),
-    headline: pick(friendsMade, [
-      [0, 'Todavía no sumaste amigos acá.'],
-      [1, 'Uno solo, pero de los buenos.'],
-      [9, 'El gym también es social.'],
-      [Infinity, 'Sos el alma del gimnasio.'],
-    ]),
-    body: pick(friendsMade, [
-      [0, 'Hay muchas máquinas para compartir. Animate a decir hola.'],
-      [9, 'Entrenar acompañado es entrenar más tiempo.'],
-      [Infinity, 'Si alguien pregunta por vos, ya sabemos por qué.'],
-    ]),
+    unit: unit(friendsMade, 'friends.unit'),
+    headline: tier(friendsMade, 'friends.headline', [[0, 'none'], [1, 'one'], [9, 'some'], [Infinity, 'many']]),
+    body: tier(friendsMade, 'friends.body', [[0, 'none'], [9, 'some'], [Infinity, 'many']]),
   });
 
-  // 5 — Logros
+  // 5 — Achievements
   slides.push({
     id: 'achievements',
     theme: 'night',
-    kicker: 'LOGROS',
+    kicker: t(`${K}.achievements.kicker`),
     big: achievementsUnlocked,
-    unit: plural(achievementsUnlocked, 'logro desbloqueado', 'logros desbloqueados'),
-    headline: pick(achievementsUnlocked, [
-      [0, 'Todavía no desbloqueaste logros.'],
-      [4, 'Ya tenés tus primeras medallas.'],
-      [14, 'Tu vitrina se está llenando.'],
-      [Infinity, 'Coleccionista nivel experto.'],
-    ]),
-    body: 'Cada uno marca algo que antes no podías hacer.',
+    unit: unit(achievementsUnlocked, 'achievements.unit'),
+    headline: tier(achievementsUnlocked, 'achievements.headline', [[0, 'none'], [4, 'few'], [14, 'some'], [Infinity, 'many']]),
+    body: t(`${K}.achievements.body`),
   });
 
-  // 6 — Metas
+  // 6 — Goals
   const shownGoals = pickGoalsToShow(goalsCompleted);
   const goalCount = goalsCompleted.count ?? 0;
   slides.push({
     id: 'goals',
     theme: 'teal',
-    kicker: 'METAS ALCANZADAS',
+    kicker: t(`${K}.goals.kicker`),
     big: goalCount,
-    unit: plural(goalCount, 'meta cumplida', 'metas cumplidas'),
+    unit: unit(goalCount, 'goals.unit'),
     headline:
       goalCount === 0
-        ? 'Ninguna meta cerrada todavía.'
+        ? t(`${K}.goals.headline.none`)
         : goalCount <= 3
-          ? 'Pocas, pero ganadas a pulmón:'
-          : `Fueron ${goalCount}. Estas 3 se llevan el aplauso:`,
-    body: goalCount === 0 ? 'Las metas grandes llevan tiempo. Seguí: ya estás en camino.' : undefined,
+          ? t(`${K}.goals.headline.few`)
+          : t(`${K}.goals.headline.many`, { count: goalCount }),
+    body: goalCount === 0 ? t(`${K}.goals.body`) : undefined,
     extra: goalCount > 0 ? { type: 'list', items: shownGoals.map((g) => g.label) } : undefined,
   });
 
-  // 7 — Máquinas
+  // 7 — Machines
   slides.push({
     id: 'machines',
     theme: 'mint',
-    kicker: 'MÁQUINAS',
+    kicker: t(`${K}.machines.kicker`),
     big: machinesUsed,
-    unit: plural(machinesUsed, 'máquina distinta', 'máquinas distintas'),
-    headline: pick(machinesUsed, [
-      [0, 'Todavía no probaste ninguna máquina.'],
-      [5, 'Fiel a tus favoritas.'],
-      [15, 'Un explorador del gimnasio.'],
-      [Infinity, 'Probaste casi todo el salón.'],
-    ]),
-    body: topMachine ? `Tu preferida: ${topMachine.name}, con ${topMachine.count} ${plural(topMachine.count, 'uso', 'usos')}.` : undefined,
-    extra: totalMachines ? { type: 'bar', value: machinesUsed, total: totalMachines, caption: `de ${totalMachines} que tiene el gimnasio` } : undefined,
+    unit: unit(machinesUsed, 'machines.unit'),
+    headline: tier(machinesUsed, 'machines.headline', [[0, 'none'], [5, 'few'], [15, 'some'], [Infinity, 'many']]),
+    body: topMachine
+      ? t(`${K}.machines.favorite`, { name: topMachine.name, count: topMachine.count, uses: unit(topMachine.count, 'machines.use') })
+      : undefined,
+    extra: totalMachines
+      ? { type: 'bar', value: machinesUsed, total: totalMachines, caption: t(`${K}.machines.barCaption`, { total: totalMachines }) }
+      : undefined,
   });
 
-  // 8 — Día más intenso
+  // 8 — Most intense day
   if (mostIntenseDay) {
     slides.push({
       id: 'intense',
       theme: 'night',
-      kicker: 'TU DÍA MÁS INTENSO',
-      headline: formatDayLong(mostIntenseDay.date),
-      body: 'Ese día no fuiste a entrenar: fuiste a dejar huella.',
+      kicker: t(`${K}.intense.kicker`),
+      headline: formatDayLong(mostIntenseDay.date, t),
+      body: t(`${K}.intense.body`),
       extra: {
         type: 'stats',
         items: [
-          { value: mostIntenseDay.minutes, label: 'minutos' },
-          { value: mostIntenseDay.machines, label: plural(mostIntenseDay.machines, 'máquina', 'máquinas') },
-          { value: mostIntenseDay.points, label: 'puntos' },
+          { value: mostIntenseDay.minutes, label: t(`${K}.intense.minutes`) },
+          { value: mostIntenseDay.machines, label: unit(mostIntenseDay.machines, 'intense.machine') },
+          { value: mostIntenseDay.points, label: t(`${K}.intense.points`) },
         ],
       },
     });
   }
 
-  // 9 — Rutinas
+  // 9 — Routines
   slides.push({
     id: 'routines',
     theme: 'light',
-    kicker: 'RUTINAS',
+    kicker: t(`${K}.routines.kicker`),
     big: distinctRoutines,
-    unit: plural(distinctRoutines, 'rutina distinta', 'rutinas distintas'),
-    headline: pick(distinctRoutines, [
-      [0, 'Todavía no armaste una rutina.'],
-      [2, 'Vas por lo seguro, y funciona.'],
-      [6, 'Variar también es un plan.'],
-      [Infinity, 'Tu cuerpo nunca sabe qué viene.'],
-    ]),
-    body: 'Cambiar de estímulo es parte de progresar.',
+    unit: unit(distinctRoutines, 'routines.unit'),
+    headline: tier(distinctRoutines, 'routines.headline', [[0, 'none'], [2, 'few'], [6, 'some'], [Infinity, 'many']]),
+    body: t(`${K}.routines.body`),
   });
 
-  // 10 — Resumen
+  // 10 — Recap
   slides.push({
     id: 'recap',
     theme: 'paper',
-    kicker: `TU ${year} EN NÚMEROS`,
-    headline: 'Un año, resumido.',
+    kicker: t(`${K}.recap.kicker`, { year }),
+    headline: t(`${K}.recap.headline`),
     extra: {
       type: 'recap',
       items: [
-        { value: gymDays, label: 'días de gym' },
-        { value: totalPoints, label: 'puntos' },
-        { value: friendsMade, label: 'amigos' },
-        { value: achievementsUnlocked, label: 'logros' },
-        { value: goalCount, label: 'metas' },
-        { value: machinesUsed, label: 'máquinas' },
+        { value: gymDays, label: t(`${K}.recap.gymDays`) },
+        { value: totalPoints, label: t(`${K}.recap.points`) },
+        { value: friendsMade, label: t(`${K}.recap.friends`) },
+        { value: achievementsUnlocked, label: t(`${K}.recap.achievements`) },
+        { value: goalCount, label: t(`${K}.recap.goals`) },
+        { value: machinesUsed, label: t(`${K}.recap.machines`) },
       ],
     },
   });
 
-  // 11 — Regalo (final)
+  // 11 — Gift (final)
   slides.push({
     id: 'gift',
     theme: 'night',
-    kicker: 'ANTES DE IRTE',
-    headline: 'Tenemos un regalo para vos...',
-    extra: { type: 'gift', percent: gift.percent, concept: gift.concept, validUntil: gift.validUntil },
+    kicker: t(`${K}.gift.kicker`),
+    headline: t(`${K}.gift.headline`),
+    extra: { type: 'gift', percent: gift.percent, concept: gift.concept, conceptCode: gift.conceptCode, validUntil: gift.validUntil },
   });
 
   return slides;

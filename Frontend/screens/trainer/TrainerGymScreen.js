@@ -1,15 +1,20 @@
 // Trainer "Gym" tab (dumbbell): quick gym status + the trainer's
 // availability switch. The notification bell lives in the header (shell).
-// Static (see mockData.js). The switch maps to
-// PATCH /assistance/trainer/availability (assistance.api#setTrainerAvailability).
+// Numbers from GET /gym/summary, updated live through Ably (machines in use
+// have no signal of their own, so they also refresh once a minute). The switch
+// calls PATCH /assistance/trainer/availability.
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, Switch, StyleSheet } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import ScreenBody from '../../components/trainer/ScreenBody';
 import { UsersIcon, DumbbellIcon, HandIcon } from '../../components/trainer/TrainerIcons';
-import { GYM_STATUS } from './mockData';
+import useLiveLoad from '../../hooks/useLiveLoad';
+import * as trainerApi from '../../apiClient/services/trainer.api';
+import StateView from '../../components/common/StateView';
+
+const loadSummary = async () => (await trainerApi.getGymSummary()).data;
 
 function StatTile({ Icon, value, label }) {
   return (
@@ -25,36 +30,61 @@ function StatTile({ Icon, value, label }) {
 
 export default function TrainerGymScreen() {
   const { t } = useTranslation();
-  const [available, setAvailable] = useState(true);
+  const { data, loading, error, reload, setData } = useLiveLoad(loadSummary, ['help', 'people'], { alwaysMs: 60000 });
+  const [switchError, setSwitchError] = useState(null);
+
+  const toggle = useCallback(
+    async (on) => {
+      const next = on ? 'AVAILABLE' : 'BUSY';
+      setSwitchError(null);
+      setData((d) => (d ? { ...d, availability: next } : d)); // optimistic
+      try {
+        await trainerApi.setAvailability(next);
+      } catch (err) {
+        setSwitchError(err.message);
+        reload({ silent: true });
+      }
+    },
+    [reload, setData]
+  );
+
+  const available = data?.availability !== 'BUSY';
 
   return (
     <ScreenBody title={t('trainer.gym.title')} subtitle={t('trainer.gym.subtitle')}>
-      <View style={styles.tiles}>
-        <StatTile Icon={UsersIcon} value={GYM_STATUS.peopleInGym} label={t('trainer.gym.peopleInGym')} />
-        <StatTile
-          Icon={DumbbellIcon}
-          value={`${GYM_STATUS.machinesInUse}/${GYM_STATUS.machinesTotal}`}
-          label={t('trainer.gym.machinesInUse')}
-        />
-        <StatTile Icon={HandIcon} value={GYM_STATUS.helpRequests} label={t('trainer.gym.helpRequests')} />
-      </View>
+      <StateView loading={loading} error={error} onRetry={reload}>
+        {data && (
+          <>
+            <View style={styles.tiles}>
+              <StatTile Icon={UsersIcon} value={data.peopleInGym} label={t('trainer.gym.peopleInGym')} />
+              <StatTile
+                Icon={DumbbellIcon}
+                value={`${data.machinesInUse}/${data.machinesTotal}`}
+                label={t('trainer.gym.machinesInUse')}
+              />
+              <StatTile Icon={HandIcon} value={data.helpRequests} label={t('trainer.gym.helpRequests')} />
+            </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardTexts}>
-          <Text style={styles.cardTitle}>{t('trainer.home.availabilityTitle')}</Text>
-          <Text style={[styles.state, !available && styles.stateBusy]}>
-            {available ? t('trainer.home.available') : t('trainer.home.busy')}
-          </Text>
-          <Text style={styles.hint}>{t('trainer.gym.availabilityHint')}</Text>
-        </View>
-        <Switch
-          value={available}
-          onValueChange={setAvailable}
-          trackColor={{ false: globals.colors.secondary, true: globals.colors.primary }}
-          thumbColor="#fff"
-          accessibilityLabel={t('trainer.home.availabilityTitle')}
-        />
-      </View>
+            <View style={styles.card}>
+              <View style={styles.cardTexts}>
+                <Text style={styles.cardTitle}>{t('trainer.home.availabilityTitle')}</Text>
+                <Text style={[styles.state, !available && styles.stateBusy]}>
+                  {available ? t('trainer.home.available') : t('trainer.home.busy')}
+                </Text>
+                <Text style={styles.hint}>{t('trainer.gym.availabilityHint')}</Text>
+                {!!switchError && <Text style={styles.error}>{switchError}</Text>}
+              </View>
+              <Switch
+                value={available}
+                onValueChange={toggle}
+                trackColor={{ false: globals.colors.secondary, true: globals.colors.primary }}
+                thumbColor="#fff"
+                accessibilityLabel={t('trainer.home.availabilityTitle')}
+              />
+            </View>
+          </>
+        )}
+      </StateView>
     </ScreenBody>
   );
 }
@@ -96,5 +126,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: globals.fontSize.md, fontWeight: '700', color: globals.colors.text },
   state: { marginTop: 2, fontSize: globals.fontSize.md, fontWeight: '600', color: globals.colors.primary },
   stateBusy: { color: globals.colors.textSecondary },
+  error: { marginTop: 4, color: globals.colors.danger, fontSize: globals.fontSize.sm },
   hint: { marginTop: 4, fontSize: globals.fontSize.sm, color: globals.colors.captionGrey, lineHeight: 17 },
 });

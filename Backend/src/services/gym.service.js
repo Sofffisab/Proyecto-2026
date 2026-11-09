@@ -1,4 +1,5 @@
 import { prisma } from "../config/index.js";
+import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 import { updateTrainerMetrics } from "./trainerMetrics.service.js";
 import { addPoints, checkAndUnlockAchievements } from "./gamification.service.js";
 import { POINTS } from "../constants/points.js";
@@ -63,6 +64,8 @@ export async function checkIn(userId, options = {}) {
       logger.error("[gym] Failed to notify trainer(s) of returning student:", err.message)
     );
   }
+
+  signalStaff(TOPIC.PEOPLE);
 
   return session;
 }
@@ -213,6 +216,8 @@ export async function checkOut(userId) {
   Promise.resolve(checkAndUnlockAchievements(userId)).catch((err) =>
     logger.error("[gym] Failed to check achievements on check-out:", err.message)
   );
+
+  signalStaff(TOPIC.PEOPLE);
 
   return updated;
 }

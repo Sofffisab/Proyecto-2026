@@ -10,8 +10,7 @@
 //   profile                -> (no sub-screens)
 // Tapping a footer tab always returns to that tab's root screen.
 //
-// Everything is static (see ./mockData.js) except the QR screen, which reuses
-// the existing AdminQRTab untouched.
+// Every screen loads its data from the Backend (see apiClient/services/admin.api.js).
 
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';

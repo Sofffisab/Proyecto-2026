@@ -7,8 +7,8 @@
 //   - Personalizada por IA        -> AiRoutineScreen (preview + save)
 //   - No seguir rutina (libre)    -> free training (camera only)
 
-import React, { useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useRoutines } from '../../context/RoutinesContext';
 import { ROUTINE_OPTIONS } from '../../constants/generalRoutines';
@@ -22,7 +22,8 @@ import {
   DumbbellIcon,
   routineKitStyles,
 } from '../../components/common/RoutineKit';
-import { PrimaryButton } from '../../components/common/PopupKit';
+import { PrimaryButton, OutlineButton } from '../../components/common/PopupKit';
+import * as routineApi from '../../features/api/services/routine.api';
 
 const PICK = { PREMADE: 'premade', MINE: 'mine', AI: 'ai', FREE: 'free' };
 
@@ -44,6 +45,39 @@ export default function RoutinePickerScreen({ onBack, onDone, onGoToGeneralRouti
         ? PICK.FREE
         : PICK.MINE;
   const [pick, setPick] = useState(initial);
+
+  // "Pedir rutina a un entrenador": one open request at a time.
+  const [openRequest, setOpenRequest] = useState(null); // PENDING | ACCEPTED | PROPOSED | null
+  const [requesting, setRequesting] = useState(false);
+  const [requestMessage, setRequestMessage] = useState(null); // { type, text }
+
+  useEffect(() => {
+    let alive = true;
+    routineApi
+      .getMyRoutineRequests()
+      .then(({ data }) => {
+        const open = (data ?? []).find((r) => ['PENDING', 'ACCEPTED', 'PROPOSED'].includes(r.status));
+        if (alive) setOpenRequest(open?.status ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const requestFromTrainer = async () => {
+    setRequesting(true);
+    setRequestMessage(null);
+    try {
+      await routineApi.requestRoutine();
+      setOpenRequest('PENDING');
+      setRequestMessage({ type: 'ok', text: t('user.routines.requestSent') });
+    } catch (err) {
+      setRequestMessage({ type: 'error', text: err.message || t('user.routines.requestError') });
+    } finally {
+      setRequesting(false);
+    }
+  };
 
   const handleNext = () => {
     if (pick === PICK.PREMADE) {
@@ -87,6 +121,17 @@ export default function RoutinePickerScreen({ onBack, onDone, onGoToGeneralRouti
             onPress={() => setPick(opt.key)}
           />
         ))}
+
+        <OutlineButton
+          label={t('user.routines.requestFromTrainer')}
+          onPress={requestFromTrainer}
+          disabled={requesting || !!openRequest}
+          style={{ marginTop: 8 }}
+        />
+        {!!openRequest && (
+          <Text style={{ marginTop: 8, textAlign: 'center' }}>{t(`user.routines.requestStatus_${openRequest}`)}</Text>
+        )}
+        {!!requestMessage && <Text style={{ marginTop: 8, textAlign: 'center' }}>{requestMessage.text}</Text>}
       </ScrollView>
       <Footer>
         <PrimaryButton label={t('user.routines.next')} onPress={handleNext} />
