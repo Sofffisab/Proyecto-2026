@@ -79,6 +79,10 @@ export async function createUserByAdmin(data) {
       firstName: firstName ?? null,
       lastName: lastName ?? null,
       role,
+      // The DB column is NOT NULL with no default (migration 20260713114244
+      // dropped it) and Prisma omits unset scalar lists on insert, so it must
+      // be sent explicitly or the insert fails with a null constraint error.
+      objectives: [],
       passwordResetToken: invite.hash,
       passwordResetExpires: invite.expiresAt,
     },
