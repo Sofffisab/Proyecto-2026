@@ -11,7 +11,7 @@
 // via onScanned; callers decide what the payload means (see qr.api.js).
 
 import React, { useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
@@ -28,7 +28,6 @@ export default function QRScanner({ onScanned, onClose }) {
   // camera keeps detecting the same code before the caller navigates away
   // or closes the scanner.
   const lockedRef = useRef(false);
-  const { height: windowHeight } = useWindowDimensions();
 
   // On web expo-camera reports scans as `{ nativeEvent: { data } }`, on native
   // as `{ data }` — read both. If onScanned returns 'retry' (e.g. the scan
@@ -72,9 +71,10 @@ export default function QRScanner({ onScanned, onClose }) {
   }
 
   return (
-    // On web the <video> needs a container with a real height, otherwise the
-    // preview stays black.
-    <View style={[styles.container, Platform.OS === 'web' && { minHeight: windowHeight }]}>
+    // Fills its parent absolutely: on web the <video> needs a container with a
+    // real height (otherwise the preview stays black), and the callers' result
+    // bars can overlay the bottom instead of being pushed off screen.
+    <View style={styles.container}>
       <CameraView
         style={styles.camera}
         facing="back"
@@ -92,7 +92,7 @@ export default function QRScanner({ onScanned, onClose }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000',
   },
   camera: {

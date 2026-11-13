@@ -983,6 +983,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   scanFeedbackBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: globals.colors.secondary,
     padding: globals.spacing.lg,
   },

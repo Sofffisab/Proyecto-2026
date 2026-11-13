@@ -9,7 +9,7 @@
 // All data comes from GET /admin/members.
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform, Share } from 'react-native';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +41,8 @@ export default function AdminMembersScreen() {
   const [creating, setCreating] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'ok' | 'warn' | 'error', message }
   const [busyId, setBusyId] = useState(null);
+  const [inviteUrl, setInviteUrl] = useState(null); // shown when the mail could not be sent
+  const [copied, setCopied] = useState(false);
 
   const roleOptions = [
     { key: 'USER', label: t('admin.roles.user') },
@@ -55,8 +57,11 @@ export default function AdminMembersScreen() {
 
     setCreating(true);
     setFeedback(null);
+    setInviteUrl(null);
+    setCopied(false);
     try {
       const { data } = await adminApi.createMember(body);
+      setInviteUrl(data?.emailSent ? null : data?.inviteUrl ?? null);
       setFeedback(
         data?.emailSent
           ? { type: 'ok', message: t('admin.members.createdSent', { email: body.email }) }
@@ -73,6 +78,20 @@ export default function AdminMembersScreen() {
       setCreating(false);
     }
   }, [email, firstName, lastName, role, reload, t]);
+
+  const copyInvite = useCallback(async () => {
+    if (!inviteUrl) return;
+    try {
+      if (Platform.OS === 'web' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopied(true);
+      } else {
+        await Share.share({ message: inviteUrl });
+      }
+    } catch {
+      /* the link is selectable, the admin can copy it by hand */
+    }
+  }, [inviteUrl]);
 
   const toggleActive = useCallback(
     async (member) => {
@@ -94,8 +113,11 @@ export default function AdminMembersScreen() {
     async (member) => {
       setBusyId(member.id);
       setFeedback(null);
+      setInviteUrl(null);
+      setCopied(false);
       try {
         const { data } = await adminApi.resendInvite(member.id);
+        setInviteUrl(data?.emailSent ? null : data?.inviteUrl ?? null);
         setFeedback(
           data?.emailSent
             ? { type: 'ok', message: t('admin.members.createdSent', { email: member.email }) }
@@ -132,6 +154,17 @@ export default function AdminMembersScreen() {
           <Text style={[styles.feedback, feedback.type === 'ok' && styles.ok, feedback.type === 'error' && styles.err]}>
             {feedback.message}
           </Text>
+        )}
+        {!!inviteUrl && (
+          <View style={styles.inviteBox}>
+            <Text style={styles.label}>{t('admin.members.inviteLinkTitle')}</Text>
+            <Text selectable style={styles.inviteUrl}>{inviteUrl}</Text>
+            <AdminButton
+              label={copied ? t('admin.members.linkCopied') : t('admin.members.copyLink')}
+              onPress={copyInvite}
+              style={styles.rowBtn}
+            />
+          </View>
         )}
         <AdminButton
           label={creating ? t('admin.members.creating') : t('admin.members.createButton')}
@@ -216,6 +249,8 @@ const styles = StyleSheet.create({
   feedback: { marginTop: globals.spacing.sm, fontSize: globals.fontSize.sm + 1, color: globals.colors.textSecondary },
   ok: { color: globals.colors.primary },
   err: { color: globals.colors.danger },
+  inviteBox: { marginTop: globals.spacing.sm },
+  inviteUrl: { fontSize: globals.fontSize.sm, color: globals.colors.text },
   createBtn: { marginTop: globals.spacing.md },
   head: { flexDirection: 'row', alignItems: 'center' },
   headTexts: { flex: 1, marginHorizontal: globals.spacing.md },

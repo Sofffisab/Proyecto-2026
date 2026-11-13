@@ -31,9 +31,13 @@ function buildInviteToken() {
 // Emails the person the link to set their password. Returns whether the mail
 // server accepted it, so the admin can tell when it failed and resend it
 // instead of leaving an account nobody can open.
-async function sendInviteEmail(user, token) {
+function inviteUrlFor(token) {
   const baseUrl = (process.env.FRONTEND_URL ?? "").replace(/\/+$/, "");
-  const setPasswordUrl = `${baseUrl}/reset-password?token=${token}`;
+  return `${baseUrl}/reset-password?token=${token}`;
+}
+
+async function sendInviteEmail(user, token) {
+  const setPasswordUrl = inviteUrlFor(token);
   const name = user.firstName ? `, ${user.firstName}` : "";
 
   // The person has not picked a language yet, so the mail is written in both.
@@ -92,7 +96,9 @@ export async function createUserByAdmin(data) {
     logger.error(`[auth] Could not send the invite to ${email}: ${err.message}`);
   }
 
-  return { ...sanitizeUser(user), emailSent };
+  // If the mail did not go out, hand the admin the link so the account can still
+  // be opened (they can pass it on by hand).
+  return { ...sanitizeUser(user), emailSent, ...(emailSent ? {} : { inviteUrl: inviteUrlFor(invite.token) }) };
 }
 
 // Sends the "set your password" mail again to an account that has not set one
@@ -111,7 +117,7 @@ export async function resendInvite(userId) {
   });
 
   const emailSent = await sendInviteEmail(user, invite.token);
-  return { id: user.id, email: user.email, emailSent };
+  return { id: user.id, email: user.email, emailSent, ...(emailSent ? {} : { inviteUrl: inviteUrlFor(invite.token) }) };
 }
 
 // Accepts the validated { email, password } object directly
