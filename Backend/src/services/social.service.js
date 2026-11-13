@@ -49,8 +49,9 @@ export function getSocialConfig() {
     inviteTtlMs: int("SOCIAL_INVITE_TTL_MS", 60 * 1000),
     // Time to scan once both accepted (spec: 2 minutes).
     qrTtlMs: int("SOCIAL_QR_TTL_MS", 2 * 60 * 1000),
-    // The same two people are not paired again for this long.
-    pairCooldownMs: int("SOCIAL_PAIR_COOLDOWN_MS", 30 * 60 * 1000),
+    // Cooldown between pairing the same two people again: none (0).
+    // Set SOCIAL_PAIR_COOLDOWN_MS > 0 to bring it back.
+    pairCooldownMs: Math.max(0, parseInt(process.env.SOCIAL_PAIR_COOLDOWN_MS ?? "", 10) || 0),
     // "Filtrar a personas de mi rango de edad": max age difference, in years.
     ageRangeYears: int("SOCIAL_AGE_RANGE_YEARS", 5),
   };
@@ -342,10 +343,12 @@ export async function runMatchingRound(callerId) {
         where: { isRealtime: true, status: { in: OPEN_STATUSES }, expiresAt: { gt: now }, OR: involvesLobby },
         select: { userId: true, partnerUserId: true },
       }),
-      prisma.socialChallenge.findMany({
-        where: { isRealtime: true, createdAt: { gte: cooldownStart }, OR: involvesLobby },
-        select: { userId: true, partnerUserId: true },
-      }),
+      cfg.pairCooldownMs > 0
+        ? prisma.socialChallenge.findMany({
+            where: { isRealtime: true, createdAt: { gte: cooldownStart }, OR: involvesLobby },
+            select: { userId: true, partnerUserId: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const settingsByUser = new Map((settingsRows ?? []).map((row) => [row.userId, row]));
