@@ -78,6 +78,7 @@ import LanguageSelector from '../../components/common/LanguageSelector';
  * @param {number|null} [age] - Derived server-side from birthday.
  * @param {object}   [initialValues] - Pre-fill from the current user.
  * @param {function} onSave - async (patch) => void
+ * @param {function} [onSavePhoto] - async (dataUrl|null) => void; saves the profile photo immediately
  * @param {function} [onChangePassword]
  * @param {function} [onBack]
  * @param {function} [onLogout] - fired by the bottom red button.
@@ -99,11 +100,23 @@ function initialsFor(firstName, lastName) {
   return (a + b).toUpperCase() || '?';
 }
 
-/** Left-side row icon slot (glyph-based, zero new asset requirement). */
+/** Left-side row icon slot: maps the glyph key passed by the rows to an image from /assets. */
+const ROW_ICONS = {
+  "\uD83D\uDC64": require('../../assets/Group 31.png'),          // nombre
+  "\u2709": require('../../assets/basil_envelope-outline.png'),   // correo
+  "\uD83C\uDF82": require('../../assets/basil_present-outline.png'), // fecha de nacimiento
+  "\u26A7": require('../../assets/ph_gender-male-light.png'),     // sexo
+  "\uD83C\uDFCB": require('../../assets/Group 34.png'),          // nivel de entrenamiento
+  "\uD83C\uDFC6": require('../../assets/basil_award-outline.png'), // objetivo / metas
+  "\u2764": require('../../assets/basil_heart-plus-outline.png'), // condiciones médicas
+  "\uD83C\uDFE0": require('../../assets/casa.png'),              // dirección
+  "\uD83D\uDD12": require('../../assets/Candado.png'),           // contraseña
+};
 function RowIcon({ glyph }) {
+  const source = ROW_ICONS[glyph];
   return (
     <View style={styles.rowIconWrap}>
-      <Text style={styles.rowIconGlyph}>{glyph}</Text>
+      {source ? <Image source={source} style={styles.rowIconImage} resizeMode="contain" /> : <Text style={styles.rowIconGlyph}>{glyph}</Text>}
     </View>
   );
 }
@@ -450,6 +463,7 @@ export default function SettingsScreen({
   age = null,
   initialValues = {},
   onSave,
+  onSavePhoto,
   onChangePassword,
   onBack,
   onLogout,
@@ -508,21 +522,44 @@ export default function SettingsScreen({
   const [photo, setPhoto] = useState(initialValues.profilePhoto ?? null);
   const [photoChanged, setPhotoChanged] = useState(false);
   const [photoError, setPhotoError] = useState(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
+
+  // Saves the photo right away (PUT /users/me { profilePhoto }) so it does not
+  // depend on the rest of the form being valid, and rolls the preview back if
+  // the server refuses it.
+  const savePhotoNow = async (next) => {
+    const previous = photo;
+    setPhoto(next);
+    if (!onSavePhoto) {
+      setPhotoChanged(true); // fallback: sent together with "Guardar"
+      return;
+    }
+    setPhotoSaving(true);
+    try {
+      await onSavePhoto(next);
+      setPhotoChanged(false);
+    } catch (err) {
+      setPhoto(previous);
+      setPhotoError(err?.message || t('user.settings.photo.error'));
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
   const choosePhoto = async () => {
+    if (photoSaving) return;
     setPhotoError(null);
     try {
       const picked = await pickProfilePhoto();
-      if (picked) {
-        setPhoto(picked);
-        setPhotoChanged(true);
-      }
+      if (picked) await savePhotoNow(picked);
     } catch (err) {
       setPhotoError(err.code === 'PERMISSION_DENIED' ? t('user.settings.photo.permissionDenied') : t('user.settings.photo.error'));
     }
   };
   const removePhoto = () => {
-    setPhoto(null);
-    setPhotoChanged(true);
+    if (photoSaving) return;
+    setPhotoError(null);
+    savePhotoNow(null);
   };
 
   // ---- Bloquear persona x: type a name, no options. Applies immediately. ----
@@ -705,7 +742,7 @@ export default function SettingsScreen({
             )}
           </View>
           <View style={styles.avatarEditBadge}>
-            <Text style={styles.avatarEditGlyph}>{'\u270E'}</Text>
+            <Image source={require('../../assets/Group 40.png')} style={styles.avatarEditImage} resizeMode="contain" />
           </View>
         </TouchableOpacity>
       </View>
@@ -1123,11 +1160,8 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: globals.radius.full,
-    backgroundColor: globals.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: globals.colors.background,
   },
   avatarEditGlyph: {
     fontSize: globals.fontSize.sm,
@@ -1150,6 +1184,14 @@ const styles = StyleSheet.create({
     width: 28,
     alignItems: 'center',
     marginRight: globals.spacing.xs,
+  },
+  rowIconImage: {
+    width: 22,
+    height: 22,
+  },
+  avatarEditImage: {
+    width: 30,
+    height: 30,
   },
   rowIconGlyph: {
     fontSize: globals.fontSize.md,

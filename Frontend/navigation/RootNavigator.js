@@ -394,6 +394,9 @@ export default function RootNavigator() {
               // Backend/src/controllers/user.controller.js#changePassword).
               await changePassword({ currentPassword, newPassword });
             }}
+            onSavePhoto={async (profilePhoto) => {
+              await updateProfile({ profilePhoto });
+            }}
             onSave={async (payload) => {
               // PUT /users/me for profile fields, PATCH /users/me/settings
               // for preferences — two separate Backend resources (see

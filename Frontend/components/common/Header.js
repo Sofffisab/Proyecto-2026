@@ -53,7 +53,7 @@ const Header = ({ pageTitle, subtitle, onBack, onPressNotifications, unreadCount
       )}
       {onPressNotifications && (
         <TouchableOpacity onPress={onPressNotifications} style={styles.iconButton}>
-          <Text style={styles.bellIcon}>🔔</Text>
+          <Image source={require('../../assets/bell_outline.png')} style={styles.bellImage} resizeMode="contain" />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -111,6 +111,10 @@ const styles = StyleSheet.create({
     fontSize: globals.fontSize.sm,
     color: globals.colors.textSecondary,
     marginTop: globals.spacing.xs,
+  },
+  bellImage: {
+    width: 24,
+    height: 24,
   },
   bellIcon: {
     fontSize: globals.fontSize.lg,

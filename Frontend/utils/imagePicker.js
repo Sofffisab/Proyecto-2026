@@ -48,7 +48,10 @@ export async function pickProfilePhoto() {
     mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [1, 1],
-    quality: 0.5,
+    // Low quality on native: the picker doesn't resize, and the backend
+    // rejects photos above ~1 MB (1.4M base64 chars).
+    quality: 0.3,
+    exif: false,
     base64: Platform.OS !== 'web',
   });
 
@@ -56,5 +59,11 @@ export async function pickProfilePhoto() {
   const asset = result.assets[0];
 
   if (Platform.OS === 'web') return shrinkOnWeb(asset.uri);
-  return asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : null;
+  if (!asset.base64) return null;
+  if (asset.base64.length > 1_300_000) {
+    const err = new Error('Image too large');
+    err.code = 'TOO_LARGE';
+    throw err;
+  }
+  return `data:image/jpeg;base64,${asset.base64}`;
 }

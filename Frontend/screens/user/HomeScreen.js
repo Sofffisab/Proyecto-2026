@@ -260,6 +260,7 @@ export default function HomeScreen({
       setScanFeedback({ type: 'success', message: data?.message || t('user.home.scanSuccess') });
     } catch (err) {
       setScanFeedback({ type: 'error', message: err.message || t('user.home.scanError') });
+      return 'retry';
     } finally {
       setScanLoading(false);
     }
@@ -329,11 +330,11 @@ export default function HomeScreen({
             {unreadCount > 0 && <View style={styles.bellDot} />}
           </TouchableOpacity>
           <TouchableOpacity onPress={onGoToProfile}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.headerAvatarPhoto} />
+            {user?.profilePhoto || user?.avatarUrl ? (
+              <Image source={{ uri: user.profilePhoto || user.avatarUrl }} style={styles.headerAvatarPhoto} />
             ) : (
               <View style={styles.headerAvatar}>
-                <Text style={styles.headerAvatarText}>{initials || '🙂'}</Text>
+                <Text style={styles.headerAvatarText}>{initials || ' '}</Text>
               </View>
             )}
           </TouchableOpacity>

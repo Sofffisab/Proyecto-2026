@@ -82,7 +82,12 @@ export async function createUserByAdmin(data) {
 
   let emailSent = false;
   try {
-    emailSent = await sendInviteEmail(user, invite.token);
+    // Never let a slow mail server block the account creation answer: the
+    // account already exists, the admin can resend the invite if this fails.
+    emailSent = await Promise.race([
+      sendInviteEmail(user, invite.token),
+      new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
+    ]);
   } catch (err) {
     logger.error(`[auth] Could not send the invite to ${email}: ${err.message}`);
   }

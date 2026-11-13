@@ -29,6 +29,12 @@ function getMailTransporter() {
     _transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user, pass },
+      // Without these, an unreachable SMTP server (blocked port on the host)
+      // keeps the request hanging for minutes and the caller (e.g. the admin
+      // "Crear sesión nueva" button) times out instead of getting an answer.
+      connectionTimeout: 6000,
+      greetingTimeout: 6000,
+      socketTimeout: 8000,
     });
   }
   return _transporter;

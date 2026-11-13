@@ -10,8 +10,8 @@
 // component only handles reading a code and reporting the raw string back
 // via onScanned; callers decide what the payload means (see qr.api.js).
 
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import globals from '../../styles/globals';
 import { useTranslation } from '../../i18n/I18nContext';
@@ -27,15 +27,29 @@ export default function QRScanner({ onScanned, onClose }) {
   // Guards against firing onScanned multiple times per frame while the
   // camera keeps detecting the same code before the caller navigates away
   // or closes the scanner.
-  const [locked, setLocked] = useState(false);
+  const lockedRef = useRef(false);
+  const { height: windowHeight } = useWindowDimensions();
 
+  // On web expo-camera reports scans as `{ nativeEvent: { data } }`, on native
+  // as `{ data }` — read both. If onScanned returns 'retry' (e.g. the scan
+  // failed) the scanner unlocks after a short cooldown so the user can try
+  // again without closing the camera.
   const handleBarcodeScanned = useCallback(
-    ({ data }) => {
-      if (locked || !data) return;
-      setLocked(true);
-      onScanned(data);
+    async (event) => {
+      const data = event?.data ?? event?.nativeEvent?.data;
+      if (lockedRef.current || !data) return;
+      lockedRef.current = true;
+      let result;
+      try {
+        result = await onScanned(data);
+      } catch (e) {
+        result = 'retry';
+      }
+      if (result === 'retry') {
+        setTimeout(() => { lockedRef.current = false; }, 2000);
+      }
     },
-    [locked, onScanned]
+    [onScanned]
   );
 
   // Permission not yet requested/granted.
@@ -58,12 +72,14 @@ export default function QRScanner({ onScanned, onClose }) {
   }
 
   return (
-    <View style={styles.container}>
+    // On web the <video> needs a container with a real height, otherwise the
+    // preview stays black.
+    <View style={[styles.container, Platform.OS === 'web' && { minHeight: windowHeight }]}>
       <CameraView
         style={styles.camera}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={locked ? undefined : handleBarcodeScanned}
+        onBarcodeScanned={handleBarcodeScanned}
       />
       {onClose && (
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -80,7 +96,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   camera: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   message: {
     color: globals.colors.background,

@@ -110,14 +110,18 @@ export default function YearWrappedScreen({ data, loading = false, error = false
 
   return (
     <View style={styles.root}>
-      {/* Zonas de toque (debajo): izquierda = atrás, derecha = adelante, mantener = pausa */}
-      <View style={[StyleSheet.absoluteFill, styles.zones]}>
-        <Pressable style={styles.zoneLeft} onPress={prev} onPressIn={pause} onPressOut={resume} onLongPress={() => {}} delayLongPress={250} />
-        <Pressable style={styles.zoneRight} onPress={next} onPressIn={pause} onPressOut={resume} onLongPress={() => {}} delayLongPress={250} />
-      </View>
-
-      {/* Slide actual (encima, pero deja pasar los toques salvo el botón del regalo) */}
+      {/* Slide actual (debajo) */}
       <SlideView key={slide.id} slide={slide} onRedeem={onRedeem} onClose={onClose} />
+
+      {/* Zonas de toque (ENCIMA del slide, para que funcionen también en web):
+          izquierda = atrás, derecha = adelante, mantener = pausa. En la última
+          slide solo queda la zona izquierda, así no tapa el botón del regalo. */}
+      <View style={[styles.zones, isLast && styles.zonesLast]}>
+        <Pressable style={styles.zoneLeft} onPress={prev} onPressIn={pause} onPressOut={resume} onLongPress={() => {}} delayLongPress={250} />
+        {!isLast && (
+          <Pressable style={styles.zoneRight} onPress={next} onPressIn={pause} onPressOut={resume} onLongPress={() => {}} delayLongPress={250} />
+        )}
+      </View>
 
       {/* Barras de progreso + cerrar */}
       <View style={[styles.header, { pointerEvents: 'box-none' }]}>
@@ -153,7 +157,8 @@ export default function YearWrappedScreen({ data, loading = false, error = false
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.ink },
-  zones: { flexDirection: 'row' },
+  zones: { ...StyleSheet.absoluteFillObject, top: 90, flexDirection: 'row' },
+  zonesLast: { right: '78%' },
   zoneLeft: { flex: 1 },
   zoneRight: { flex: 2 },
   header: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: Platform.select({ ios: 54, android: 36, default: 24 }), paddingHorizontal: 14 },

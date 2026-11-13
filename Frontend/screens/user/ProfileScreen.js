@@ -223,6 +223,7 @@ export default function ProfileScreen({
       setScanFeedback({ type: 'success', message: data?.message || t('user.home.scanSuccess') });
     } catch (err) {
       setScanFeedback({ type: 'error', message: err.message || t('user.home.scanError') });
+      return 'retry';
     } finally {
       setScanLoading(false);
     }
@@ -260,7 +261,7 @@ export default function ProfileScreen({
             <Image source={{ uri: user.profilePhoto || user.avatarUrl }} style={styles.circuloImagenPhoto} />
           ) : (
             <View style={styles.circuloImagen}>
-              <Text style={styles.circuloPuntos}>{initials || '🙂'}</Text>
+              <Text style={styles.circuloPuntos}>{initials || ' '}</Text>
             </View>
           )}
           <View style={styles.resto}>
@@ -308,7 +309,7 @@ export default function ProfileScreen({
             <View style={styles.datosRow}>
               <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
                 <View style={[styles.datoIconWrap, styles.datoIconWrapProfesion]}>
-                  <Text style={styles.datoIcon}>💼</Text>
+                  <Image source={require('../../assets/Group 34.png')} style={styles.datoImg} resizeMode="contain" />
                 </View>
                 <View style={styles.datoTextWrap}>
                   <Text style={styles.datoLabel} numberOfLines={1}>
@@ -322,7 +323,7 @@ export default function ProfileScreen({
               <View style={styles.datoDivider} />
               <TouchableOpacity style={styles.datoItem} onPress={onGoToSettings}>
                 <View style={[styles.datoIconWrap, styles.datoIconWrapObjetivo]}>
-                  <Text style={styles.datoIcon}>🎯</Text>
+                  <Image source={require('../../assets/basil_award-outline.png')} style={styles.datoImg} resizeMode="contain" />
                 </View>
                 <View style={styles.datoTextWrap}>
                   <Text style={styles.datoValue} numberOfLines={1}>
@@ -341,16 +342,16 @@ export default function ProfileScreen({
             <Text style={styles.t1}>{t('user.home.achievements')}</Text>
             <View style={styles.hexagonos}>
               <Hexagon color={styles.hexagonoGreen.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>🥇</Text>
+                <Image source={require('../../assets/basil_award-outline.png')} style={styles.hexImg} resizeMode="contain" />
               </Hexagon>
               <Hexagon color={styles.hexagonoTeal.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>💪</Text>
+                <Image source={require('../../assets/proicons_trophy.png')} style={styles.hexImg} resizeMode="contain" />
               </Hexagon>
               <Hexagon color={styles.hexagonoMaroon.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>📅</Text>
+                <Image source={require('../../assets/Group.png')} style={styles.hexImg} resizeMode="contain" />
               </Hexagon>
               <Hexagon color={styles.hexagonoOrange.backgroundColor} onPress={onGoToAchievementsGoals}>
-                <Text style={styles.hexagonoIcon}>👑</Text>
+                <Image source={require('../../assets/fluent_trophy-32-regular.png')} style={styles.hexImg} resizeMode="contain" />
               </Hexagon>
             </View>
           </View>
@@ -818,6 +819,15 @@ const styles = StyleSheet.create({
   },
   datoIconWrapObjetivo: {
     backgroundColor: '#FBE7D4',
+  },
+  datoImg: {
+    width: 22,
+    height: 22,
+  },
+  hexImg: {
+    width: 24,
+    height: 24,
+    tintColor: '#fff',
   },
   datoIcon: {
     fontSize: 16,
