@@ -343,6 +343,7 @@ function TagFieldRow({
 
 /** Day / month / year row that opens a month+year wheel-style modal. */
 function BirthdayRow({ icon, label, day, month, year, onChangeDay, onChangeMonth, onChangeYear, isOpen, onToggle, ageHint, disabled, monthLabel }) {
+  const { t } = useTranslation();
   const [showWheel, setShowWheel] = useState(false);
   const monthIndex = month ? parseInt(month, 10) - 1 : null;
 
