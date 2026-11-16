@@ -13,6 +13,14 @@ import { signalStaff, TOPIC } from "../realtime/staffSignal.js";
 export async function requestAssistance(userId) {
   // disableAssistance only blocks proactive outreach (see gym.service.js);
   // an explicit help request always goes through regardless of it
+  // One open request per person: pressing the button again must not stack
+  // another PENDING row (old ones kept the "needs help" banner alive for days).
+  const existing = await prisma.assistance.findFirst({
+    where: { userId, status: "PENDING" },
+    orderBy: { requestedAt: "asc" },
+  });
+  if (existing) return existing;
+
   const assistance = await prisma.assistance.create({
     data: { userId, status: "PENDING" },
   });
@@ -272,16 +280,40 @@ export async function setTrainerAvailability(trainerId, availability) {
   return result;
 }
 
+/** Closes any other PENDING requests of this person (duplicates / leftovers) so the banner goes away. */
+async function closeLeftoverPending(userId) {
+  await prisma.assistance.updateMany({
+    where: { userId, status: "PENDING" },
+    data: { status: "EXPIRED" },
+  });
+}
+
+/** Requests nobody answered for this long are expired by the periodic job. */
+const PENDING_EXPIRE_HOURS = parseInt(process.env.ASSISTANCE_PENDING_EXPIRE_HOURS ?? "2", 10);
+
+export async function expireStalePendingAssistance() {
+  const cutoff = new Date(Date.now() - PENDING_EXPIRE_HOURS * 60 * 60 * 1000);
+  const { count } = await prisma.assistance.updateMany({
+    where: { status: "PENDING", requestedAt: { lt: cutoff } },
+    data: { status: "EXPIRED" },
+  });
+  if (count > 0) signalStaff(TOPIC.HELP);
+  return count;
+}
+
 export async function completeAssistance(assistanceId, callerId, callerRole) {
   const assistance = await prisma.assistance.findUnique({ where: { id: assistanceId } });
-  if (!assistance) throw new Error("Assistance request not found");
-
-  if (assistance.status !== "ASSIGNED") {
-    throw new Error(`Cannot complete a request with status: ${assistance.status}`);
-  }
+  if (!assistance) throw new AppError("Assistance request not found", 404);
 
   if (callerRole === "TRAINER" && assistance.trainerId !== callerId) {
-    throw new Error("Forbidden: this assistance is not assigned to you");
+    throw new AppError("Forbidden: this assistance is not assigned to you", 403);
+  }
+
+  // Double tap / retry: already done is not an error.
+  if (assistance.status === "COMPLETED") return assistance;
+
+  if (assistance.status !== "ASSIGNED") {
+    throw new AppError(`Cannot complete a request with status: ${assistance.status}`, 409);
   }
 
   const updated = await prisma.assistance.update({
@@ -289,25 +321,38 @@ export async function completeAssistance(assistanceId, callerId, callerRole) {
     data: { status: "COMPLETED", completedAt: new Date() },
   });
 
-  if (updated.trainerId) {
-    await updateTrainerMetrics(updated.trainerId);
-    signalStaff(TOPIC.HELP);
-    await setTrainerAvailability(updated.trainerId, "AVAILABLE");
-    await logActivity({
-      actorId: updated.trainerId,
-      action: ACTIVITY.ASSISTANCE_COMPLETED,
-      entityType: "Assistance",
-      entityId: updated.id,
-    });
-  }
+  // From here the help is already saved as done: nothing below may turn it into a 500.
+  const safe = async (label, fn) => {
+    try {
+      await fn();
+    } catch (err) {
+      logger.error(`[assistance] ${label} failed after completing ${updated.id}: ${err.message}`);
+    }
+  };
 
-  // Both sides keep it in their personal history (trainer help for the student, student helped for the trainer).
+  await safe("closeLeftoverPending", () => closeLeftoverPending(updated.userId));
+  signalStaff(TOPIC.HELP);
+
   if (updated.trainerId) {
+    await safe("trainerMetrics", () => updateTrainerMetrics(updated.trainerId));
+    await safe("availability", () => setTrainerAvailability(updated.trainerId, "AVAILABLE"));
+    await safe("activityLog", () =>
+      logActivity({
+        actorId: updated.trainerId,
+        action: ACTIVITY.ASSISTANCE_COMPLETED,
+        entityType: "Assistance",
+        entityId: updated.id,
+      })
+    );
+
+    // Both sides keep it in their personal history (trainer help for the student, student helped for the trainer).
     const at = updated.completedAt ?? new Date();
-    await Promise.all([
-      registrarEvento({ userId: updated.userId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.trainerId, occurredAt: at, metadata: { assistanceId: updated.id, role: "STUDENT" } }),
-      registrarEvento({ userId: updated.trainerId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.userId, occurredAt: at, metadata: { assistanceId: updated.id, role: "TRAINER" } }),
-    ]);
+    await safe("historial", () =>
+      Promise.all([
+        registrarEvento({ userId: updated.userId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.trainerId, occurredAt: at, metadata: { assistanceId: updated.id, role: "STUDENT" } }),
+        registrarEvento({ userId: updated.trainerId, tipo: "TRAINER_ASSISTANCE", otherUserId: updated.userId, occurredAt: at, metadata: { assistanceId: updated.id, role: "TRAINER" } }),
+      ])
+    );
   }
 
   // Reward the student for the real, staff-facilitated engagement (non-blocking)

@@ -31,10 +31,12 @@ async function openMemberSessions(extraSelect = {}) {
 
 /** Help requests that still matter: pending and from somebody who is still in the gym. */
 function pendingRequestsOf(sessions, pending) {
-  const inside = new Set(sessions.map((s) => s.userId));
+  // userId -> when the current visit started: a request from an earlier visit is stale.
+  const checkInOf = new Map(sessions.map((s) => [s.userId, new Date(s.checkInAt)]));
   const byUser = new Map();
   (pending ?? []).forEach((a) => {
-    if (inside.has(a.userId) && !byUser.has(a.userId)) byUser.set(a.userId, a); // oldest first
+    const since = checkInOf.get(a.userId);
+    if (since && new Date(a.requestedAt) >= since && !byUser.has(a.userId)) byUser.set(a.userId, a); // oldest first
   });
   return byUser;
 }
